@@ -45,7 +45,11 @@ function createNestedRepositories({ identity = true } = {}) {
   initRepository(parent);
   configureIdentity(parent);
   initRepository(child);
-  if (identity) configureIdentity(child);
+  if (identity) {
+    configureIdentity(child);
+  } else {
+    configureIdentity(child, '', '');
+  }
   return { fixtureRoot, parent: resolve(parent), child: resolve(child) };
 }
 
@@ -127,6 +131,7 @@ test('rejects an ordinary parent index entry below the child path', async () => 
 
 test('rejects a parent gitlink for the child repository', async () => {
   const { parent, child } = createNestedRepositories();
+  commitFile(child);
   git(parent, ['add', 'child']);
 
   await expectRule(
