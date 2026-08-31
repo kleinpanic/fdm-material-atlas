@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFile } from 'node:child_process';
-import { lstat, opendir, readFile, realpath, stat } from 'node:fs/promises';
+import { lstat, opendir, realpath, stat } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -12,6 +12,7 @@ import {
 } from './lib/publication-policy.mjs';
 import { isMainModule } from './lib/main-module.mjs';
 import { buildGitEnvironment } from './lib/safe-git.mjs';
+import { readStableFile, SafeFileError } from './lib/safe-file.mjs';
 
 const execFileAsync = promisify(execFile);
 const MODES = new Set(['working', 'tracked', 'history', 'artifact']);
@@ -117,28 +118,28 @@ function scanGeneratedMetadata(pathBytes, bytes, context) {
 }
 
 async function inspectFile(path, pathBytes, context) {
-  let info;
+  let stable;
   try {
-    info = await lstat(path);
-  } catch {
+    stable = await readStableFile(path, { maximumBytes: context.policy.maximumBytes });
+  } catch (error) {
+    if (error instanceof SafeFileError && error.ruleId === 'input-too-large') {
+      throw new PublicationScanError('input-too-large');
+    }
+    if (error instanceof SafeFileError && error.ruleId === 'file-inspection-failed') {
+      try {
+        if ((await lstat(path)).isSymbolicLink()) {
+          return [formatFinding({
+            ruleId: 'unsafe-symlink',
+            surface: context.surface,
+            location: locationBuffer(pathBytes),
+            objectType: 'symlink',
+          })];
+        }
+      } catch {}
+    }
     throw new PublicationScanError('surface-inspection-failed');
   }
-  if (info.isSymbolicLink()) {
-    return [formatFinding({
-      ruleId: 'unsafe-symlink',
-      surface: context.surface,
-      location: locationBuffer(pathBytes),
-      objectType: 'symlink',
-    })];
-  }
-  if (!info.isFile()) throw new PublicationScanError('surface-inspection-failed');
-  if (info.size > context.policy.maximumBytes) throw new PublicationScanError('input-too-large');
-  let bytes;
-  try {
-    bytes = await readFile(path);
-  } catch {
-    throw new PublicationScanError('surface-inspection-failed');
-  }
+  const { bytes } = stable;
   return uniqueFindings([
     ...scanPath(pathBytes, context),
     ...scanBytes(bytes, { ...context, location: locationBuffer(pathBytes) }),

@@ -1,10 +1,11 @@
 import { execFile } from 'node:child_process';
-import { readFile, realpath, stat } from 'node:fs/promises';
+import { lstat, realpath } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 import { OPERATIONAL_PATH_PATTERNS } from './prohibited-paths.mjs';
 import { buildGitEnvironment } from './safe-git.mjs';
+import { readStableFile, SafeFileError } from './safe-file.mjs';
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_SENSITIVE_FILE = '.publication-sensitive-patterns';
@@ -70,7 +71,8 @@ function parsePatternDocument(bytes) {
 
 async function fileExists(path) {
   try {
-    return (await stat(path)).isFile();
+    const info = await lstat(path);
+    return info.isFile() && !info.isSymbolicLink();
   } catch {
     return false;
   }
@@ -116,7 +118,8 @@ export async function loadExactPatterns({ root, env = process.env, sensitiveFile
   }
 
   try {
-    patterns.push(...parsePatternDocument(await readFile(physicalFile)));
+    const { bytes } = await readStableFile(physicalFile, { maximumBytes: MAX_PATTERN_DOCUMENT_BYTES });
+    patterns.push(...parsePatternDocument(bytes));
     const seen = new Set();
     const deduplicated = patterns.filter(({ bytes }) => {
       const key = bytes.toString('base64');
@@ -133,6 +136,9 @@ export async function loadExactPatterns({ root, env = process.env, sensitiveFile
     return deduplicated;
   } catch (error) {
     if (error instanceof PublicationPolicyError) throw error;
+    if (error instanceof SafeFileError && error.ruleId === 'input-too-large') {
+      throw new PublicationPolicyError('sensitive-input-too-large');
+    }
     throw new PublicationPolicyError('sensitive-input-inspection-failed');
   }
 }
