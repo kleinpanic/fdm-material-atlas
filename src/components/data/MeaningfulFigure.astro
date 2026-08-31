@@ -1,0 +1,62 @@
+---
+interface Props {
+  id: string;
+  title: string;
+  description: string;
+  legendLabel: string;
+  alternativeLabel: string;
+  viewBox?: string;
+}
+
+const STABLE_ID = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
+const SAFE_VIEW_BOX = /^-?\d+(?:\.\d+)?\s+-?\d+(?:\.\d+)?\s+\d+(?:\.\d+)?\s+\d+(?:\.\d+)?$/u;
+
+function requireText(value: string, code: string): string {
+  if (typeof value !== "string" || value.trim().length === 0) throw new Error(code);
+  return value;
+}
+
+const {
+  id,
+  title,
+  description,
+  legendLabel,
+  alternativeLabel,
+  viewBox = "0 0 100 60",
+} = Astro.props;
+
+if (!STABLE_ID.test(id)) throw new Error("MEANINGFUL_FIGURE_ID_INVALID");
+requireText(title, "MEANINGFUL_FIGURE_TITLE_REQUIRED");
+requireText(description, "MEANINGFUL_FIGURE_DESCRIPTION_REQUIRED");
+requireText(legendLabel, "MEANINGFUL_FIGURE_LEGEND_LABEL_REQUIRED");
+requireText(alternativeLabel, "MEANINGFUL_FIGURE_ALTERNATIVE_LABEL_REQUIRED");
+if (!SAFE_VIEW_BOX.test(viewBox)) throw new Error("MEANINGFUL_FIGURE_VIEWBOX_INVALID");
+if (!Astro.slots.has("graphic")) throw new Error("MEANINGFUL_FIGURE_GRAPHIC_REQUIRED");
+if (!Astro.slots.has("legend")) throw new Error("MEANINGFUL_FIGURE_LEGEND_REQUIRED");
+if (!Astro.slots.has("alternative")) throw new Error("MEANINGFUL_FIGURE_ALTERNATIVE_REQUIRED");
+
+const titleId = `${id}-title`;
+const descriptionId = `${id}-description`;
+---
+
+<figure class="meaningful-figure" data-figure-id={id}>
+  <svg
+    class="meaningful-figure__graphic"
+    role="img"
+    aria-labelledby={`${titleId} ${descriptionId}`}
+    viewBox={viewBox}
+    focusable="false"
+  >
+    <title id={titleId}>{title}</title>
+    <desc id={descriptionId}>{description}</desc>
+    <g class="meaningful-figure__marks" aria-hidden="true" focusable="false">
+      <slot name="graphic" />
+    </g>
+  </svg>
+  <section class="meaningful-figure__legend" aria-label={legendLabel}>
+    <slot name="legend" />
+  </section>
+  <section class="meaningful-figure__alternative" aria-label={alternativeLabel}>
+    <slot name="alternative" />
+  </section>
+</figure>

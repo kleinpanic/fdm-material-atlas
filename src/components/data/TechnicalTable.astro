@@ -1,0 +1,44 @@
+---
+interface Props {
+  id: string;
+  caption: string;
+  scrollLabel: string;
+  scrollGuidance: string;
+}
+
+const STABLE_ID = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
+
+function requireText(value: string, code: string): string {
+  if (typeof value !== "string" || value.trim().length === 0) throw new Error(code);
+  return value;
+}
+
+const { id, caption, scrollLabel, scrollGuidance } = Astro.props;
+
+if (!STABLE_ID.test(id)) throw new Error("TECHNICAL_TABLE_ID_INVALID");
+requireText(caption, "TECHNICAL_TABLE_CAPTION_REQUIRED");
+requireText(scrollLabel, "TECHNICAL_TABLE_SCROLL_LABEL_REQUIRED");
+requireText(scrollGuidance, "TECHNICAL_TABLE_SCROLL_GUIDANCE_REQUIRED");
+if (!Astro.slots.has("header")) throw new Error("TECHNICAL_TABLE_HEADER_REQUIRED");
+if (!Astro.slots.has("body")) throw new Error("TECHNICAL_TABLE_BODY_REQUIRED");
+
+const guidanceId = `${id}-scroll-guidance`;
+---
+
+<p id={guidanceId} class="data-overflow-guidance">{scrollGuidance}</p>
+<div
+  class="data-overflow"
+  tabindex="0"
+  aria-label={scrollLabel}
+  aria-describedby={guidanceId}
+>
+  <table>
+    <caption>{caption}</caption>
+    <thead>
+      <slot name="header" />
+    </thead>
+    <tbody>
+      <slot name="body" />
+    </tbody>
+  </table>
+</div>
