@@ -127,12 +127,12 @@ describe("buildTracerViewModel", () => {
     const firstGate = atlas.processGates[0]!;
     const earlierBasis = {
       kind: "source",
-      sourceId: "source-synthetic-guide",
+      sourceId: atlas.sources[0]!.id,
       scope: "product-specific",
     } as const satisfies BasisRef;
     const laterBasis = {
       kind: "method",
-      methodId: "method-synthetic-review",
+      methodId: atlas.methods[0]!.id,
       scope: "representative-product",
     } as const satisfies BasisRef;
     const earlierThermal = {
