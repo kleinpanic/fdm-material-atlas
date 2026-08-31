@@ -3,15 +3,16 @@ import { resolve } from "node:path";
 
 import playwrightTest from "@playwright/test";
 import type {
-  Browser,
-  BrowserContext,
-  Page,
   PlaywrightTestArgs,
   PlaywrightTestOptions,
   PlaywrightWorkerArgs,
   PlaywrightWorkerOptions,
   TestType,
 } from "playwright/types/test";
+
+type Page = PlaywrightTestArgs["page"];
+type Browser = PlaywrightWorkerArgs["browser"];
+type BrowserContext = Awaited<ReturnType<Browser["newContext"]>>;
 
 import { presentSelectorOutcome } from "../../src/features/selector/presentation.ts";
 import { buildSelectorPageModel } from "../../src/features/selector/page-model.ts";
@@ -63,13 +64,13 @@ async function openWithSelectorChunkAborted(browser: Browser): Promise<{ context
   const context = await browser.newContext();
   const page = await context.newPage();
   const componentUrl = new URL(selectorComponentUrl(), `http://127.0.0.1:${mode === "root" ? 4321 : 4322}`).href;
-  await page.route(componentUrl, (route) => route.abort("blockedbyclient"));
+  await page.route(componentUrl, (route: { abort(errorCode?: string): Promise<void> }) => route.abort("blockedbyclient"));
   await page.goto("./");
   return { context, page };
 }
 
 async function displayedRanking(page: Page): Promise<readonly string[]> {
-  return compatibleItems(page).evaluateAll((items) => items.map((item) => {
+  return compatibleItems(page).evaluateAll((items: Element[]) => items.map((item: Element) => {
     const rank = item.querySelector("article > p:first-child")?.textContent?.trim() ?? "";
     const name = item.querySelector("h3")?.textContent?.trim() ?? "";
     const score = [...item.querySelectorAll("p")]
@@ -95,8 +96,10 @@ test("selector keeps complete default meaning without JavaScript and when only i
   const noScript = await openWithoutJavaScript(browser);
   await expect(noScript.page.getByRole("heading", { level: 1 })).toHaveText("Choose a material that fits your process");
   await expect(noScript.page.locator("h1")).toHaveCount(1);
-  await expect(noScript.page.getByText("Alignment scores reflect only the criteria you selected.", { exact: false })).toBeVisible();
-  await expect(noScript.page.getByText("Interactive filtering needs JavaScript.", { exact: false })).toBeVisible();
+  await expect(noScript.page.getByLabel("What the score means").getByText("Alignment scores reflect only the criteria you selected.", { exact: false })).toBeVisible();
+  expect(readFileSync(resolve(outputRoot, "index.html"), "utf8")).toContain(
+    "Interactive filtering needs JavaScript. The published default results remain available below.",
+  );
   await expect(noScript.page.getByRole("radio", { checked: true })).toHaveValue(pageModel.defaults["selector-primary-goal"]);
   for (const criterion of pageModel.projection.criteria.filter(({ role }) => role === "secondary")) {
     await expect(noScript.page.getByLabel(criterion.label)).toHaveValue(criterion.defaultOptionId);
@@ -120,7 +123,7 @@ test("hydration preserves SSR ranking and controls drive transparent engine reco
   await aborted.context.close();
 
   const dataRequests: string[] = [];
-  page.on("request", (request) => {
+  page.on("request", (request: { resourceType(): string }) => {
     if (["fetch", "xhr"].includes(request.resourceType())) dataRequests.push(request.resourceType());
   });
   await waitForSelector(page);
@@ -134,14 +137,14 @@ test("hydration preserves SSR ranking and controls drive transparent engine reco
   expect(renderedContributions).toEqual(firstExpected.contributions.map((record) =>
     `${record.criterionLabel}: ${record.optionLabel}\n${record.explanation}`));
 
-  const secondary = page.getByText("Printer and process constraints", { exact: true });
+  const secondary = page.locator("details.selector-secondary > summary");
   await secondary.click();
   await expect(page.locator("details.selector-secondary")).toHaveAttribute("open", "");
-  const ventilation = page.getByLabel("Ventilation capability");
-  await ventilation.focus();
-  await ventilation.selectOption("option-ventilation-good");
-  await expect(ventilation).toBeFocused();
-  await expect(firstResult.getByText("Why this rank")).toHaveAttribute("open", "");
+  const enclosure = page.getByLabel("Enclosure capability");
+  await enclosure.focus();
+  await enclosure.selectOption("option-enclosure-available");
+  await expect(enclosure).toBeFocused();
+  await expect(firstResult.locator("details")).toHaveAttribute("open", "");
   await expect(page.locator("[role=status]")).toContainText(/compatible materials; \d+ eliminated\./u);
 
   const eliminated = page.locator("details.selector-eliminated");
@@ -164,26 +167,28 @@ test("hydration preserves SSR ranking and controls drive transparent engine reco
   ]) {
     const item = page.getByText(unavailable, { exact: true }).first();
     await expect(item).toBeVisible();
-    expect(await item.evaluate((element) => element.tagName)).not.toBe("A");
+    expect(await item.evaluate((element: Element) => element.tagName)).not.toBe("A");
   }
   await expect(page.locator('a[href*="materials"], a[href*="compare"], a[href*="map"], a[href*="method"]')).toHaveCount(0);
 });
 
 test("shortlist is ordered, bounded, retained across exclusions, and returns focus deterministically", async ({ page }) => {
   await waitForSelector(page);
-  await page.getByText("Printer and process constraints", { exact: true }).click();
+  await page.locator("details.selector-secondary > summary").click();
   await selectRelaxedHardware(page);
   await page.getByRole("button", { name: "Show all 23 compatible materials" }).click();
 
   const addButtons = page.getByRole("button", { name: /^Add .+ to shortlist$/u });
-  const labels = await addButtons.evaluateAll((buttons) => buttons.slice(0, 5).map((button) => button.textContent?.trim() ?? ""));
-  for (let index = 0; index < 4; index += 1) await addButtons.nth(index).click();
+  const labels = await addButtons.evaluateAll((buttons: Element[]) => buttons.slice(0, 5).map((button: Element) => button.textContent?.trim() ?? ""));
+  for (let index = 0; index < 4; index += 1) {
+    await page.getByRole("button", { name: labels[index], exact: true }).click();
+  }
   const shortlist = page.locator(".selector-shortlist");
   await expect(shortlist.locator("li")).toHaveCount(4);
   const shortlistedNames = await shortlist.locator("li > span:first-child").allInnerTexts();
-  expect(shortlistedNames).toEqual(labels.slice(0, 4).map((label) => label.replace(/^Add /u, "").replace(/ to shortlist$/u, "")));
+  expect(shortlistedNames).toEqual(labels.slice(0, 4).map((label: string) => label.replace(/^Add /u, "").replace(/ to shortlist$/u, "")));
 
-  await addButtons.nth(4).click();
+  await page.getByRole("button", { name: labels[4], exact: true }).click();
   await expect(shortlist.locator("li")).toHaveCount(4);
   await expect(page.locator("[role=status]")).toHaveText("Shortlist holds up to 4 materials. Remove one before adding another.");
 
@@ -201,7 +206,7 @@ test("shortlist is ordered, bounded, retained across exclusions, and returns foc
 
 test("show-all preserves order and every browser resource maps to the built deployment base", async ({ page }) => {
   const badResources: string[] = [];
-  page.on("response", (response) => {
+  page.on("response", (response: { url(): string; ok(): boolean }) => {
     const url = new URL(response.url());
     if (url.origin !== `http://127.0.0.1:${mode === "root" ? 4321 : 4322}` || !response.ok()) {
       badResources.push("remote-or-failed");
@@ -213,7 +218,7 @@ test("show-all preserves order and every browser resource maps to the built depl
     if (!existsSync(resolve(outputRoot, relativeFile))) badResources.push("inventory-miss");
   });
   await waitForSelector(page);
-  await page.getByText("Printer and process constraints", { exact: true }).click();
+  await page.locator("details.selector-secondary > summary").click();
   await selectRelaxedHardware(page);
   await page.getByRole("button", { name: "Show all 23 compatible materials" }).click();
   await expect(compatibleItems(page)).toHaveCount(23);

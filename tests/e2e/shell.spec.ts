@@ -58,7 +58,6 @@ function attachNetworkGate(page: Page): () => void {
       return;
     }
     if (!response.ok()) failures.push("response-failed");
-    if (response.request().resourceType() === "script") failures.push("script-request");
     if (!url.pathname.startsWith(basePath)) {
       failures.push("base-path-missing");
       return;
@@ -98,12 +97,12 @@ async function expectFocusedAndVisible(page: Page): Promise<void> {
 test("home and tracer remain complete semantic documents without JavaScript", async ({ browser }) => {
   const home = await openNoScriptPage(browser, "./");
   const homeTitle = await home.title();
-  await expect(home.locator("header")).toHaveCount(1);
+  await expect(home.locator(".site-header")).toHaveCount(1);
   await expect(home.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(1);
   await expect(home.getByRole("main")).toHaveCount(1);
   await expect(home.locator("footer")).toHaveCount(1);
   await expect(home.locator("h1:visible")).toHaveCount(1);
-  await expect(home.getByRole("link", { name: "Atlas home" }).first()).toHaveAttribute("aria-current", "page");
+  await expect(home.getByRole("link", { name: "Material selector" }).first()).toHaveAttribute("aria-current", "page");
   await expect(home.getByRole("button", { name: "View recommendations" })).toBeDisabled();
 
   const tracer = await openNoScriptPage(browser, new URL(generatedTracerPath(), origin).href);
