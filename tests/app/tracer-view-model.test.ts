@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 
 import type { AtlasV1 } from "../../src/data/schema/atlas.ts";
 import type { BasisRef, EvidenceScope } from "../../src/data/schema/evidence.ts";
@@ -56,6 +57,18 @@ describe("loadPublicAtlas", () => {
     expect(atlas.schemaVersion).toBe(1);
     expect(atlas.materials).toHaveLength(23);
     expect(loadPublicAtlas).toHaveLength(0);
+  });
+
+  it("anchors the fixed artifact to the build root instead of the bundled module URL", () => {
+    const source = readFileSync(
+      new URL("../../src/lib/public-atlas.ts", import.meta.url),
+      "utf8",
+    );
+
+    expect(source).toContain("resolve(process.cwd(), PUBLIC_ATLAS_RELATIVE_PATH)");
+    expect(source).not.toContain(
+      'new URL("../data/public/atlas.v1.json", import.meta.url)',
+    );
   });
 
   it("redacts a fixed-artifact read failure behind one stable code", async () => {
