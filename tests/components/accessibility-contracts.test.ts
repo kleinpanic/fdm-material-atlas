@@ -54,7 +54,9 @@ describe("fact state accessibility contract", () => {
     const html = await container.renderToString(FactStateValue, { props: { fact } });
 
     expect(html).toContain('data-fact-state="known"');
-    expect(html).toContain(`class="fact-state-value__value">${expected}</span>`);
+    expect(html).toMatch(
+      new RegExp(`class="fact-state-value__value"[^>]*>${expected}</span>`),
+    );
     expect(html).toContain(">Available</span>");
   });
 

@@ -1,0 +1,117 @@
+---
+export type StateMarkerVariant =
+  | "information"
+  | "verify"
+  | "incompatible"
+  | "unknown"
+  | "not-applicable"
+  | "available"
+  | "blocked";
+
+interface Props {
+  variant: StateMarkerVariant;
+  label: string;
+}
+
+const MARKERS = {
+  information: { glyph: "i", shape: "circle-information" },
+  verify: { glyph: "!", shape: "triangle-warning" },
+  incompatible: { glyph: "×", shape: "octagon-cross" },
+  unknown: { glyph: "?", shape: "dashed-question" },
+  "not-applicable": { glyph: "—", shape: "dash" },
+  available: { glyph: "✓", shape: "circle-check" },
+  blocked: { glyph: "×", shape: "octagon-cross" },
+} as const satisfies Record<StateMarkerVariant, { glyph: string; shape: string }>;
+
+const { variant, label } = Astro.props;
+
+if (!(variant in MARKERS)) throw new Error("STATE_MARKER_VARIANT_INVALID");
+if (typeof label !== "string" || label.trim().length === 0) {
+  throw new Error("STATE_MARKER_LABEL_REQUIRED");
+}
+
+const marker = MARKERS[variant];
+---
+
+<span class="scientific-state" data-marker-variant={variant}>
+  <span
+    class="scientific-state__glyph"
+    data-marker-shape={marker.shape}
+    aria-hidden="true"
+  >{marker.glyph}</span>
+  <span class="scientific-state__label">{label}</span>
+</span>
+
+<style>
+  .scientific-state {
+    --marker-color: var(--color-ink-muted);
+
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    min-block-size: var(--size-target-min);
+    color: var(--color-ink-strong);
+    font-size: var(--text-label);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--text-label--line-height);
+  }
+
+  .scientific-state__glyph {
+    display: inline-grid;
+    flex: 0 0 1.25rem;
+    inline-size: 1.25rem;
+    block-size: 1.25rem;
+    place-items: center;
+    border: var(--size-rule-strong) solid var(--marker-color);
+    color: var(--marker-color);
+    font-family: var(--font-mono);
+    line-height: 1;
+  }
+
+  [data-marker-variant="information"] {
+    --marker-color: var(--color-caution-information);
+  }
+
+  [data-marker-variant="information"] .scientific-state__glyph,
+  [data-marker-variant="available"] .scientific-state__glyph {
+    border-radius: 50%;
+  }
+
+  [data-marker-variant="verify"] {
+    --marker-color: var(--color-caution-verify);
+  }
+
+  [data-marker-variant="verify"] .scientific-state__glyph {
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  }
+
+  [data-marker-variant="incompatible"],
+  [data-marker-variant="blocked"] {
+    --marker-color: var(--color-caution-incompatible);
+  }
+
+  :is([data-marker-variant="incompatible"], [data-marker-variant="blocked"])
+    .scientific-state__glyph {
+    clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+  }
+
+  [data-marker-variant="unknown"] .scientific-state__glyph {
+    border-style: dashed;
+    border-radius: 50%;
+  }
+
+  [data-marker-variant="not-applicable"] .scientific-state__glyph {
+    border-color: transparent;
+  }
+
+  [data-marker-variant="available"] {
+    --marker-color: var(--color-gate-available);
+  }
+
+  @media (forced-colors: active) {
+    .scientific-state__glyph {
+      border-color: currentColor;
+      forced-color-adjust: auto;
+    }
+  }
+</style>

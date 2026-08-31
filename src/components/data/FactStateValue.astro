@@ -1,0 +1,90 @@
+---
+import type { FactState } from "../../data/schema/fact-state.ts";
+import StateMarker, { type StateMarkerVariant } from "./StateMarker.astro";
+
+type FactDisplayValue = string | number | boolean;
+
+interface Props {
+  fact: FactState<FactDisplayValue>;
+}
+
+interface FactPresentation {
+  marker: StateMarkerVariant;
+  label: string;
+  detail?: string;
+  value?: string;
+}
+
+function formatValue(value: FactDisplayValue): string {
+  if (typeof value === "boolean") return value ? "True" : "False";
+  if (typeof value === "number" && !Number.isFinite(value)) {
+    throw new Error("FACT_STATE_VALUE_INVALID");
+  }
+  return String(value);
+}
+
+function assertNever(value: never): never {
+  throw new Error(`FACT_STATE_UNREACHABLE:${String(value)}`);
+}
+
+function presentFact(fact: FactState<FactDisplayValue>): FactPresentation {
+  switch (fact.state) {
+    case "known":
+      return { marker: "available", label: "Available", value: formatValue(fact.value) };
+    case "unknown":
+      return { marker: "unknown", label: "Unknown", detail: fact.reason };
+    case "conditional":
+      return {
+        marker: "verify",
+        label: "Conditional",
+        detail: fact.condition,
+        ...(fact.value === undefined ? {} : { value: formatValue(fact.value) }),
+      };
+    case "not-applicable":
+      return {
+        marker: "not-applicable",
+        label: "Not applicable",
+        ...(fact.reason === undefined ? {} : { detail: fact.reason }),
+      };
+    case "missing":
+      return { marker: "unknown", label: "Not reported", detail: fact.reason };
+    default:
+      return assertNever(fact);
+  }
+}
+
+const { fact } = Astro.props;
+const presentation = presentFact(fact);
+---
+
+<span class="fact-state-value" data-fact-state={fact.state}>
+  <StateMarker variant={presentation.marker} label={presentation.label} />
+  {presentation.value !== undefined && (
+    <span class="fact-state-value__value">{presentation.value}</span>
+  )}
+  {presentation.detail !== undefined && (
+    <span class="fact-state-value__detail">{presentation.detail}</span>
+  )}
+</span>
+
+<style>
+  .fact-state-value {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-2);
+    max-inline-size: 100%;
+  }
+
+  .fact-state-value__value {
+    color: var(--color-ink-strong);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .fact-state-value__detail {
+    flex-basis: 100%;
+    color: var(--color-ink);
+    overflow-wrap: anywhere;
+  }
+</style>
