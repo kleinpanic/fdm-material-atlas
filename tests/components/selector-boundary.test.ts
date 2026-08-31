@@ -74,6 +74,10 @@ describe("selector component boundary", () => {
     expect(results).toContain("scoreLabel");
     expect(results).toContain("contributions.map");
     expect(results).toContain("reasons.map");
+    expect(results).toContain("data-contribution-state");
+    expect(results).toContain("data-exclusion-state");
+    expect(results).toContain("data-shortlist-status");
+    expect(results).toContain("data-alignment");
     expect(results).not.toMatch(/\.sort\s*\(|\.reduce\s*\(|awardedPoints\s*[+*-]|internalHref|fragmentHref/);
   });
 

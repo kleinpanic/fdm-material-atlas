@@ -95,9 +95,14 @@ export function SelectorResults({
           <h2 id="shortlist-heading" ref={shortlistHeadingRef} tabIndex={-1}>Shortlist</h2>
           <ol>
             {shortlist.map((item) => (
-              <li key={item.materialId}>
+              <li key={item.materialId} data-shortlist-status={item.status}>
                 <span>{labelFor(item.materialId)}</span>
-                <span>{item.status === "compatible" ? "Compatible" : "Now eliminated by current constraints"}</span>
+                <span class="selector-shortlist-status">
+                  <span class="selector-state-marker" aria-hidden="true">
+                    {item.status === "compatible" ? "✓" : "×"}
+                  </span>
+                  {item.status === "compatible" ? "Compatible" : "Now eliminated by current constraints"}
+                </span>
                 {item.status === "now-eliminated" && (
                   <a href={`#eliminated-${item.materialId}`}>Review exclusion</a>
                 )}
@@ -119,7 +124,12 @@ export function SelectorResults({
       )}
 
       <section aria-labelledby="selector-results-heading">
-        <h2 id="selector-results-heading" ref={resultsHeadingRef} tabIndex={-1}>{presentation.heading}</h2>
+        <h2 id="selector-results-heading" ref={resultsHeadingRef} tabIndex={-1}>
+          {presentation.heading}
+          {presentation.kind === "ranked" && (
+            <span class="selector-compatible-count" aria-hidden="true">{presentation.compatible.length} {SELECTOR_COPY.compatibleCountLabel}</span>
+          )}
+        </h2>
 
         {presentation.kind === "no-compatible" ? (
           <div class="selector-no-compatible">
@@ -149,20 +159,29 @@ export function SelectorResults({
               {visibleCompatible.map((material) => {
                 const isShortlisted = shortlisted.has(material.materialId);
                 return (
-                  <li key={material.materialId}>
+                  <li key={material.materialId} data-alignment={material.highestAlignment ? "highest" : "ranked"}>
                     <article>
-                      <p>Rank {material.rank}</p>
+                      <p class="selector-rank" data-numeric>Rank {material.rank}</p>
                       <h3>{material.materialLabel}</h3>
-                      <p>{familyLabel(material.familyOrFill)}</p>
+                      <p class="selector-family"><span class="selector-family-marker" aria-hidden="true">◇</span>{familyLabel(material.familyOrFill)}</p>
                       <p>{material.compatibilityLabel}</p>
-                      {material.highestAlignment && <p>{material.highestAlignment}</p>}
-                      <p>{material.scoreLabel}</p>
+                      {material.highestAlignment && <p class="selector-highest-alignment">{material.highestAlignment}</p>}
+                      <p class="selector-score" data-numeric>{material.scoreLabel}</p>
                       <p>{material.summaryExplanation}</p>
-                      <details>
+                      <details class="selector-calculation">
                         <summary>{SELECTOR_COPY.resultDisclosure}</summary>
                         <ul>
                           {material.contributions.map((contribution) => (
-                            <li key={`${contribution.record.criterionId}-${contribution.record.optionId}`}>
+                            <li
+                              key={`${contribution.record.criterionId}-${contribution.record.optionId}`}
+                              data-contribution-state={contribution.visualState}
+                            >
+                              <span class="selector-contribution-points" data-numeric>
+                                {contribution.visualState === "zero" && (
+                                  <span class="selector-state-marker" aria-hidden="true">○</span>
+                                )}
+                                {contribution.pointsLabel}
+                              </span>
                               <strong>{contribution.criterionLabel}: {contribution.optionLabel}</strong>
                               <span>{contribution.explanation}</span>
                             </li>
@@ -178,7 +197,7 @@ export function SelectorResults({
                           ? shortlistRemoveLabel(material.materialLabel)
                           : shortlistAddLabel(material.materialLabel)}
                       </button>
-                      <nav aria-label={`Next steps for ${material.materialLabel}`}>
+                      <nav class="selector-result-actions" aria-label={`Next steps for ${material.materialLabel}`}>
                         <RouteLink action={material.routes.details} />
                         <RouteLink action={material.routes.startingProfile} />
                         {material.routes.decisionMaps.length > 0
@@ -203,16 +222,25 @@ export function SelectorResults({
             onToggle={(event: JSX.TargetedEvent<HTMLDetailsElement>) => onEliminationsToggle(event.currentTarget.open)}
             class="selector-eliminated"
           >
-            <summary>{eliminatedDisclosure(presentation.eliminated.length)}</summary>
+            <summary>
+              <span>{eliminatedDisclosure(presentation.eliminated.length)}</span>
+              <span class="selector-eliminated-help">{SELECTOR_COPY.eliminatedHelp}</span>
+            </summary>
             <ol>
               {presentation.eliminated.map((material) => (
                 <li key={material.materialId}>
                   <article>
                     <h3 id={`eliminated-${material.materialId}`} tabIndex={-1}>{material.materialLabel}</h3>
-                    <p>{familyLabel(material.familyOrFill)}</p>
+                    <p class="selector-family"><span class="selector-family-marker" aria-hidden="true">◇</span>{familyLabel(material.familyOrFill)}</p>
                     <ul>
                       {material.reasons.map((reason) => (
-                        <li key={`${reason.record.criterionId}-${reason.record.reasonId}`}>
+                        <li
+                          key={`${reason.record.criterionId}-${reason.record.reasonId}`}
+                          data-exclusion-state={reason.visualState}
+                        >
+                          <span class="selector-exclusion-marker" aria-hidden="true">
+                            {reason.visualState === "blocked" ? "×" : "!"}
+                          </span>
                           <strong>{reason.stateLabel}</strong>
                           <span>{reason.criterionLabel}: {reason.optionLabel}</span>
                           <span>{reason.explanation}</span>

@@ -34,6 +34,8 @@ type MaterialRoutesPresentation = Readonly<{
 
 type ContributionPresentation = Readonly<{
   record: ContributionRecord;
+  visualState: "positive" | "zero";
+  pointsLabel: string;
   criterionLabel: string;
   optionLabel: string;
   explanation: string;
@@ -41,6 +43,7 @@ type ContributionPresentation = Readonly<{
 
 type ExclusionPresentation = Readonly<{
   record: ExclusionRecord;
+  visualState: "blocked" | "indeterminate";
   criterionLabel: string;
   optionLabel: string;
   stateLabel: typeof SELECTOR_COPY.confirmedExclusion | typeof SELECTOR_COPY.indeterminateExclusion;
@@ -180,6 +183,10 @@ function presentContributions(
     const { criterion, option } = criterionAndOption(pageModel, record.criterionId, record.optionId);
     return Object.freeze({
       record,
+      visualState: record.awardedPoints > 0 ? "positive" as const : "zero" as const,
+      pointsLabel: record.awardedPoints > 0
+        ? `+${record.awardedPoints} alignment ${record.awardedPoints === 1 ? "point" : "points"}`
+        : "0 points for this criterion",
       criterionLabel: criterion.label,
       optionLabel: option.label,
       explanation: resolveExplanationToken(pageModel.projection, record.explanationToken),
@@ -197,6 +204,7 @@ function presentEliminated(
       const { criterion, option } = criterionAndOption(pageModel, record.criterionId, record.optionId);
       return Object.freeze({
         record,
+        visualState: record.outcome === "incompatible" ? "blocked" as const : "indeterminate" as const,
         criterionLabel: criterion.label,
         optionLabel: option.label,
         stateLabel: record.outcome === "incompatible"

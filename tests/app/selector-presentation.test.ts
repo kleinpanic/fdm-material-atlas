@@ -35,6 +35,14 @@ describe("presentSelectorOutcome", () => {
       expect(row.applicableMaximum).toBe(source.applicableMaximum);
       expect(row.contributions).toHaveLength(source.contributions.length);
       expect(row.contributions.map(({ record }) => record)).toEqual(source.contributions);
+      expect(row.contributions.map(({ visualState }) => visualState)).toEqual(
+        source.contributions.map(({ awardedPoints }) => awardedPoints > 0 ? "positive" : "zero"),
+      );
+      expect(row.contributions.map(({ pointsLabel }) => pointsLabel)).toEqual(
+        source.contributions.map(({ awardedPoints }) => awardedPoints > 0
+          ? `+${awardedPoints} alignment ${awardedPoints === 1 ? "point" : "points"}`
+          : "0 points for this criterion"),
+      );
       expect(row.summaryExplanation).toContain(`${source.score} of ${source.applicableMaximum}`);
       expect(row.highestAlignment).toBe(index === 0 ? SELECTOR_COPY.highestAlignment : undefined);
       expect(row.routes.details).toEqual(pageModel.routes.materials.find(({ materialId }) => materialId === source.materialId)!.details);
@@ -56,6 +64,7 @@ describe("presentSelectorOutcome", () => {
         expect(reason.stateLabel).toBe(reason.record.outcome === "incompatible"
           ? SELECTOR_COPY.confirmedExclusion
           : SELECTOR_COPY.indeterminateExclusion);
+        expect(reason.visualState).toBe(reason.record.outcome === "incompatible" ? "blocked" : "indeterminate");
         expect(reason.explanation).toMatch(reason.record.outcome === "incompatible"
           ? /blocked by selected constraint/
           : /cannot be verified and is treated as incompatible/);

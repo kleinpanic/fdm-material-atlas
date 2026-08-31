@@ -18,6 +18,7 @@ describe("selector copy contract", () => {
       rankingExplanation: "Results are sorted by alignment points, then by stable material ID when scores tie.",
       applicableMaximumNote: "The applicable maximum includes only selected choices that define an alignment preference.",
       compatibleHeading: "Compatible materials",
+      compatibleCountLabel: "Compatible",
       highestAlignment: "Highest alignment",
       compatibleState: "Compatible with selected constraints",
     });
@@ -42,6 +43,7 @@ describe("selector copy contract", () => {
     expect(SELECTOR_COPY).toMatchObject({
       confirmedExclusion: "Blocked by selected constraint",
       indeterminateExclusion: "Cannot verify — treated as incompatible",
+      eliminatedHelp: "Open to review every hard constraint that removed a material.",
       detailsUnavailable: "Material details are not available yet",
       profileUnavailable: "Starting profile is not available yet",
       compareUnavailable: "Comparison is not available yet",

@@ -135,7 +135,14 @@ test("hydration preserves SSR ranking and controls drive transparent engine reco
   await firstResult.getByText("Why this rank").click();
   const renderedContributions = await firstResult.locator("details li").allInnerTexts();
   expect(renderedContributions).toEqual(firstExpected.contributions.map((record) =>
-    `${record.criterionLabel}: ${record.optionLabel}\n${record.explanation}`));
+    `${record.pointsLabel}\n${record.criterionLabel}: ${record.optionLabel}\n${record.explanation}`));
+
+  await expect(page.locator(".selector-compatible-count")).toHaveText(
+    `${defaultPresentation.compatible.length} Compatible`,
+  );
+  await expect(firstResult).toHaveAttribute("data-alignment", "highest");
+  await expect(firstResult.locator(".selector-family-marker")).toHaveText("◇");
+  await expect(firstResult.locator("[data-contribution-state]")).toHaveCount(firstExpected.contributions.length);
 
   await expect(page.locator("details.selector-secondary")).toHaveAttribute("open", "");
   const enclosure = page.getByLabel("Enclosure capability");
@@ -152,6 +159,10 @@ test("hydration preserves SSR ranking and controls drive transparent engine reco
   await expect(eliminatedItem).toBeVisible();
   const renderedReasons = await eliminatedItem.locator("li").allInnerTexts();
   expect(renderedReasons.length).toBeGreaterThan(0);
+  await expect(eliminated.locator(".selector-eliminated-help")).toHaveText(
+    "Open to review every hard constraint that removed a material.",
+  );
+  await expect(eliminatedItem.locator("[data-exclusion-state]")).toHaveCount(expectedEliminated.reasons.length);
   await expect(eliminatedItem.getByText(/Rank \d+|alignment points/u)).toHaveCount(0);
 
   await page.getByRole("button", { name: "View recommendations" }).click();
