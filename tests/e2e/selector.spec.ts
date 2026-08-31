@@ -194,6 +194,9 @@ test("shortlist is ordered, bounded, retained across exclusions, and returns foc
   await expect(page.getByRole("button", { name: `Add ${firstName} to shortlist` })).toBeFocused();
 
   await page.getByRole("button", { name: "Reset criteria" }).click();
+  await expect(page.locator("[role=status]")).toHaveText("Selector reset to published defaults.");
+  await page.waitForTimeout(400);
+  await expect(page.locator("[role=status]")).toHaveText("Selector reset to published defaults.");
   await expect(shortlist.getByText("Now eliminated by current constraints").first()).toBeVisible();
   await expect(shortlist.getByRole("link", { name: "Review exclusion" }).first()).toHaveAttribute("href", /^#eliminated-material-/u);
   await shortlist.getByRole("button", { name: "Clear shortlist" }).click();

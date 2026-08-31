@@ -23,6 +23,7 @@ export function SelectorIsland({ pageModel }: Props) {
   const [selection, setSelection] = useState<Readonly<Record<string, string>>>(() => pageModel.defaults);
   const [evaluationInput, setEvaluationInput] = useState<Readonly<Record<string, unknown>>>(() => pageModel.defaults);
   const [announcement, setAnnouncement] = useState<string>(SELECTOR_COPY.hydrationStatus);
+  const [announcementCause, setAnnouncementCause] = useState<"aggregate" | "reset">("aggregate");
   const [shortlistIds, setShortlistIds] = useState<ShortlistState>([]);
   const [showAll, setShowAll] = useState(false);
   const [eliminationsOpen, setEliminationsOpen] = useState(false);
@@ -66,6 +67,10 @@ export function SelectorIsland({ pageModel }: Props) {
   useEffect(() => setHydrated(true), []);
   useEffect(() => {
     if (!hydrated) return;
+    if (announcementCause === "reset") {
+      setAnnouncement("Selector reset to published defaults.");
+      return;
+    }
     const next = presentation.kind === "ranked"
       ? `${presentation.compatible.length} compatible materials; ${presentation.eliminated.length} eliminated.${presentation.compatible[0] ? ` Highest alignment is ${presentation.compatible[0].materialLabel}.` : ""}`
       : presentation.kind === "no-compatible"
@@ -75,9 +80,10 @@ export function SelectorIsland({ pageModel }: Props) {
           : presentation.body;
     const timer = window.setTimeout(() => setAnnouncement(next), 150);
     return () => window.clearTimeout(timer);
-  }, [hydrated, presentation]);
+  }, [announcementCause, hydrated, presentation]);
 
   const reset = () => {
+    setAnnouncementCause("reset");
     setSelection(pageModel.defaults);
     setEvaluationInput(pageModel.defaults);
     const transition = reduceShortlist(shortlistIds, { type: "criteria-reset" });
@@ -106,11 +112,15 @@ export function SelectorIsland({ pageModel }: Props) {
         secondarySummaryRef={secondarySummaryRef}
         onChange={(criterionId, optionId) => {
           const next = { ...selection, [criterionId]: optionId };
+          setAnnouncementCause("aggregate");
           setSelection(next);
           setEvaluationInput(next);
           setShortlistIds(reduceShortlist(shortlistIds, { type: "criteria-changed" }).ids);
         }}
-        onInvalid={(criterionId) => setEvaluationInput({ ...selection, [criterionId]: null })}
+        onInvalid={(criterionId) => {
+          setAnnouncementCause("aggregate");
+          setEvaluationInput({ ...selection, [criterionId]: null });
+        }}
         onView={() => resultsHeadingRef.current?.focus()}
         onReset={reset}
       />
