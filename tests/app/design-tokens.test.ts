@@ -124,7 +124,7 @@ function parseTheme(source: string): ReadonlyMap<string, string> | undefined {
 
   for (const match of body.matchAll(declarationPattern)) {
     const name = match.groups?.name;
-    const value = match.groups?.value.trim();
+    const value = match.groups?.value?.trim();
     if (name !== undefined && value !== undefined) tokens.set(name, value);
   }
 
