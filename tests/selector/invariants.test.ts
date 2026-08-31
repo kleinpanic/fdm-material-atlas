@@ -86,13 +86,6 @@ function gateProjection(gated: boolean): SelectorProjectionV1 {
   });
 }
 
-function materialIds(result: Exclude<SelectorEngineOutcome, { kind: "invalid-selection" }>) {
-  return {
-    compatible: result.compatible.map(({ materialId: id }) => id),
-    eliminated: result.eliminated.map(({ materialId: id }) => id),
-  };
-}
-
 describe("selector finite invariants", () => {
   it("01 repeats the same evaluation deeply", () => {
     const first = selectMaterials(atlas, canonicalInput);
