@@ -132,6 +132,34 @@ describe("sanitized canonical baseline", () => {
       .toContain("not interchangeable");
   });
 
+  it("routes all 23 thermal-range references through service and named thermal claims", () => {
+    const thermalRanges = atlas.visualizationReferences.filter(({ kind }) => kind === "thermal-range");
+    expect(thermalRanges).toHaveLength(23);
+
+    for (const reference of thermalRanges) {
+      expect(reference.subject.kind, `${reference.id} subject must be a claim`).toBe("claim-id");
+      if (reference.subject.kind !== "claim-id") continue;
+
+      const owner = atlas.materials.find(({ serviceTemperature }) =>
+        serviceTemperature.id === reference.subject.claimId,
+      );
+      expect(owner, `${reference.id} must use one material's service guidance`).toBeDefined();
+      if (!owner) continue;
+
+      const namedThermalIds = new Set(owner.thermalObservations.map(({ id }) => id));
+      expect(reference.related.length, `${reference.id} must define a relationship`).toBeGreaterThan(0);
+      for (const related of reference.related) {
+        expect(related.kind, `${reference.id} related target must be a claim`).toBe("claim-id");
+        if (related.kind === "claim-id") {
+          expect(namedThermalIds.has(related.claimId), `${reference.id} must use the owner's named observation`)
+            .toBe(true);
+        }
+      }
+    }
+
+    expect(parseAtlas(atlas)).toMatchObject({ success: true });
+  });
+
   it("marks all four starting-profile fields as cautioned calibration guidance", () => {
     for (const material of atlas.materials) {
       expect(material.startingProfile.interpretation).toBe("calibration-starting-point");

@@ -73,6 +73,25 @@ function issueCodes(candidate: unknown): string[] {
   return result.success ? [] : result.issues.map(({ code }) => code);
 }
 
+function setThermalRange(
+  atlas: ReturnType<typeof createMinimalAtlas>,
+  subject: ReturnType<typeof createMinimalAtlas>["visualizationReferences"][number]["subject"],
+  related: ReturnType<typeof createMinimalAtlas>["visualizationReferences"][number]["related"],
+) {
+  const reference = atlas.visualizationReferences[0]!;
+  Reflect.set(reference, "kind", "thermal-range");
+  Reflect.set(reference, "subject", subject);
+  Reflect.set(reference, "related", related);
+  return reference;
+}
+
+function thermalIssues(candidate: unknown) {
+  const result = parseAtlas(candidate);
+  return result.success
+    ? []
+    : result.issues.filter(({ code }) => code === "THERMAL_NOT_COMPARABLE");
+}
+
 describe("AtlasV1 cross-record invariants", () => {
   it.each([
     ["material ID", (atlas: ReturnType<typeof createMinimalAtlas>) => {
@@ -178,23 +197,148 @@ describe("AtlasV1 cross-record invariants", () => {
     expect(issueCodes(atlas)).toContain(expectedCode);
   });
 
-  it("uses method-aware thermal compatibility for a thermal-range transformation", () => {
+  it("accepts service guidance and a named observation as distinct thermal indicators", () => {
+    const atlas = createMinimalAtlas();
+    setThermalRange(
+      atlas,
+      { kind: "claim-id", claimId: atlas.materials[0]!.serviceTemperature.id },
+      [{ kind: "claim-id", claimId: atlas.materials[0]!.thermalObservations[0]!.id }],
+    );
+
+    expect(parseAtlas(atlas)).toMatchObject({ success: true });
+  });
+
+  it("accepts named observations only when their metric and represented method match", () => {
     const atlas = createMinimalAtlas();
     const second = structuredClone(atlas.materials[0]!.thermalObservations[0]!);
-    second.id = "claim-synthetic-heat-deflection";
-    second.metric = "heat-deflection";
-    second.metricLabel = "Heat deflection temperature";
+    second.id = "claim-synthetic-glass-transition-secondary";
     atlas.materials[0]!.thermalObservations.push(second);
-    Reflect.set(atlas.visualizationReferences[0]!, "kind", "thermal-range");
-    Reflect.set(atlas.visualizationReferences[0]!, "subject", {
-      kind: "claim-id",
-      claimId: "claim-synthetic-glass-transition",
-    });
-    Reflect.set(atlas.visualizationReferences[0]!, "related", [
-      { kind: "claim-id", claimId: "claim-synthetic-heat-deflection" },
+    setThermalRange(
+      atlas,
+      { kind: "claim-id", claimId: atlas.materials[0]!.thermalObservations[0]!.id },
+      [{ kind: "claim-id", claimId: second.id }],
+    );
+
+    expect(parseAtlas(atlas)).toMatchObject({ success: true });
+  });
+
+  it.each([
+    ["metric", (observation: ReturnType<typeof createMinimalAtlas>["materials"][number]["thermalObservations"][number]) => {
+      observation.metric = "heat-deflection";
+      observation.metricLabel = "Heat deflection temperature";
+    }],
+    ["standard", (observation: ReturnType<typeof createMinimalAtlas>["materials"][number]["thermalObservations"][number]) => {
+      observation.method = { ...observation.method, standard: "Synthetic standard B" };
+    }],
+    ["load", (observation: ReturnType<typeof createMinimalAtlas>["materials"][number]["thermalObservations"][number]) => {
+      observation.method = { ...observation.method, loadMpa: 1.8 };
+    }],
+    ["annealing", (observation: ReturnType<typeof createMinimalAtlas>["materials"][number]["thermalObservations"][number]) => {
+      observation.method = { ...observation.method, annealed: true };
+    }],
+    ["conditioning", (observation: ReturnType<typeof createMinimalAtlas>["materials"][number]["thermalObservations"][number]) => {
+      observation.method = { ...observation.method, conditioning: "Synthetic conditioned state" };
+    }],
+    ["other conditions", (observation: ReturnType<typeof createMinimalAtlas>["materials"][number]["thermalObservations"][number]) => {
+      observation.method = { ...observation.method, otherConditions: "Synthetic alternate fixture" };
+    }],
+  ] as const)("rejects named observations with a different %s", (_dimension, mutate) => {
+    const atlas = createMinimalAtlas();
+    const second = structuredClone(atlas.materials[0]!.thermalObservations[0]!);
+    second.id = "claim-synthetic-thermal-secondary";
+    mutate(second);
+    atlas.materials[0]!.thermalObservations.push(second);
+    const reference = setThermalRange(
+      atlas,
+      { kind: "claim-id", claimId: atlas.materials[0]!.thermalObservations[0]!.id },
+      [{ kind: "claim-id", claimId: second.id }],
+    );
+
+    expect(thermalIssues(atlas)).toEqual([{
+      code: "THERMAL_NOT_COMPARABLE",
+      pointer: "/visualizationReferences/0/related/0",
+      entityId: reference.id,
+    }]);
+  });
+
+  it.each([
+    ["subject", "subject"],
+    ["related", "related"],
+  ] as const)("rejects a non-thermal claim in the %s position", (_label, position) => {
+    const atlas = createMinimalAtlas();
+    atlas.materials[0]!.properties.density.value = {
+      state: "known",
+      value: { shape: "exact", value: 9.876, unit: "g/cm3" },
+    };
+    const service = { kind: "claim-id" as const, claimId: atlas.materials[0]!.serviceTemperature.id };
+    const density = { kind: "claim-id" as const, claimId: atlas.materials[0]!.properties.density.id };
+    const reference = setThermalRange(
+      atlas,
+      position === "subject" ? density : service,
+      [position === "related" ? density : service],
+    );
+
+    const result = parseAtlas(atlas);
+    expect(result.success).toBe(false);
+    expect(thermalIssues(atlas)).toEqual([{
+      code: "THERMAL_NOT_COMPARABLE",
+      pointer: position === "subject"
+        ? "/visualizationReferences/0/subject"
+        : "/visualizationReferences/0/related/0",
+      entityId: reference.id,
+    }]);
+    expect(JSON.stringify(result)).not.toContain("9.876");
+  });
+
+  const resolvedNonClaimTargets = [
+    ["material", { kind: "material-id", materialId: "material-synthetic-alpha" }],
+    ["route", { kind: "material-route", slug: "synthetic-alpha" }],
+    ["lane", { kind: "decision-lane-id", decisionLaneId: "lane-outdoor" }],
+    ["criterion", { kind: "selector-criterion-id", selectorCriterionId: "selector-primary-goal" }],
+    ["process gate", { kind: "process-gate-id", processGateId: "gate-synthetic-enclosure" }],
+  ] as const;
+
+  it.each(resolvedNonClaimTargets)("rejects a resolved %s target as the thermal subject", (_label, target) => {
+    const atlas = createMinimalAtlas();
+    const reference = setThermalRange(atlas, target, [
+      { kind: "claim-id", claimId: atlas.materials[0]!.serviceTemperature.id },
     ]);
 
-    expect(issueCodes(atlas)).toContain("THERMAL_NOT_COMPARABLE");
+    expect(thermalIssues(atlas)).toEqual([{
+      code: "THERMAL_NOT_COMPARABLE",
+      pointer: "/visualizationReferences/0/subject",
+      entityId: reference.id,
+    }]);
+  });
+
+  it.each(resolvedNonClaimTargets)("rejects a resolved %s target in the thermal related list", (_label, target) => {
+    const atlas = createMinimalAtlas();
+    const reference = setThermalRange(
+      atlas,
+      { kind: "claim-id", claimId: atlas.materials[0]!.serviceTemperature.id },
+      [target],
+    );
+
+    expect(thermalIssues(atlas)).toEqual([{
+      code: "THERMAL_NOT_COMPARABLE",
+      pointer: "/visualizationReferences/0/related/0",
+      entityId: reference.id,
+    }]);
+  });
+
+  it("rejects a thermal-range reference without a relationship", () => {
+    const atlas = createMinimalAtlas();
+    const reference = setThermalRange(
+      atlas,
+      { kind: "claim-id", claimId: atlas.materials[0]!.serviceTemperature.id },
+      [],
+    );
+
+    expect(thermalIssues(atlas)).toEqual([{
+      code: "THERMAL_NOT_COMPARABLE",
+      pointer: "/visualizationReferences/0/related",
+      entityId: reference.id,
+    }]);
   });
 
   it("maps local schema rules to stable invariant codes", () => {
