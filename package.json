@@ -1,0 +1,23 @@
+{
+  "name": "fdm-material-atlas",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:data": "vitest run tests/data",
+    "validate:data": "node --experimental-strip-types tools/validate-public-data.ts"
+  },
+  "dependencies": {
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.11"
+  }
+}
