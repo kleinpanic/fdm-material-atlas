@@ -95,7 +95,7 @@ describe("FactState", () => {
       state: "unknown",
       reason: "Cafe\u0301 review",
     });
-    expect(result.reason).toBe("Caf\u00e9 review");
+    expect(result).toEqual({ state: "unknown", reason: "Caf\u00e9 review" });
   });
 
   it.each([
