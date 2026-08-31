@@ -1,5 +1,24 @@
-import AxeBuilder from "@axe-core/playwright";
-import { expect, type Page, test } from "@playwright/test";
+import AxeBuilderImport from "@axe-core/playwright";
+import playwrightTest from "@playwright/test";
+import type {
+  PlaywrightTestArgs,
+  PlaywrightTestOptions,
+  PlaywrightWorkerArgs,
+  PlaywrightWorkerOptions,
+  TestType,
+} from "playwright/types/test";
+
+type Page = PlaywrightTestArgs["page"];
+
+const test = playwrightTest as unknown as TestType<
+  PlaywrightTestArgs & PlaywrightTestOptions,
+  PlaywrightWorkerArgs & PlaywrightWorkerOptions
+>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const expect = (playwrightTest as unknown as { expect: (...args: any[]) => any }).expect;
+const AxeBuilder = AxeBuilderImport as unknown as new (options: { page: Page }) => {
+  withTags(tags: string[]): { analyze(): Promise<{ violations: unknown[] }> };
+};
 
 async function tracerHref(page: Page): Promise<string> {
   await page.goto("./");
@@ -20,8 +39,9 @@ function luminance(rgb: string): number {
 }
 
 function contrast(first: string, second: string): number {
-  const values = [luminance(first), luminance(second)].sort((left, right) => right - left);
-  return (values[0] + 0.05) / (values[1] + 0.05);
+  const firstValue = luminance(first);
+  const secondValue = luminance(second);
+  return (Math.max(firstValue, secondValue) + 0.05) / (Math.min(firstValue, secondValue) + 0.05);
 }
 
 test("home and generated tracer have no detectable WCAG A or AA violations", async ({ page }) => {
@@ -39,7 +59,7 @@ test("focus indicators, target sizes, and declared foreground pairs meet the UI 
   await page.goto("./");
   const action = page.getByRole("link", { name: "Open material tracer" });
   await action.focus();
-  const actionContract = await action.evaluate((element) => {
+  const actionContract = await action.evaluate((element: HTMLElement) => {
     const style = getComputedStyle(element);
     const rect = element.getBoundingClientRect();
     return { outlineWidth: style.outlineWidth, outlineStyle: style.outlineStyle, width: rect.width, height: rect.height, color: style.color, background: style.backgroundColor };
@@ -49,7 +69,7 @@ test("focus indicators, target sizes, and declared foreground pairs meet the UI 
   expect(actionContract.width).toBeGreaterThanOrEqual(44);
   expect(actionContract.height).toBeGreaterThanOrEqual(44);
   expect(contrast(actionContract.color, actionContract.background)).toBeGreaterThanOrEqual(4.5);
-  const bodyContract = await page.locator("body").evaluate((element) => {
+  const bodyContract = await page.locator("body").evaluate((element: HTMLElement) => {
     const style = getComputedStyle(element);
     return { color: style.color, background: style.backgroundColor };
   });
@@ -60,7 +80,7 @@ test("reduced motion removes meaningful timing while retaining all content", asy
   await page.emulateMedia({ reducedMotion: "reduce" });
   const tracer = await tracerHref(page);
   await page.goto(tracer);
-  const transitionDurations = await page.getByRole("link", { name: "Return to atlas home" }).evaluate((element) => getComputedStyle(element).transitionDuration.split(",").map((duration) => duration.endsWith("ms") ? Number.parseFloat(duration) : Number.parseFloat(duration) * 1000));
+  const transitionDurations = await page.getByRole("link", { name: "Return to atlas home" }).evaluate((element: HTMLElement) => getComputedStyle(element).transitionDuration.split(",").map((duration) => duration.endsWith("ms") ? Number.parseFloat(duration) : Number.parseFloat(duration) * 1000));
   expect(Math.max(...transitionDurations)).toBeLessThanOrEqual(1);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(page.getByText("Verify capability", { exact: false })).toBeVisible();

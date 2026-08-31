@@ -1,4 +1,20 @@
-import { expect, type Page, test } from "@playwright/test";
+import playwrightTest from "@playwright/test";
+import type {
+  PlaywrightTestArgs,
+  PlaywrightTestOptions,
+  PlaywrightWorkerArgs,
+  PlaywrightWorkerOptions,
+  TestType,
+} from "playwright/types/test";
+
+type Page = PlaywrightTestArgs["page"];
+
+const test = playwrightTest as unknown as TestType<
+  PlaywrightTestArgs & PlaywrightTestOptions,
+  PlaywrightWorkerArgs & PlaywrightWorkerOptions
+>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const expect = (playwrightTest as unknown as { expect: (...args: any[]) => any }).expect;
 
 async function openTracer(page: Page): Promise<void> {
   await page.goto("./");
