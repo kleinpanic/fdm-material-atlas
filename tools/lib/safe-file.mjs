@@ -13,20 +13,35 @@ export class SafeFileError extends Error {
 export async function readStableFile(path, { maximumBytes, openFile = open } = {}) {
   let handle;
   try {
+    const limit = maximumBytes ?? 64 * 1024 * 1024;
+    if (!Number.isSafeInteger(limit) || limit < 0) throw new SafeFileError('file-inspection-failed');
     const flags = constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0);
     handle = await openFile(path, flags);
     const before = await handle.stat();
     if (!before.isFile()) throw new SafeFileError('not-regular-file');
-    if (maximumBytes !== undefined && before.size > maximumBytes) {
+    if (before.size > limit) {
       throw new SafeFileError('input-too-large');
     }
-    const bytes = await handle.readFile();
+    const chunks = [];
+    let total = 0;
+    while (total <= limit) {
+      const length = Math.min(64 * 1024, limit + 1 - total);
+      if (length === 0) break;
+      const chunk = Buffer.allocUnsafe(length);
+      const { bytesRead } = await handle.read(chunk, 0, length, null);
+      if (bytesRead === 0) break;
+      chunks.push(chunk.subarray(0, bytesRead));
+      total += bytesRead;
+      if (total > limit) throw new SafeFileError('input-too-large');
+    }
+    const bytes = Buffer.concat(chunks, total);
     const after = await handle.stat();
     if (
       before.dev !== after.dev ||
       before.ino !== after.ino ||
       before.size !== after.size ||
       before.mtimeMs !== after.mtimeMs ||
+      before.ctimeMs !== after.ctimeMs ||
       bytes.length !== after.size
     ) {
       throw new SafeFileError('file-changed-during-read');

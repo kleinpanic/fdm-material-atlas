@@ -608,6 +608,50 @@ test('stable file reader exposes a controlled failure seam without privilege ass
   );
 });
 
+test('stable file reader bounds growth and detects same-size metadata replacement', async () => {
+  const { readStableFile } = await import(SAFE_FILE_URL);
+  const regular = {
+    dev: 1,
+    ino: 2,
+    size: 4,
+    mtimeMs: 3,
+    ctimeMs: 4,
+    isFile: () => true,
+  };
+  let totalRead = 0;
+  const growingHandle = {
+    stat: async () => regular,
+    read: async (buffer, offset, length) => {
+      buffer.fill(65, offset, offset + length);
+      totalRead += length;
+      return { bytesRead: length, buffer };
+    },
+    close: async () => {},
+  };
+  await assert.rejects(
+    readStableFile('synthetic-growth', { maximumBytes: 8, openFile: async () => growingHandle }),
+    (error) => error.ruleId === 'input-too-large',
+  );
+  assert.equal(totalRead, 9);
+
+  let statCall = 0;
+  let delivered = false;
+  const replacedHandle = {
+    stat: async () => ({ ...regular, ctimeMs: statCall++ === 0 ? 4 : 5 }),
+    read: async (buffer) => {
+      if (delivered) return { bytesRead: 0, buffer };
+      delivered = true;
+      buffer.set(Buffer.from('safe'));
+      return { bytesRead: 4, buffer };
+    },
+    close: async () => {},
+  };
+  await assert.rejects(
+    readStableFile('synthetic-replacement', { maximumBytes: 8, openFile: async () => replacedHandle }),
+    (error) => error.ruleId === 'file-changed-during-read',
+  );
+});
+
 test('CLI returns nonzero with redacted stdout and stderr', async () => {
   const root = createRepository();
   const marker = privateMarker('CLI');
