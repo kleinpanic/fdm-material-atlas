@@ -46,10 +46,18 @@ describe("buildSelectorPageModel", () => {
   it("excludes Atlas-only, source, profile, map, visualization, and operational channels", () => {
     const serialized = JSON.stringify(buildSelectorPageModel(atlas, "/", PUBLIC_ROUTE_REGISTRY));
     for (const forbidden of [
-      '"sources"', '"methods"', '"evidence"', '"basis"', '"startingProfile"',
+      '"sources"', '"methods"', '"evidence"', '"basis"',
       '"decisionLanes"', '"visualizationReferences"', '"sourceContract"', '"thermalObservations"',
       '"process"', '"properties"', '"guidance"', '"url"', '"path"', '"credentials"', '"adapter"',
     ]) expect(serialized).not.toContain(forbidden);
+    const model = buildSelectorPageModel(atlas, "/", PUBLIC_ROUTE_REGISTRY);
+    model.routes.materials.forEach((route) => {
+      expect(Object.keys(route).sort()).toEqual(["details", "materialId", "startingProfile"]);
+      expect(route.startingProfile).toEqual({
+        kind: "unavailable",
+        label: "Starting profile is not available yet",
+      });
+    });
   });
 
   it.each([
