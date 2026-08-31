@@ -44,7 +44,7 @@ describe("material claim registry", () => {
 
     expect(enumerated).toHaveLength(667);
     expect(enumerated.map(({ claimId }) => claimId).sort()).toEqual([...independentlyWalked].sort());
-    expect(new Set(enumerated.map(({ claimId }) => claimId))).toHaveSize(667);
+    expect(new Set(enumerated.map(({ claimId }) => claimId)).size).toBe(667);
     expect(enumerated.every(({ anchor }) => /^[a-z][a-z0-9-]*$/u.test(anchor))).toBe(true);
   });
 
