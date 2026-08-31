@@ -73,7 +73,10 @@ describe("canonical publication boundary", () => {
       "--remote-policy", "absent",
       "--sensitive-file", sensitiveFile,
       "--artifact", "src/data/public",
-    ], { cwd: repositoryRoot, env: process.env, encoding: "utf8", timeout: 120_000 });
+    // History and artifact scans are intentionally exhaustive. Keep the
+    // harness above the observed dual-surface release-gate runtime while the
+    // scanner itself remains fail closed.
+    ], { cwd: repositoryRoot, env: process.env, encoding: "utf8", timeout: 300_000 });
     expect(scan.status).toBe(0);
     const report = JSON.parse(scan.stdout) as {
       ok: boolean;
@@ -87,5 +90,5 @@ describe("canonical publication boundary", () => {
     );
     expect(report.surfaces.every(({ findingCount }) => findingCount === 0)).toBe(true);
     expect(`${scan.stdout}${scan.stderr}${preflight.stdout}${preflight.stderr}`).not.toContain(sensitiveFile);
-  }, 130_000);
+  }, 310_000);
 });
