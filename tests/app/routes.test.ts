@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   fragmentHref,
+  internalFragmentHref,
   internalHref,
   routePath,
   type RouteTarget,
@@ -12,11 +13,15 @@ const MATERIAL = {
   id: "material",
   slug: "synthetic-alpha",
 } as const satisfies RouteTarget;
+const MATERIALS = { id: "materials" } as const satisfies RouteTarget;
+const METHOD = { id: "method" } as const satisfies RouteTarget;
 
 describe("routePath", () => {
   it("returns directory-form paths for every closed route target", () => {
     expect(routePath(HOME)).toBe("/");
+    expect(routePath(MATERIALS)).toBe("/materials/");
     expect(routePath(MATERIAL)).toBe("/materials/synthetic-alpha/");
+    expect(routePath(METHOD)).toBe("/method/");
   });
 
   it.each([
@@ -48,7 +53,9 @@ describe("routePath", () => {
 describe("internalHref", () => {
   it.each(["/", "", undefined])("resolves root deployment base %s", (base) => {
     expect(internalHref(base, HOME)).toBe("/");
+    expect(internalHref(base, MATERIALS)).toBe("/materials/");
     expect(internalHref(base, MATERIAL)).toBe("/materials/synthetic-alpha/");
+    expect(internalHref(base, METHOD)).toBe("/method/");
   });
 
   it.each([
@@ -103,5 +110,20 @@ describe("fragmentHref", () => {
     "https://example.com",
   ])("rejects unsafe fragment identifier %s", (id) => {
     expect(() => fragmentHref(id)).toThrow("FRAGMENT_ID_INVALID");
+  });
+});
+
+describe("internalFragmentHref", () => {
+  it.each([
+    ["/", "/materials/synthetic-alpha/#evidence", "/method/#source-synthetic-guide"],
+    ["/atlas-preview/", "/atlas-preview/materials/synthetic-alpha/#evidence", "/atlas-preview/method/#source-synthetic-guide"],
+  ])("composes one validated cross-document fragment under %s", (base, material, method) => {
+    expect(internalFragmentHref(base, MATERIAL, "evidence")).toBe(material);
+    expect(internalFragmentHref(base, METHOD, "source-synthetic-guide")).toBe(method);
+  });
+
+  it("rejects invalid fragments and bases through the existing stable codes", () => {
+    expect(() => internalFragmentHref("/", METHOD, "#unsafe")).toThrow("FRAGMENT_ID_INVALID");
+    expect(() => internalFragmentHref("https://example.com/", METHOD, "sources")).toThrow("ROUTE_BASE_INVALID");
   });
 });
