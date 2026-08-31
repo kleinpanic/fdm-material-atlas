@@ -20,13 +20,12 @@ function cleanEnvironment(overrides = {}) {
     ...process.env,
     GIT_CONFIG_NOSYSTEM: '1',
     GIT_CONFIG_GLOBAL: '/dev/null',
-    ...overrides,
   };
   delete environment.GIT_AUTHOR_NAME;
   delete environment.GIT_AUTHOR_EMAIL;
   delete environment.GIT_COMMITTER_NAME;
   delete environment.GIT_COMMITTER_EMAIL;
-  return environment;
+  return { ...environment, ...overrides };
 }
 
 function git(cwd, args, options = {}) {
@@ -156,7 +155,7 @@ test('clean committed and unborn repositories pass every default surface without
     if (commitFixture) commit(child, ['public.txt']);
     const before = {
       childStatus: git(child, ['status', '--porcelain=v1']),
-      childRefs: git(child, ['show-ref'], { env: {} }),
+      childRefs: git(child, ['for-each-ref', '--format=%(refname):%(objectname)']),
       childRemotes: git(child, ['remote', '-v']),
       parentStatus: git(parent, ['status', '--porcelain=v1']),
       parentIndex: git(parent, ['ls-files', '--stage', '--', 'child']),
@@ -170,7 +169,7 @@ test('clean committed and unborn repositories pass every default surface without
     assert.ok(report.surfaces.every(({ findingCount }) => findingCount === 0));
     assert.deepEqual(before, {
       childStatus: git(child, ['status', '--porcelain=v1']),
-      childRefs: git(child, ['show-ref'], { env: {} }),
+      childRefs: git(child, ['for-each-ref', '--format=%(refname):%(objectname)']),
       childRemotes: git(child, ['remote', '-v']),
       parentStatus: git(parent, ['status', '--porcelain=v1']),
       parentIndex: git(parent, ['ls-files', '--stage', '--', 'child']),
