@@ -13,6 +13,9 @@ import {
 
 const MAINTAINER_NAME = 'Casey Maintainer';
 const MAINTAINER_EMAIL = 'casey@example.test';
+const FIXTURE_HOME = mkdtempSync(join(tmpdir(), 'repository-home-'));
+writeFileSync(join(FIXTURE_HOME, '.gitconfig'), `[user]\n\tname = ${MAINTAINER_NAME}\n\temail = ${MAINTAINER_EMAIL}\n`);
+process.env.HOME = FIXTURE_HOME;
 const EMPTY_GIT_CONFIG = join(mkdtempSync(join(tmpdir(), 'repository-git-config-')), 'config');
 writeFileSync(EMPTY_GIT_CONFIG, '');
 
@@ -96,6 +99,7 @@ test('accepts an unborn independent nested repository without exposing identity'
   assert.equal(inspection.objectStoreOwned, true);
   assert.equal(inspection.remoteCount, 0);
   assert.equal(inspection.identityConfigured, true);
+  assert.equal(inspection.identityOriginApproved, true);
   assert.equal(inspection.parentIndexEntryCount, 0);
   assert.equal(inspection.commitCount, 0);
   assert.equal(inspection.historyIdentityMatches, true);
@@ -233,6 +237,16 @@ test('rejects missing configured identity', async () => {
   await expectRule(
     assertRepository({ cwd: child, expectedRoot: child, remotePolicy: 'absent' }),
     'identity-missing',
+  );
+});
+
+test('rejects a repository-local identity that does not match inherited identity', async () => {
+  const { child } = createNestedRepositories();
+  configureIdentity(child, 'Different Human', 'different-human@example.test');
+  await expectRule(
+    assertRepository({ cwd: child, expectedRoot: child }),
+    'identity-origin-unapproved',
+    ['Different Human', 'different-human@example.test'],
   );
 });
 

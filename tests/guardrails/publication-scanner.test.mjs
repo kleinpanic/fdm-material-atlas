@@ -21,6 +21,9 @@ const EMPTY_GIT_CONFIG = join(mkdtempSync(join(tmpdir(), 'publication-git-config
 writeFileSync(EMPTY_GIT_CONFIG, '');
 const MAINTAINER_NAME = 'Casey Maintainer';
 const MAINTAINER_EMAIL = 'casey@example.test';
+const FIXTURE_HOME = mkdtempSync(join(tmpdir(), 'publication-scanner-home-'));
+writeFileSync(join(FIXTURE_HOME, '.gitconfig'), `[user]\n\tname = ${MAINTAINER_NAME}\n\temail = ${MAINTAINER_EMAIL}\n`);
+process.env.HOME = FIXTURE_HOME;
 
 function git(cwd, args, options = {}) {
   const environment = {

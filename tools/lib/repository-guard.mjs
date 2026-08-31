@@ -49,6 +49,7 @@ export class RepositoryGuardError extends Error {
  * @property {boolean} objectStoreOwned
  * @property {boolean} identityConfigured
  * @property {boolean} identityAllowed
+ * @property {boolean} identityOriginApproved
  * @property {boolean} remotePolicySatisfied
  * @property {boolean} parentIndexClean
  * @property {boolean} historyIdentityMatches
@@ -112,6 +113,36 @@ function safeContext(inspection) {
 
 function failureContext() {
   return { repositoryRoot: null, expectedRoot: 'expected-root', parentRepositoryRoot: null };
+}
+
+function parseConfigOrigin(record) {
+  const firstTab = record.indexOf('\t');
+  const secondTab = firstTab < 0 ? -1 : record.indexOf('\t', firstTab + 1);
+  if (firstTab < 0 || secondTab < 0) return { scope: '', value: '' };
+  return { scope: record.slice(0, firstTab), value: record.slice(secondTab + 1) };
+}
+
+async function inspectIdentityOrigin(repositoryRoot, configuredName, configuredEmail) {
+  const nameOrigin = await runGit(repositoryRoot, [
+    'config', '--show-origin', '--show-scope', '--get', 'user.name',
+  ], { allowFailure: true });
+  const emailOrigin = await runGit(repositoryRoot, [
+    'config', '--show-origin', '--show-scope', '--get', 'user.email',
+  ], { allowFailure: true });
+  if (!nameOrigin.ok || !emailOrigin.ok) return false;
+  const name = parseConfigOrigin(nameOrigin.stdout);
+  const email = parseConfigOrigin(emailOrigin.stdout);
+  const approvedNonLocal = (scope) => scope === 'global' || scope === 'system';
+  if (approvedNonLocal(name.scope) && approvedNonLocal(email.scope)) return true;
+  if (name.scope !== 'local' || email.scope !== 'local') return false;
+
+  const globalName = await runGit(repositoryRoot, ['config', '--global', '--get', 'user.name'], { allowFailure: true });
+  const globalEmail = await runGit(repositoryRoot, ['config', '--global', '--get', 'user.email'], { allowFailure: true });
+  return (
+    globalName.ok && globalEmail.ok &&
+    globalName.stdout === configuredName &&
+    globalEmail.stdout === configuredEmail
+  );
 }
 
 async function inspectHistory(repositoryRoot, configuredName, configuredEmail) {
@@ -293,6 +324,9 @@ async function inspectRepositoryUnsafe(options = {}) {
     identityConfigured &&
     !attributionProhibited(configuredName) &&
     !attributionProhibited(configuredEmail);
+  const identityOriginApproved = repositoryRoot && identityConfigured
+    ? await inspectIdentityOrigin(repositoryRoot, configuredName, configuredEmail)
+    : false;
 
   if (repositoryRoot) await assertRawHistoryState(repositoryRoot);
 
@@ -313,6 +347,7 @@ async function inspectRepositoryUnsafe(options = {}) {
     objectStoreOwned,
     identityConfigured,
     identityAllowed,
+    identityOriginApproved,
     remotePolicySatisfied: remotePolicy === 'any' || remoteCount === 0,
     parentIndexClean: parentIndexEntryCount === 0,
     historyIdentityMatches: history.commitCount === 0 || history.identityMatches,
@@ -362,6 +397,7 @@ export async function assertRepository(options = {}) {
   if (!inspection.remotePolicySatisfied) throw new RepositoryGuardError('remote-present', context);
   if (!inspection.identityConfigured) throw new RepositoryGuardError('identity-missing', context);
   if (!inspection.identityAllowed) throw new RepositoryGuardError('identity-prohibited', context);
+  if (!inspection.identityOriginApproved) throw new RepositoryGuardError('identity-origin-unapproved', context);
   if (!inspection.historyComplete) throw new RepositoryGuardError('history-incomplete', context);
   if (!inspection.historyAttributionAllowed) {
     throw new RepositoryGuardError('history-prohibited-attribution', context);
