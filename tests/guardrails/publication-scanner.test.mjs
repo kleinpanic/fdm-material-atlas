@@ -290,8 +290,13 @@ test('unsafe source maps and generated metadata are rejected in tracked and arti
 
   const artifact = mkdtempSync(join(tmpdir(), 'publication-artifact-'));
   write(artifact, 'meta/build.json', JSON.stringify({ sourceRoot: '/synthetic/build/root' }));
+  write(artifact, 'manifest.json', JSON.stringify({ sourcesContent: ['synthetic embedded source'] }));
+  write(artifact, '_astro/stats.json', JSON.stringify({ output: 'file:///synthetic/workspace/app.js' }));
   const built = await scanPublication({ root, mode: 'artifact', artifactPath: artifact, policy });
-  assert.ok(built.findings.some(({ ruleId }) => ruleId === 'unsafe-generated-metadata'));
+  assert.equal(
+    built.findings.filter(({ ruleId }) => ruleId === 'unsafe-generated-metadata').length,
+    3,
+  );
 });
 
 test('history finds content removed from the current tree and scans reachable side refs', async () => {

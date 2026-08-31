@@ -104,9 +104,7 @@ export function scanPath(pathBytes, { policy, surface, objectType } = {}) {
 
 function scanGeneratedMetadata(pathBytes, bytes, context) {
   const normalized = locationBuffer(pathBytes).toString('latin1').replaceAll('\\', '/');
-  if (!/(?:^|\/)(?:meta|metadata|generated)(?:\/|$)/i.test(normalized) || !/\.json$/i.test(normalized)) {
-    return [];
-  }
+  if (!/\.json$/i.test(normalized)) return [];
   const text = bytes.toString('latin1');
   if (!/(?:sourcesContent|sourceRoot|file:\/\/|(?:^|["'])\/(?:home|Users|workspace)\/)/i.test(text)) return [];
   return [formatFinding({
