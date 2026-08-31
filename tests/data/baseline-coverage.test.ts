@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -15,6 +16,26 @@ const artifactBytes = readFileSync(artifactPath);
 const parseResult = parseAtlas(JSON.parse(artifactBytes.toString("utf8")));
 if (!parseResult.success) throw new Error("Canonical Atlas fixture failed its public parser");
 const atlas: AtlasV1 = parseResult.data;
+
+const LABEL_STRIPPED_ATLAS_SHA256 =
+  "4509306fa8220e04dc72917142c7b86e21511eddbba88644d3fe8a50f86b38f3";
+
+function stripVocabularyLabels(value: AtlasV1): unknown {
+  const copy = structuredClone(value) as AtlasV1;
+  for (const vocabulary of copy.vocabularies) {
+    delete (vocabulary as Partial<typeof vocabulary>).label;
+    for (const term of vocabulary.terms) {
+      delete (term as Partial<typeof term>).label;
+    }
+  }
+  return copy;
+}
+
+function isSentenceCase(label: string): boolean {
+  if (!/^\p{Lu}/u.test(label)) return false;
+  const words = label.split(/[\s/]+/u).slice(1);
+  return words.every((word) => !/^\p{Lu}\p{Ll}/u.test(word));
+}
 
 type ClaimLike = { id: string; value: { state: string }; basis: BasisRef[]; qualification?: string | undefined };
 
@@ -190,5 +211,26 @@ describe("sanitized canonical baseline", () => {
 
   it("keeps the committed bytes exactly canonical", () => {
     expect(artifactBytes.equals(Buffer.from(serializeAtlas(atlas), "utf8"))).toBe(true);
+  });
+
+  it("keeps every canonical vocabulary display label in sentence case", () => {
+    for (const vocabulary of atlas.vocabularies) {
+      expect(vocabulary.label, `${vocabulary.id} label`).toSatisfy(isSentenceCase);
+      expect(vocabulary.label.length).toBeGreaterThan(0);
+      const termLabels = vocabulary.terms.map(({ label }) => label);
+      expect(new Set(termLabels).size, `${vocabulary.id} term labels`).toBe(termLabels.length);
+      for (const term of vocabulary.terms) {
+        expect(term.label, `${vocabulary.id}:${term.value} label`).toSatisfy(isSentenceCase);
+      }
+    }
+  });
+
+  it("keeps all non-label canonical semantics byte-equivalent", () => {
+    const strippedBytes = JSON.stringify(stripVocabularyLabels(atlas));
+    expect(createHash("sha256").update(strippedBytes).digest("hex")).toBe(
+      LABEL_STRIPPED_ATLAS_SHA256,
+    );
+    expect(atlas.materials).toHaveLength(23);
+    expect(atlas.sources).toHaveLength(22);
   });
 });
