@@ -73,10 +73,18 @@ function issueCodes(candidate: unknown): string[] {
   return result.success ? [] : result.issues.map(({ code }) => code);
 }
 
+type FixtureVisualizationTarget =
+  | { kind: "material-id"; materialId: string }
+  | { kind: "claim-id"; claimId: string }
+  | { kind: "decision-lane-id"; decisionLaneId: string }
+  | { kind: "selector-criterion-id"; selectorCriterionId: string }
+  | { kind: "process-gate-id"; processGateId: string }
+  | { kind: "material-route"; slug: string };
+
 function setThermalRange(
   atlas: ReturnType<typeof createMinimalAtlas>,
-  subject: ReturnType<typeof createMinimalAtlas>["visualizationReferences"][number]["subject"],
-  related: ReturnType<typeof createMinimalAtlas>["visualizationReferences"][number]["related"],
+  subject: FixtureVisualizationTarget,
+  related: FixtureVisualizationTarget[],
 ) {
   const reference = atlas.visualizationReferences[0]!;
   Reflect.set(reference, "kind", "thermal-range");
@@ -231,16 +239,16 @@ describe("AtlasV1 cross-record invariants", () => {
       observation.method = { ...observation.method, standard: "Synthetic standard B" };
     }],
     ["load", (observation: ReturnType<typeof createMinimalAtlas>["materials"][number]["thermalObservations"][number]) => {
-      observation.method = { ...observation.method, loadMpa: 1.8 };
+      Reflect.set(observation.method, "loadMpa", 1.8);
     }],
     ["annealing", (observation: ReturnType<typeof createMinimalAtlas>["materials"][number]["thermalObservations"][number]) => {
       observation.method = { ...observation.method, annealed: true };
     }],
     ["conditioning", (observation: ReturnType<typeof createMinimalAtlas>["materials"][number]["thermalObservations"][number]) => {
-      observation.method = { ...observation.method, conditioning: "Synthetic conditioned state" };
+      Reflect.set(observation.method, "conditioning", "Synthetic conditioned state");
     }],
     ["other conditions", (observation: ReturnType<typeof createMinimalAtlas>["materials"][number]["thermalObservations"][number]) => {
-      observation.method = { ...observation.method, otherConditions: "Synthetic alternate fixture" };
+      Reflect.set(observation.method, "otherConditions", "Synthetic alternate fixture");
     }],
   ] as const)("rejects named observations with a different %s", (_dimension, mutate) => {
     const atlas = createMinimalAtlas();

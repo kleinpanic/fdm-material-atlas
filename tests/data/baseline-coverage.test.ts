@@ -139,9 +139,10 @@ describe("sanitized canonical baseline", () => {
     for (const reference of thermalRanges) {
       expect(reference.subject.kind, `${reference.id} subject must be a claim`).toBe("claim-id");
       if (reference.subject.kind !== "claim-id") continue;
+      const subjectClaimId = reference.subject.claimId;
 
       const owner = atlas.materials.find(({ serviceTemperature }) =>
-        serviceTemperature.id === reference.subject.claimId,
+        serviceTemperature.id === subjectClaimId,
       );
       expect(owner, `${reference.id} must use one material's service guidance`).toBeDefined();
       if (!owner) continue;
