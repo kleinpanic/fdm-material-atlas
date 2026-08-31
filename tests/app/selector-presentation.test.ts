@@ -3,13 +3,15 @@ import { describe, expect, it } from "vitest";
 
 import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
 import { PUBLIC_ROUTE_REGISTRY } from "../../src/lib/public-route-registry.ts";
+import type { PublicRouteRegistry } from "../../src/lib/public-route-registry.ts";
 import { selectProjectedMaterials } from "../../src/domain/selector/index.ts";
 import type { NoCompatibleSelectorOutcome } from "../../src/domain/selector/types.ts";
 import { buildSelectorPageModel } from "../../src/features/selector/page-model.ts";
 import { SELECTOR_COPY } from "../../src/features/selector/copy.ts";
 import { presentSelectorOutcome } from "../../src/features/selector/presentation.ts";
 
-const pageModel = buildSelectorPageModel(loadPublicAtlas(), "/atlas-preview/", PUBLIC_ROUTE_REGISTRY);
+const atlas = loadPublicAtlas();
+const pageModel = buildSelectorPageModel(atlas, "/atlas-preview/", PUBLIC_ROUTE_REGISTRY);
 const rankedOutcome = selectProjectedMaterials(pageModel.projection, pageModel.defaults);
 
 function ranked() {
@@ -112,6 +114,37 @@ describe("presentSelectorOutcome", () => {
       heading: SELECTOR_COPY.emptyHeading,
       body: SELECTOR_COPY.emptyBody,
     });
+  });
+
+  it("attaches verified decision maps only to rule-derived lane candidates", () => {
+    const laneId = atlas.decisionLanes.find(({ id }) => id === "lane-easy-prototypes")!.id;
+    const registry: PublicRouteRegistry = Object.freeze({
+      ...PUBLIC_ROUTE_REGISTRY,
+      decisionMaps: Object.freeze([Object.freeze({
+        laneId,
+        target: Object.freeze({ id: "home" as const }),
+        fragment: "lane-easy-prototypes",
+        verifiedFragments: Object.freeze(["lane-easy-prototypes"]),
+      })]),
+    });
+    const mappedModel = buildSelectorPageModel(atlas, "/atlas-preview/", registry);
+    const mappedOutcome = selectProjectedMaterials(mappedModel.projection, mappedModel.defaults);
+    const presented = presentSelectorOutcome(mappedModel, mappedOutcome);
+    expect(presented.kind).toBe("ranked");
+    if (presented.kind !== "ranked") return;
+    const materials = [...presented.compatible, ...presented.eliminated];
+    const pla = materials.find(({ materialId }) => materialId === "material-pla")!;
+    const abs = materials.find(({ materialId }) => materialId === "material-abs")!;
+
+    expect(pla.routes.decisionMaps).toEqual([{
+      laneId,
+      action: {
+        kind: "link",
+        href: "/atlas-preview/#lane-easy-prototypes",
+        label: "View Easy prototypes decision map",
+      },
+    }]);
+    expect(abs.routes.decisionMaps).toEqual([]);
   });
 
   it("contains no UI-owned scoring, predicate evaluation, sorting, or URL construction", () => {

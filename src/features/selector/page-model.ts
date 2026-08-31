@@ -4,6 +4,11 @@ import {
   compileSelectorProjection,
   type SelectorProjectionV1,
 } from "../../domain/selector/index.ts";
+import { resolveSelectorField } from "../../domain/selector/field-resolver.ts";
+import {
+  compilePredicate,
+  evaluatePredicate,
+} from "../../domain/selector/predicate.ts";
 import {
   buildSelectorRouteAvailability,
   type PublicRouteRegistry,
@@ -53,6 +58,21 @@ function projectFamily(material: AtlasV1["materials"][number]): FamilyDisplay {
   return Object.freeze({ state: "unavailable" });
 }
 
+function compileDecisionMapLaneIds(
+  atlas: AtlasV1,
+  material: AtlasV1["materials"][number],
+) {
+  return Object.freeze(
+    [...atlas.decisionLanes]
+      .sort((left, right) => compareAscii(left.id, right.id))
+      .filter((lane) => evaluatePredicate(
+        compilePredicate(lane.candidateRule),
+        (field) => resolveSelectorField(material, field, atlas.vocabularies),
+      ) === "match")
+      .map(({ id }) => id),
+  );
+}
+
 /**
  * Compile the one allow-listed selector client prop. The Atlas remains a
  * build-only input and no evidence, profile, method, or visualization record
@@ -88,8 +108,12 @@ export function buildSelectorPageModel(
   let routes: SelectorRouteAvailability;
   try {
     routes = buildSelectorRouteAvailability(base, registry, {
-      materials: Object.freeze(atlas.materials.map(({ id, slug }) => Object.freeze({ id, slug }))),
-      laneIds: Object.freeze(atlas.decisionLanes.map(({ id }) => id)),
+      materials: Object.freeze(atlas.materials.map((material) => Object.freeze({
+        id: material.id,
+        slug: material.slug,
+        decisionMapLaneIds: compileDecisionMapLaneIds(atlas, material),
+      }))),
+      lanes: Object.freeze(atlas.decisionLanes.map(({ id, label }) => Object.freeze({ id, label }))),
     });
   } catch {
     return fail("SELECTOR_PAGE_ROUTE_REGISTRY_INVALID");

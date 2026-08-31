@@ -11,8 +11,12 @@ const MATERIAL_ID = "material-synthetic-alpha" as MaterialId;
 const LANE_ID = "lane-synthetic-alpha" as DecisionLaneId;
 
 const catalog = Object.freeze({
-  materials: Object.freeze([{ id: MATERIAL_ID, slug: "synthetic-alpha" }]),
-  laneIds: Object.freeze([LANE_ID]),
+  materials: Object.freeze([{
+    id: MATERIAL_ID,
+    slug: "synthetic-alpha",
+    decisionMapLaneIds: Object.freeze([LANE_ID]),
+  }]),
+  lanes: Object.freeze([{ id: LANE_ID, label: "Synthetic alpha" }]),
 });
 
 function completedRegistry(): PublicRouteRegistry {
@@ -44,6 +48,7 @@ describe("public selector route registry", () => {
       materialId: MATERIAL_ID,
       details: { kind: "unavailable", label: "Material details are not available yet" },
       startingProfile: { kind: "unavailable", label: "Starting profile is not available yet" },
+      decisionMaps: [],
     });
     expect(availability.compare).toEqual({ kind: "unavailable", label: "Comparison is not available yet" });
     expect(availability.decisionMaps).toEqual([]);
@@ -61,7 +66,8 @@ describe("public selector route registry", () => {
     expect(availability.materials[0]?.details).toEqual({ kind: "link", href: details, label: "View material details" });
     expect(availability.materials[0]?.startingProfile).toEqual({ kind: "link", href: profile, label: "View starting profile" });
     expect(availability.compare).toEqual({ kind: "link", href: compare, label: "Compare shortlisted" });
-    expect(availability.decisionMaps[0]?.action).toEqual({ kind: "link", href: map, label: "View relevant decision map" });
+    expect(availability.decisionMaps[0]?.action).toEqual({ kind: "link", href: map, label: "View Synthetic alpha decision map" });
+    expect(availability.materials[0]?.decisionMaps[0]?.action).toEqual({ kind: "link", href: map, label: "View Synthetic alpha decision map" });
     expect(availability.methodEvidence).toEqual({ kind: "link", href: method, label: "Read scoring method and evidence" });
   });
 
@@ -74,5 +80,18 @@ describe("public selector route registry", () => {
     ["ROUTE_SLUG_INVALID", () => ({ ...completedRegistry(), materialDetails: [{ materialId: MATERIAL_ID, target: { id: "material", slug: "../escape" } }] })],
   ])("fails invalid completed inventory with stable code %s", (code, mutate) => {
     expect(() => buildSelectorRouteAvailability("/", mutate() as PublicRouteRegistry, catalog)).toThrow(code);
+  });
+
+  it("does not attach a verified lane to a material outside its candidate set", () => {
+    const availability = buildSelectorRouteAvailability("/", completedRegistry(), {
+      ...catalog,
+      materials: Object.freeze([{
+        ...catalog.materials[0]!,
+        decisionMapLaneIds: Object.freeze([]),
+      }]),
+    });
+
+    expect(availability.decisionMaps).toHaveLength(1);
+    expect(availability.materials[0]?.decisionMaps).toEqual([]);
   });
 });

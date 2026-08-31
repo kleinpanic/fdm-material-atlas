@@ -53,7 +53,7 @@ describe("buildSelectorPageModel", () => {
     ]) expect(serialized).not.toContain(forbidden);
     const model = buildSelectorPageModel(atlas, "/", PUBLIC_ROUTE_REGISTRY);
     model.routes.materials.forEach((route) => {
-      expect(Object.keys(route).sort()).toEqual(["details", "materialId", "startingProfile"]);
+      expect(Object.keys(route).sort()).toEqual(["decisionMaps", "details", "materialId", "startingProfile"]);
       expect(route.startingProfile).toEqual({
         kind: "unavailable",
         label: "Starting profile is not available yet",

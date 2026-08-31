@@ -44,8 +44,12 @@ function pagePropsWithCompiledRoutes(base: string) {
     decisionMaps: Object.freeze([]),
   });
   const routes = buildSelectorRouteAvailability(base, registry, {
-    materials: Object.freeze([Object.freeze({ id: materialId, slug: "pla" })]),
-    laneIds: Object.freeze([]),
+    materials: Object.freeze([Object.freeze({
+      id: materialId,
+      slug: "pla",
+      decisionMapLaneIds: Object.freeze([]),
+    })]),
+    lanes: Object.freeze([]),
   });
   return JSON.stringify({
     pageModel: {

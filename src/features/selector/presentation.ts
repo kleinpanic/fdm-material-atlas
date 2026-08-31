@@ -27,7 +27,7 @@ type SelectedCriterionPresentation = Readonly<{
 type MaterialRoutesPresentation = Readonly<{
   details: RouteAction;
   startingProfile: RouteAction;
-  decisionMaps: SelectorPageModel["routes"]["decisionMaps"];
+  decisionMaps: SelectorPageModel["routes"]["materials"][number]["decisionMaps"];
   decisionMapFallback: RouteAction;
   methodEvidence: RouteAction;
 }>;
@@ -165,7 +165,7 @@ function materialContext(pageModel: SelectorPageModel, materialId: MaterialId) {
     routes: Object.freeze({
       details: route.details,
       startingProfile: route.startingProfile,
-      decisionMaps: pageModel.routes.decisionMaps,
+      decisionMaps: route.decisionMaps,
       decisionMapFallback: pageModel.routes.decisionMapFallback,
       methodEvidence: pageModel.routes.methodEvidence,
     }),
