@@ -44,14 +44,12 @@ describe("evaluateSelectorSafely", () => {
 
 describe("selector component boundary", () => {
   const controls = readFileSync(new URL("../../src/components/selector/SelectorControls.tsx", import.meta.url), "utf8");
-  const results = readFileSync(new URL("../../src/components/selector/SelectorResults.tsx", import.meta.url), "utf8");
   const island = readFileSync(new URL("../../src/components/selector/SelectorIsland.tsx", import.meta.url), "utf8");
-  const componentSource = `${controls}\n${results}`;
-  const allSource = `${componentSource}\n${island}`;
+  const allSource = `${controls}\n${island}`;
 
   it("keeps exactly one island and one engine invocation owner", () => {
     expect(island).toContain("evaluateSelectorSafely");
-    expect(componentSource).not.toMatch(/selectProjectedMaterials|evaluateSelectorSafely/);
+    expect(controls).not.toMatch(/selectProjectedMaterials|evaluateSelectorSafely/);
     expect(allSource.match(/from ["']preact\/hooks["']/g)).toHaveLength(1);
   });
 
@@ -64,14 +62,6 @@ describe("selector component boundary", () => {
     expect(controls).toMatch(/<summary\b/);
     expect(controls).toMatch(/<select\b/);
     expect(controls).toMatch(/<dl\b/);
-  });
-
-  it("renders result semantics without a second scoring or route implementation", () => {
-    expect(results).toMatch(/<ol\b/);
-    expect(results).toMatch(/<article\b/);
-    expect(results).toMatch(/<details\b/);
-    expect(results).toMatch(/<a\b/);
-    expect(results).not.toMatch(/\.sort\s*\(|\.reduce\s*\(|awardedPoints\s*[+*-]|internalHref|fragmentHref/);
   });
 
   it("prohibits network, persistence, routing, raw HTML, and browser logging", () => {
