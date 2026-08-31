@@ -324,3 +324,33 @@ test('rejects shallow and promisor repositories before auditing history', async 
     'history-incomplete',
   );
 });
+
+test('rejects replacement refs and grafts before inspecting publishable history', async () => {
+  const replacementFixture = createNestedRepositories();
+  commitFile(replacementFixture.child, {
+    filename: 'original.txt',
+    authorName: 'Different Person',
+    authorEmail: 'different@example.test',
+  });
+  const original = git(replacementFixture.child, ['rev-parse', 'HEAD']);
+  git(replacementFixture.child, ['checkout', '--orphan', 'replacement-fixture']);
+  git(replacementFixture.child, ['rm', '-rf', '.']);
+  commitFile(replacementFixture.child, { filename: 'replacement.txt', message: 'Safe replacement' });
+  const replacement = git(replacementFixture.child, ['rev-parse', 'HEAD']);
+  git(replacementFixture.child, ['checkout', 'main']);
+  git(replacementFixture.child, ['replace', original, replacement]);
+  await expectRule(
+    assertRepository({ cwd: replacementFixture.child, expectedRoot: replacementFixture.child }),
+    'history-unsupported',
+  );
+
+  const graftFixture = createNestedRepositories();
+  commitFile(graftFixture.child, { filename: 'first.txt', message: 'First' });
+  commitFile(graftFixture.child, { filename: 'second.txt', message: 'Second' });
+  const head = git(graftFixture.child, ['rev-parse', 'HEAD']);
+  writeFileSync(join(graftFixture.child, '.git', 'info', 'grafts'), `${head}\n`);
+  await expectRule(
+    assertRepository({ cwd: graftFixture.child, expectedRoot: graftFixture.child }),
+    'history-unsupported',
+  );
+});

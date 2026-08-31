@@ -21,6 +21,7 @@ export function buildGitEnvironment(source = process.env) {
   }
   Object.assign(environment, {
     GIT_CONFIG_NOSYSTEM: '1',
+    GIT_NO_REPLACE_OBJECTS: '1',
     GIT_TERMINAL_PROMPT: '0',
     GIT_NO_LAZY_FETCH: '1',
     GIT_OPTIONAL_LOCKS: '0',

@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { lstat, realpath } from 'node:fs/promises';
+import { lstat, readFile, realpath } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 import { buildGitEnvironment } from './safe-git.mjs';
@@ -102,7 +102,8 @@ function failureContext() {
 }
 
 async function inspectHistory(repositoryRoot, configuredName, configuredEmail) {
-  const revisions = await runGit(repositoryRoot, ['rev-list', '--all']);
+  const head = await runGit(repositoryRoot, ['rev-parse', '--verify', 'HEAD'], { allowFailure: true });
+  const revisions = await runGit(repositoryRoot, ['rev-list', '--all', ...(head.ok ? ['HEAD'] : [])]);
   const hashes = splitLines(revisions.stdout);
   let identityMatches = true;
   let attributionAllowed = true;
@@ -137,6 +138,33 @@ async function inspectHistory(repositoryRoot, configuredName, configuredEmail) {
   }
 
   return { commitCount: hashes.length, identityMatches, attributionAllowed };
+}
+
+async function assertRawHistoryState(repositoryRoot) {
+  const replacementRefs = await runGit(repositoryRoot, [
+    'for-each-ref',
+    '--format=%(refname)',
+    'refs/replace/',
+  ]);
+  if (replacementRefs.stdout !== '') {
+    throw new RepositoryGuardError('history-unsupported', failureContext());
+  }
+
+  const graftPath = await runGit(repositoryRoot, ['rev-parse', '--path-format=absolute', '--git-path', 'info/grafts']);
+  try {
+    const graftInfo = await lstat(graftPath.stdout);
+    if (!graftInfo.isFile() || graftInfo.isSymbolicLink()) {
+      throw new RepositoryGuardError('history-unsupported', failureContext());
+    }
+    if ((await readFile(graftPath.stdout)).length > 0) {
+      throw new RepositoryGuardError('history-unsupported', failureContext());
+    }
+  } catch (error) {
+    if (error instanceof RepositoryGuardError) throw error;
+    if (error?.code !== 'ENOENT') {
+      throw new RepositoryGuardError('history-unsupported', failureContext());
+    }
+  }
 }
 
 async function inspectHistoryCompleteness(repositoryRoot) {
@@ -214,6 +242,8 @@ async function inspectRepositoryUnsafe(options = {}) {
     identityConfigured &&
     !PROHIBITED_ATTRIBUTION.test(configuredName) &&
     !PROHIBITED_ATTRIBUTION.test(configuredEmail);
+
+  if (repositoryRoot) await assertRawHistoryState(repositoryRoot);
 
   const history = repositoryRoot && identityConfigured
     ? await inspectHistory(repositoryRoot, configuredName, configuredEmail)
