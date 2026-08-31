@@ -30,8 +30,11 @@ const parsed = parseAtlas(JSON.parse(readFileSync(artifactPath, "utf8")) as unkn
 if (!parsed.success) throw new Error("Canonical selector resolver fixture is invalid");
 
 const atlas = parsed.data;
-const pla = atlas.materials.find(({ id }) => id === "material-pla");
-if (!pla) throw new Error("Canonical PLA fixture is missing");
+const pla: Material = (() => {
+  const material = atlas.materials.find(({ id }) => id === "material-pla");
+  if (!material) throw new Error("Canonical PLA fixture is missing");
+  return material;
+})();
 
 const orderExpected = {
   "properties.wearAbrasion.order": 1,
