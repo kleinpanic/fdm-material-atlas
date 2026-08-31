@@ -6,6 +6,8 @@ import {
   buildSelectorRouteAvailability,
   type PublicRouteRegistry,
 } from "../../src/lib/public-route-registry.ts";
+import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
+import { buildSelectorPageModel } from "../../src/features/selector/page-model.ts";
 
 const MATERIAL_ID = "material-synthetic-alpha" as MaterialId;
 const LANE_ID = "lane-synthetic-alpha" as DecisionLaneId;
@@ -42,7 +44,8 @@ function completedRegistry(): PublicRouteRegistry {
 
 describe("public selector route registry", () => {
   it("keeps every deferred production action honest and href-free", () => {
-    const availability = buildSelectorRouteAvailability("/", PUBLIC_ROUTE_REGISTRY, catalog);
+    const emptyRegistry = { materialDetails: [], startingProfiles: [], decisionMaps: [] } as const;
+    const availability = buildSelectorRouteAvailability("/", emptyRegistry, catalog);
 
     expect(availability.materials[0]).toEqual({
       materialId: MATERIAL_ID,
@@ -55,6 +58,23 @@ describe("public selector route registry", () => {
     expect(availability.decisionMapFallback).toEqual({ kind: "unavailable", label: "Decision map is not available yet" });
     expect(availability.methodEvidence).toEqual({ kind: "unavailable", label: "Method and evidence route is not available yet" });
     expect(JSON.stringify(availability)).not.toContain('"href"');
+  });
+
+  it.each([
+    ["/", "/compare/#comparison-matrix", "/map/#", "/method/#selector-scoring"],
+    ["/atlas-preview/", "/atlas-preview/compare/#comparison-matrix", "/atlas-preview/map/#", "/atlas-preview/method/#selector-scoring"],
+  ])("activates every emitted production target under %s", (base, compareHref, mapPrefix, methodHref) => {
+    const atlas = loadPublicAtlas();
+    const model = buildSelectorPageModel(atlas, base, PUBLIC_ROUTE_REGISTRY);
+    expect(model.routes.materials).toHaveLength(23);
+    for (const route of model.routes.materials) {
+      expect(route.details.kind).toBe("link");
+      expect(route.startingProfile.kind).toBe("link");
+      expect(route.decisionMaps.every(({ action }) => action.kind === "link" && action.href.startsWith(mapPrefix))).toBe(true);
+    }
+    expect(model.routes.compare).toEqual({ kind: "link", href: compareHref, label: "Compare shortlisted" });
+    expect(model.routes.methodEvidence).toEqual({ kind: "link", href: methodHref, label: "Read scoring method and evidence" });
+    expect(model.routes.decisionMaps).toHaveLength(8);
   });
 
   it.each([

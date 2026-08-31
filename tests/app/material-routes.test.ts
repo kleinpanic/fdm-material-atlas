@@ -39,6 +39,9 @@ describe("Phase 6 material route inventory", () => {
 
     urls.add(internalHref(base, { id: "materials" }));
     urls.add(internalHref(base, { id: "method" }));
+    urls.add(internalHref(base, { id: "compare" }));
+    urls.add(internalHref(base, { id: "data" }));
+    urls.add(internalHref(base, { id: "map" }));
     for (const material of atlas.materials) {
       const target = { id: "material" as const, slug: material.slug };
       urls.add(internalHref(base, target));
