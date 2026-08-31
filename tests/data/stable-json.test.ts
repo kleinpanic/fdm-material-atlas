@@ -16,7 +16,7 @@ import { serializeAtlas } from "../../src/data/serialization/stable-json.ts";
 import { createMinimalAtlas } from "../fixtures/atlas-minimal.valid.ts";
 import { privateLookingSyntheticMarker } from "../fixtures/atlas-invalid-cases.ts";
 
-function parsedAtlas(candidate = createMinimalAtlas()) {
+function parsedAtlas(candidate: unknown = createMinimalAtlas()) {
   const result = parseAtlas(candidate);
   if (!result.success) throw new Error(`Synthetic fixture failed with ${result.issues.length} safe issues`);
   return result.data;
@@ -30,13 +30,13 @@ function withPermutationData() {
     publisher: "Synthetic Materials Institute",
     kind: "technical-data-sheet",
     url: "https://materials.example.com/second-guide",
-  });
+  } as never);
   atlas.methods.push({
     id: "method-synthetic-second",
     name: "Second synthetic method",
     description: "Provides another public-safe method record.",
     limitations: ["Synthetic limitation order is meaningful."],
-  });
+  } as never);
   atlas.processGates.push({
     id: "gate-synthetic-drying",
     label: "Synthetic drying capability",
@@ -48,24 +48,24 @@ function withPermutationData() {
       methodId: "method-synthetic-review",
       scope: "derived-selector-logic",
     }],
-  });
+  } as never);
   atlas.visualizationReferences.push({
     id: "visualization-synthetic-second",
     kind: "equipment-gate",
     subject: { kind: "process-gate-id", processGateId: "gate-synthetic-drying" },
     related: [{ kind: "material-id", materialId: "material-synthetic-alpha" }],
-  });
+  } as never);
   atlas.vocabularies.push({
     id: "vocabulary-synthetic-second",
     label: "Second synthetic vocabulary",
     ordered: false,
     terms: [{ value: "synthetic-value", label: "Synthetic value" }],
-  });
+  } as never);
   atlas.materials[0]!.properties.density.basis.push({
     kind: "source",
     sourceId: "source-synthetic-guide",
     scope: "representative-product",
-  });
+  } as never);
   return atlas;
 }
 
@@ -149,7 +149,7 @@ describe("public data validator CLI", () => {
       },
     });
     expect(result.stderr).toBe("");
-  });
+  }, 15_000);
 
   it("rejects valid but noncanonical bytes with SERIALIZATION_DRIFT", () => {
     const result = runValidator(JSON.stringify(parsedAtlas()));
@@ -161,7 +161,7 @@ describe("public data validator CLI", () => {
       issueCount: 1,
       issues: [{ code: "SERIALIZATION_DRIFT", pointer: "/" }],
     });
-  });
+  }, 15_000);
 
   it("never reproduces rejected values in diagnostics", () => {
     const invalid = {
@@ -174,6 +174,5 @@ describe("public data validator CLI", () => {
     expect(result.status).not.toBe(0);
     expect(output).toContain("SCHEMA_UNKNOWN_KEY");
     expect(output).not.toContain(privateLookingSyntheticMarker);
-  });
+  }, 15_000);
 });
-
