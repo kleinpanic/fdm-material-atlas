@@ -98,7 +98,7 @@ export async function checkPublication({
 
   const selectedSurfaces = [
     ...DEFAULT_MODES.map((mode) => ({ mode })),
-    ...artifacts.map((artifactPath) => ({ mode: 'artifact', artifactPath })),
+    ...artifacts.map((artifactPath, artifactOrdinal) => ({ mode: 'artifact', artifactPath, artifactOrdinal })),
   ];
 
   for (const selected of selectedSurfaces) {
@@ -109,11 +109,16 @@ export async function checkPublication({
         artifactPath: selected.artifactPath,
         policy,
       });
-      surfaces.push({
+      const surfaceReport = {
         surface: report.mode,
         scannedCount: report.scannedCount,
         findingCount: report.findingCount,
-      });
+      };
+      if (report.artifactDigest) {
+        surfaceReport.artifactOrdinal = selected.artifactOrdinal;
+        surfaceReport.artifactDigest = report.artifactDigest;
+      }
+      surfaces.push(surfaceReport);
       findings.push(...report.findings.map(safeFinding));
     } catch (error) {
       surfaces.push({ surface: selected.mode, scannedCount: 0, findingCount: 0 });

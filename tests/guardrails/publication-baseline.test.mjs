@@ -250,6 +250,12 @@ test('repeated artifact options scan all directories and missing artifacts fail 
   );
   assertFailedWith(dirty, 'private-source-pattern', [marker, token, unsafeSegment, dirtyArtifact]);
   assert.equal(parseOutput(dirty).surfaces.filter(({ surface }) => surface === 'artifact').length, 2);
+  const artifactSurfaces = parseOutput(dirty).surfaces.filter(({ surface }) => surface === 'artifact');
+  assert.deepEqual(artifactSurfaces.map(({ artifactOrdinal }) => artifactOrdinal), [0, 1]);
+  for (const surface of artifactSurfaces) assert.match(surface.artifactDigest, /^sha256:[a-f0-9]{64}$/);
+  assert.notEqual(artifactSurfaces[0].artifactDigest, artifactSurfaces[1].artifactDigest);
+  assert.equal(JSON.stringify(artifactSurfaces).includes(cleanArtifact), false);
+  assert.equal(JSON.stringify(artifactSurfaces).includes(dirtyArtifact), false);
 
   const missingSegment = privateMarker('MISSING-ARTIFACT');
   const missing = join(fixture, missingSegment);
