@@ -1,4 +1,4 @@
-import type { EvidenceScope, EvidenceSourceKind } from "../../data/schema/evidence.ts";
+import type { EvidenceScope, EvidenceSource } from "../../data/schema/evidence.ts";
 import type { FactState } from "../../data/schema/fact-state.ts";
 import type { ThermalMetricKind } from "../../data/schema/material.ts";
 
@@ -11,6 +11,7 @@ export type ProcessRequirementState =
   | "unknown"
   | "not-applicable";
 export type PublicMeasurementUnit = "degC" | "g/cm3" | "mm/s" | "percent";
+export type EvidenceSourceKind = EvidenceSource["kind"];
 
 export const FACT_STATE_PRESENTATION = {
   known: { label: "Known" },
