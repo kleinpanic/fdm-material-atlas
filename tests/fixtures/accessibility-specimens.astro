@@ -1,0 +1,81 @@
+---
+import FactStateValue from "../../src/components/data/FactStateValue.astro";
+import MeaningfulFigure from "../../src/components/data/MeaningfulFigure.astro";
+import StateMarker from "../../src/components/data/StateMarker.astro";
+import TechnicalTable from "../../src/components/data/TechnicalTable.astro";
+
+const missingFact = {
+  state: "missing",
+  reason: "The representative source does not report this value.",
+} as const;
+---
+
+<section aria-labelledby="accessibility-specimens-title">
+  <h2 id="accessibility-specimens-title">Accessibility contract specimens</h2>
+
+  <StateMarker variant="verify" label="Verify" />
+  <FactStateValue fact={missingFact} />
+
+  <div>
+    <button
+      type="button"
+      aria-expanded="false"
+      aria-controls="verification-popover"
+      popovertarget="verification-popover"
+    >Explain verification status</button>
+    <div id="verification-popover" popover="auto" aria-label="Verification explanation">
+      <p>Formulations and tested specimens can differ.</p>
+    </div>
+    <p data-static-fallback="verification-popover">
+      Verify the manufacturer data sheet before a safety-critical selection.
+    </p>
+  </div>
+
+  <dialog aria-labelledby="comparison-dialog-title">
+    <h2 id="comparison-dialog-title">Continue to material comparison?</h2>
+    <p>Your current shortlist remains available.</p>
+    <form method="dialog">
+      <button type="submit" value="cancel" autofocus>Keep editing</button>
+      <button type="submit" value="continue">Continue to comparison</button>
+    </form>
+  </dialog>
+
+  <TechnicalTable
+    id="specimen-process-table"
+    caption="Synthetic process gates"
+    scrollLabel="Synthetic process gate table"
+    scrollGuidance="Scroll horizontally to read every synthetic process gate."
+  >
+    <tr slot="header">
+      <th scope="col">Material</th>
+      <th scope="col">Equipment state</th>
+      <th scope="col">Reported value</th>
+    </tr>
+    <tr slot="body">
+      <th scope="row">Specimen polymer</th>
+      <td><StateMarker variant="available" label="Available" /></td>
+      <td><FactStateValue fact={missingFact} /></td>
+    </tr>
+  </TechnicalTable>
+
+  <MeaningfulFigure
+    id="specimen-thermal-figure"
+    title="Synthetic named thermal observations"
+    description="The graphic keeps named metrics separate and does not imply interchangeability."
+    legendLabel="Synthetic thermal metric legend"
+    alternativeLabel="Synthetic thermal observations as text"
+  >
+    <circle slot="graphic" cx="25" cy="30" r="6"></circle>
+    <rect slot="graphic" x="65" y="24" width="12" height="12"></rect>
+    <ul slot="legend">
+      <li><span aria-hidden="true">●</span> Glass transition marker</li>
+      <li><span aria-hidden="true">■</span> Heat deflection marker</li>
+    </ul>
+    <dl slot="alternative">
+      <dt>Glass transition</dt>
+      <dd>Named observation; synthetic specimen value omitted.</dd>
+      <dt>Heat deflection temperature</dt>
+      <dd>Separate named observation; synthetic specimen value omitted.</dd>
+    </dl>
+  </MeaningfulFigure>
+</section>
