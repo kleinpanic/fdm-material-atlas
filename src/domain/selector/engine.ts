@@ -1,5 +1,5 @@
 import type { AtlasV1 } from "../../data/schema/atlas.ts";
-import type { MaterialId, SelectorOptionId } from "../../data/schema/ids.ts";
+import type { SelectorOptionId } from "../../data/schema/ids.ts";
 import type { SelectorField } from "../../data/schema/selector.ts";
 import { resolveSelectorField } from "./field-resolver.ts";
 import {
@@ -124,7 +124,7 @@ function prepareProjection(projection: SelectorProjectionV1): PreparedProjection
       const options = new Map<SelectorOptionId, PreparedOption>();
       for (const option of [...criterion.options]
         .sort((left, right) => left.displayOrder - right.displayOrder || compareAscii(left.id, right.id))) {
-        if (!isRecord(option) || typeof option.id !== "string" || options.has(option.id)
+        if (!isRecord(option) || typeof option.id !== "string" || options.has(option.id as SelectorOptionId)
           || typeof option.label !== "string" || !hasOnlyFiniteNonnegativeInteger(option.displayOrder)
           || !Array.isArray(option.hardGates)) invalidProjection();
         const compiled = compilePredicateSet({
@@ -134,12 +134,19 @@ function prepareProjection(projection: SelectorProjectionV1): PreparedProjection
         for (const gate of compiled.hardGates) {
           if (!processGateIds.has(gate.processGateId)) invalidProjection();
         }
-        options.set(option.id, Object.freeze({ definition: option, compiled }));
+        options.set(option.id as SelectorOptionId, Object.freeze({
+          definition: option as unknown as ProjectedSelectorOption,
+          compiled,
+        }));
       }
-      if (typeof criterion.defaultOptionId !== "string" || !options.has(criterion.defaultOptionId)) {
+      if (typeof criterion.defaultOptionId !== "string"
+        || !options.has(criterion.defaultOptionId as SelectorOptionId)) {
         invalidProjection();
       }
-      return Object.freeze({ definition: criterion, options });
+      return Object.freeze({
+        definition: criterion as unknown as ProjectedSelectorCriterion,
+        options,
+      });
     });
 
   const materialIds = new Set<string>();
@@ -175,7 +182,9 @@ function normalizeSelection(
     return { ok: false, issues: Object.freeze([{ code: "SELECTOR_INPUT_NOT_RECORD" }]) };
   }
 
-  const knownCriterionIds = new Set(prepared.criteria.map(({ definition }) => definition.id));
+  const knownCriterionIds = new Set<string>(
+    prepared.criteria.map(({ definition }) => definition.id),
+  );
   const keys = inputKeys(input);
   const hasUnknownCriterion = keys.some((key) =>
     typeof key !== "string" || !knownCriterionIds.has(key));
@@ -319,9 +328,12 @@ export function selectProjectedMaterials(
   try {
     prepared = prepareProjection(projection);
   } catch {
+    const issues: readonly SelectorIssue[] = Object.freeze([
+      { code: "SELECTOR_PROJECTION_INVALID" } satisfies SelectorIssue,
+    ]);
     return Object.freeze({
       kind: "invalid-selection",
-      issues: Object.freeze([{ code: "SELECTOR_PROJECTION_INVALID" }]),
+      issues,
     });
   }
 

@@ -14,7 +14,6 @@ import { compileSelectorProjection } from "../../src/domain/selector/projection.
 import type { SelectorProjectionV1 } from "../../src/domain/selector/types.ts";
 // The publication scanner is deliberately framework-free and is also used for
 // in-memory generated artifacts.
-// @ts-expect-error JavaScript publication tooling has no declaration surface.
 import { scanBytes } from "../../tools/scan-publication.mjs";
 import { selectorScenarios } from "./fixtures.ts";
 
@@ -165,7 +164,7 @@ describe("compileSelectorProjection", () => {
     forbiddenKeys.forEach((key) => expect(projectionKeys.has(key), key).toBe(false));
 
     expect(serialized).not.toContain(atlas.sources[0]!.url);
-    expect(serialized).not.toContain(atlas.methods[0]!.title);
+    expect(serialized).not.toContain(atlas.methods[0]!.name);
     expect(serialized).not.toContain(atlas.materials[0]!.thermalObservations[0]!.qualification);
   });
 
@@ -197,7 +196,9 @@ describe("compileSelectorProjection", () => {
     const projection = compileSelectorProjection(atlas);
     const inputs = Object.values(selectorScenarios)
       .filter(({ dataSource }) => dataSource === "canonical")
-      .flatMap(({ input, baselineInput }) => baselineInput ? [input, baselineInput] : [input]);
+      .flatMap((scenario) => "baselineInput" in scenario
+        ? [scenario.input, scenario.baselineInput]
+        : [scenario.input]);
     for (const input of inputs) {
       expect(selectProjectedMaterials(projection, input)).toEqual(selectMaterials(atlas, input));
     }

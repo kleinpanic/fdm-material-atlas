@@ -208,11 +208,12 @@ describe("selectProjectedMaterials", () => {
   });
 
   it("does not count a selected gate-only option in the denominator", () => {
+    const { preferenceRule: _preferenceRule, ...gateOnlyOption } = secondary.options[0]!;
+    void _preferenceRule;
     const gateOnly: ProjectedSelectorCriterion = {
       ...secondary,
       options: [{
-        ...secondary.options[0]!,
-        preferenceRule: undefined,
+        ...gateOnlyOption,
         hardGates: [{
           reasonId: "reason-enclosure-required",
           processGateId: gateId("gate-enclosure-capability"),
