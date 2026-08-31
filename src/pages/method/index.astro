@@ -1,0 +1,34 @@
+---
+import MethodReference from "../../components/method/MethodReference.astro";
+import { buildMethodPageModel } from "../../features/method/model.ts";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { loadPublicAtlas } from "../../lib/public-atlas.ts";
+import { internalHref } from "../../lib/routes.ts";
+import "../../styles/method.css";
+
+const base = import.meta.env.BASE_URL;
+const model = buildMethodPageModel(loadPublicAtlas(), base);
+const homeHref = internalHref(base, { id: "home" });
+const materialsHref = internalHref(base, { id: "materials" });
+const navigation = [
+  { label: "Material selector", href: homeHref, current: false },
+  { label: "Material atlas", href: materialsHref, current: false },
+  { label: "Method", href: model.href, current: true },
+] as const;
+const breadcrumbs = [{ label: "Home", href: homeHref }, { label: "Method and evidence", current: true }] as const;
+const footerLinks = [
+  { label: "Material selector", href: homeHref },
+  { label: "Material atlas", href: materialsHref },
+  { label: "Method and evidence", href: model.href },
+] as const;
+---
+
+<BaseLayout title="Method and evidence | FDM Material Atlas" description="Understand evidence scope, thermal metrics, selector scoring, public sources, and limitations in the FDM Material Atlas." canonicalPath={model.href} homeHref={homeHref} navigation={navigation} breadcrumbs={breadcrumbs} footerLinks={footerLinks}>
+  <header class="method-page-header">
+    <p class="technical-eyebrow">Scientific reading guide</p>
+    <h1>Method and evidence</h1>
+    <p class="reading-measure">Understand how to interpret material claims, named thermal tests, selector alignment, qualitative guidance, and the public evidence ledger.</p>
+    <p><a href={homeHref}>Use the Material selector</a> or <a href={materialsHref}>browse the Material atlas</a>.</p>
+  </header>
+  <MethodReference model={model} />
+</BaseLayout>

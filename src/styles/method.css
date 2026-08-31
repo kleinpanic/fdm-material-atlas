@@ -1,0 +1,78 @@
+.method-page-header {
+  max-inline-size: 720px;
+  padding-block: var(--spacing-8);
+}
+
+.method-reference {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 720px);
+  gap: var(--spacing-8);
+  align-items: start;
+}
+
+.method-orientation {
+  grid-column: 1 / -1;
+  max-inline-size: 720px;
+  padding: var(--spacing-4);
+  border-inline-start: var(--spacing-1) solid var(--color-accent);
+}
+
+.method-contents ol,
+.method-ledger,
+.method-limitations {
+  padding-inline-start: var(--spacing-5);
+}
+
+.method-contents a,
+.method-sections a {
+  overflow-wrap: anywhere;
+}
+
+.method-sections {
+  min-inline-size: 0;
+}
+
+.method-sections > section {
+  padding-block: var(--spacing-6);
+  border-block-start: var(--size-rule) solid var(--color-rule);
+}
+
+.method-definitions > div,
+.method-ledger > li {
+  margin-block: var(--spacing-4);
+}
+
+.method-definitions dt {
+  font-weight: var(--font-weight-semibold);
+}
+
+.method-definitions dd {
+  margin-inline-start: 0;
+  overflow-wrap: anywhere;
+}
+
+.method-reference td,
+.method-reference th {
+  min-inline-size: 12rem;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.method-reference :focus-visible {
+  outline: var(--size-focus-ring) solid var(--color-focus);
+  outline-offset: var(--size-focus-offset);
+}
+
+@media (max-width: 63.999rem) {
+  .method-reference { grid-template-columns: minmax(0, 1fr); }
+  .method-orientation { grid-column: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .method-reference * { scroll-behavior: auto; transition-duration: 0.01ms; }
+}
+
+@media (forced-colors: active) {
+  .method-orientation { border-inline-start-color: CanvasText; }
+  .method-reference :focus-visible { outline-color: Highlight; }
+}
