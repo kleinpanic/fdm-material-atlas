@@ -73,6 +73,13 @@ function uniqueFindings(findings) {
   });
 }
 
+function updateDigestFrame(digest, tag, value) {
+  const bytes = Buffer.isBuffer(value) ? value : Buffer.from(String(value));
+  const length = Buffer.alloc(8);
+  length.writeBigUInt64BE(BigInt(bytes.length));
+  digest.update(Buffer.from([tag])).update(length).update(bytes);
+}
+
 /** Scan untrusted bytes using only stable rule identifiers. */
 export function scanBytes(bytes, { policy, surface, location, objectType, objectId } = {}) {
   const content = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
@@ -303,11 +310,11 @@ async function collectArtifactFiles(root, current = root, output = []) {
       throw new PublicationScanError('surface-inspection-failed');
     }
     if (info.isSymbolicLink()) {
-      output.push({ path, relativePath: relative(root, path), symlink: true });
+      output.push({ path, relativePath: relative(root, path).split(sep).join('/'), symlink: true, mode: info.mode & 0o7777 });
     } else if (info.isDirectory()) {
       await collectArtifactFiles(root, path, output);
     } else if (info.isFile()) {
-      output.push({ path, relativePath: relative(root, path), symlink: false });
+      output.push({ path, relativePath: relative(root, path).split(sep).join('/'), symlink: false, mode: info.mode & 0o7777 });
     } else {
       throw new PublicationScanError('surface-inspection-failed');
     }
@@ -340,13 +347,20 @@ async function scanArtifact(artifactPath, policy) {
     throw new PublicationScanError('surface-inspection-failed');
   }
   const files = (await collectArtifactFiles(artifactRoot)).sort((left, right) => (
-    left.relativePath.localeCompare(right.relativePath)
+    Buffer.compare(Buffer.from(left.relativePath), Buffer.from(right.relativePath))
   ));
   const findings = [];
   const digest = createHash('sha256');
+  digest.update(Buffer.from('publication-artifact-tree\0v1', 'ascii'));
   for (const file of files) {
     if (!isInside(artifactRoot, resolve(file.path))) throw new PublicationScanError('surface-inspection-failed');
     const pathBytes = Buffer.from(file.relativePath);
+    digest.update(Buffer.from([0x01]));
+    updateDigestFrame(digest, 0x10, pathBytes);
+    updateDigestFrame(digest, 0x11, file.symlink ? 'symlink' : 'file');
+    const mode = Buffer.alloc(4);
+    mode.writeUInt32BE(file.mode);
+    updateDigestFrame(digest, 0x12, mode);
     if (file.symlink) {
       findings.push(formatFinding({
         ruleId: 'unsafe-symlink',
@@ -354,6 +368,7 @@ async function scanArtifact(artifactPath, policy) {
         location: pathBytes,
         objectType: 'symlink',
       }));
+      updateDigestFrame(digest, 0x13, Buffer.alloc(0));
       continue;
     }
     const inspected = await inspectFileRecord(file.path, pathBytes, {
@@ -362,7 +377,7 @@ async function scanArtifact(artifactPath, policy) {
       objectType: 'file',
     });
     findings.push(...inspected.findings);
-    digest.update(pathBytes).update(Buffer.from([0])).update(inspected.bytes).update(Buffer.from([0]));
+    updateDigestFrame(digest, 0x13, inspected.bytes);
   }
   try {
     const rootAfter = await lstat(resolve(artifactPath));

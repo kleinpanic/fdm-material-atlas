@@ -672,6 +672,29 @@ test('artifact scans reject a symlink root and return a deterministic content di
   );
 });
 
+test('artifact digests use collision-free framing and byte-stable path ordering', async () => {
+  const { loadPublicationPolicy, scanPublication } = await loadInterfaces();
+  const root = createRepository();
+  const policy = await loadPublicationPolicy({ root, env: {} });
+  const treeA = mkdtempSync(join(tmpdir(), 'publication-digest-a-'));
+  const treeB = mkdtempSync(join(tmpdir(), 'publication-digest-b-'));
+  write(treeA, 'a', Buffer.from('x\0b'));
+  write(treeA, 'c', Buffer.from('y'));
+  write(treeB, 'a', Buffer.from('x'));
+  write(treeB, 'b', Buffer.from('c\0y'));
+  const digestA = await scanPublication({ root, mode: 'artifact', artifactPath: treeA, policy });
+  const digestB = await scanPublication({ root, mode: 'artifact', artifactPath: treeB, policy });
+  assert.notEqual(digestA.artifactDigest, digestB.artifactDigest);
+
+  const orderA = mkdtempSync(join(tmpdir(), 'publication-order-a-'));
+  const orderB = mkdtempSync(join(tmpdir(), 'publication-order-b-'));
+  for (const name of ['z.txt', 'ä.txt', 'é.txt']) write(orderA, name, name);
+  for (const name of ['é.txt', 'ä.txt', 'z.txt']) write(orderB, name, name);
+  const orderedA = await scanPublication({ root, mode: 'artifact', artifactPath: orderA, policy });
+  const orderedB = await scanPublication({ root, mode: 'artifact', artifactPath: orderB, policy });
+  assert.equal(orderedA.artifactDigest, orderedB.artifactDigest);
+});
+
 test('stable file reader exposes a controlled failure seam without privilege assumptions', async () => {
   const { readStableFile, SafeFileError } = await import(SAFE_FILE_URL);
   const marker = privateMarker('OPEN-FAILURE');
