@@ -15160,7 +15160,7 @@
       "terms": [
         {
           "value": "broad-resistance",
-          "label": "Broad Resistance",
+          "label": "Broad resistance",
           "order": 3
         },
         {
@@ -15187,22 +15187,22 @@
       "terms": [
         {
           "value": "active-cooling",
-          "label": "Active Cooling",
+          "label": "Active cooling",
           "order": 2
         },
         {
           "value": "geometry-specific",
-          "label": "Geometry Specific",
+          "label": "Geometry specific",
           "order": 3
         },
         {
           "value": "managed-cooling",
-          "label": "Managed Cooling",
+          "label": "Managed cooling",
           "order": 1
         },
         {
           "value": "minimal-cooling",
-          "label": "Minimal Cooling",
+          "label": "Minimal cooling",
           "order": 0
         }
       ]
@@ -15229,7 +15229,7 @@
         },
         {
           "value": "very-high",
-          "label": "Very High",
+          "label": "Very high",
           "order": 3
         }
       ]
@@ -15288,7 +15288,7 @@
         },
         {
           "value": "very-good",
-          "label": "Very Good",
+          "label": "Very good",
           "order": 4
         }
       ]
@@ -15315,7 +15315,7 @@
         },
         {
           "value": "very-high",
-          "label": "Very High",
+          "label": "Very high",
           "order": 3
         }
       ]
@@ -15354,7 +15354,7 @@
       "terms": [
         {
           "value": "not-required",
-          "label": "Not Required",
+          "label": "Not required",
           "order": 0
         },
         {
@@ -15386,12 +15386,12 @@
         },
         {
           "value": "semi-rigid",
-          "label": "Semi Rigid",
+          "label": "Semi rigid",
           "order": 1
         },
         {
           "value": "very-flexible",
-          "label": "Very Flexible",
+          "label": "Very flexible",
           "order": 3
         }
       ]
@@ -15403,7 +15403,7 @@
       "terms": [
         {
           "value": "not-required",
-          "label": "Not Required",
+          "label": "Not required",
           "order": 0
         },
         {
@@ -15430,22 +15430,22 @@
         },
         {
           "value": "high-impact",
-          "label": "High Impact",
+          "label": "High impact",
           "order": 3
         },
         {
           "value": "low-impact",
-          "label": "Low Impact",
+          "label": "Low impact",
           "order": 1
         },
         {
           "value": "moderate-impact",
-          "label": "Moderate Impact",
+          "label": "Moderate impact",
           "order": 2
         },
         {
           "value": "very-high-impact",
-          "label": "Very High Impact",
+          "label": "Very high impact",
           "order": 4
         }
       ]
@@ -15472,7 +15472,7 @@
         },
         {
           "value": "very-high",
-          "label": "Very High",
+          "label": "Very high",
           "order": 3
         }
       ]
@@ -15538,22 +15538,22 @@
       "terms": [
         {
           "value": "good-ventilation",
-          "label": "Good Ventilation",
+          "label": "Good ventilation",
           "order": 1
         },
         {
           "value": "local-exhaust",
-          "label": "Local Exhaust",
+          "label": "Local exhaust",
           "order": 2
         },
         {
           "value": "specialized-controls",
-          "label": "Specialized Controls",
+          "label": "Specialized controls",
           "order": 3
         },
         {
           "value": "standard-room",
-          "label": "Standard Room",
+          "label": "Standard room",
           "order": 0
         }
       ]
@@ -15580,7 +15580,7 @@
         },
         {
           "value": "very-high",
-          "label": "Very High",
+          "label": "Very high",
           "order": 3
         }
       ]
@@ -15597,17 +15597,17 @@
         },
         {
           "value": "high-wear",
-          "label": "High Wear",
+          "label": "High wear",
           "order": 2
         },
         {
           "value": "low-wear",
-          "label": "Low Wear",
+          "label": "Low wear",
           "order": 0
         },
         {
           "value": "moderate-wear",
-          "label": "Moderate Wear",
+          "label": "Moderate wear",
           "order": 1
         }
       ]
