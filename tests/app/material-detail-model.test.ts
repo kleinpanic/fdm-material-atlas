@@ -64,6 +64,7 @@ describe("material detail models", () => {
 
   it("supports zero and many named observations without merging service guidance", () => {
     const candidate = createMinimalAtlas();
+    candidate.sources = [];
     const first = candidate.materials[0]!.thermalObservations[0]!;
     candidate.materials[0]!.thermalObservations = [];
     let parsed = parseAtlas(candidate);
@@ -72,6 +73,7 @@ describe("material detail models", () => {
     expect(buildMaterialDetailModels(parsed.data, "/")[0]!.thermal.namedObservations).toHaveLength(0);
 
     const many = createMinimalAtlas();
+    many.sources = [];
     many.materials[0]!.thermalObservations.push({
       ...structuredClone(first),
       id: "claim-synthetic-melting-point",
