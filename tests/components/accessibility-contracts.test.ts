@@ -2,7 +2,9 @@ import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import FactStateValue from "../../src/components/data/FactStateValue.astro";
+import MeaningfulFigure from "../../src/components/data/MeaningfulFigure.astro";
 import StateMarker from "../../src/components/data/StateMarker.astro";
+import TechnicalTable from "../../src/components/data/TechnicalTable.astro";
 
 let container: AstroContainer;
 
@@ -84,5 +86,73 @@ describe("fact state accessibility contract", () => {
     expect(html).toContain(">Conditional</span>");
     expect(html).toContain(">Stable</span>");
     expect(html).toContain(">When printed dry.</span>");
+  });
+});
+
+describe("technical table accessibility contract", () => {
+  it("owns a named overflow region and native captioned table structure", async () => {
+    const html = await container.renderToString(TechnicalTable, {
+      props: {
+        id: "process-window",
+        caption: "Starting process window",
+        scrollLabel: "Starting process window table",
+        scrollGuidance: "Scroll horizontally to read all process settings.",
+      },
+      slots: {
+        header: '<tr><th scope="col">Material</th><th scope="col">Nozzle</th></tr>',
+        body: '<tr><th scope="row">Specimen polymer</th><td>Not reported</td></tr>',
+      },
+    });
+
+    expect(html).toContain('class="data-overflow"');
+    expect(html).toContain('tabindex="0"');
+    expect(html).toContain('aria-label="Starting process window table"');
+    expect(html).toContain('aria-describedby="process-window-scroll-guidance"');
+    expect(html).toContain('id="process-window-scroll-guidance"');
+    expect(html).toContain("Scroll horizontally to read all process settings.");
+    expect(html).toContain("<table");
+    expect(html).toContain("<caption>Starting process window</caption>");
+    expect(html).toContain("<thead>");
+    expect(html).toContain('scope="col"');
+    expect(html).toContain("<tbody>");
+    expect(html).toContain('scope="row"');
+    expect(html).toContain(">Not reported</td>");
+  });
+});
+
+describe("meaningful figure accessibility contract", () => {
+  it("binds one SVG title and description to a complete static alternative", async () => {
+    const html = await container.renderToString(MeaningfulFigure, {
+      props: {
+        id: "thermal-observation",
+        title: "Named thermal observations",
+        description: "Separate markers show unlike thermal metrics.",
+        legendLabel: "Thermal metric legend",
+        alternativeLabel: "Thermal observations as text",
+      },
+      slots: {
+        graphic: '<circle cx="10" cy="10" r="4"></circle>',
+        legend: '<ul><li><span aria-hidden="true">●</span> Glass transition</li></ul>',
+        alternative: '<dl><dt>Glass transition</dt><dd>Named observation</dd></dl>',
+      },
+    });
+
+    expect(html.match(/<title\b/gu)).toHaveLength(1);
+    expect(html.match(/<desc\b/gu)).toHaveLength(1);
+    expect(html).toContain('role="img"');
+    expect(html).toContain(
+      'aria-labelledby="thermal-observation-title thermal-observation-description"',
+    );
+    expect(html).toContain('id="thermal-observation-title">Named thermal observations</title>');
+    expect(html).toContain(
+      'id="thermal-observation-description">Separate markers show unlike thermal metrics.</desc>',
+    );
+    expect(html).toContain('focusable="false"');
+    expect(html).not.toContain('tabindex="0"');
+    expect(html).toContain('class="meaningful-figure__marks" aria-hidden="true"');
+    expect(html).toContain('aria-label="Thermal metric legend"');
+    expect(html).toContain("Glass transition");
+    expect(html).toContain('aria-label="Thermal observations as text"');
+    expect(html).toContain("<dl>");
   });
 });
