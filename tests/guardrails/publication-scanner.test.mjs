@@ -18,14 +18,20 @@ const MAINTAINER_NAME = 'Casey Maintainer';
 const MAINTAINER_EMAIL = 'casey@example.test';
 
 function git(cwd, args, options = {}) {
+  const environment = {
+    ...process.env,
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_CONFIG_GLOBAL: '/dev/null',
+    ...options.env,
+  };
+  delete environment.GIT_AUTHOR_NAME;
+  delete environment.GIT_AUTHOR_EMAIL;
+  delete environment.GIT_COMMITTER_NAME;
+  delete environment.GIT_COMMITTER_EMAIL;
   return execFileSync('git', args, {
     cwd,
     encoding: options.encoding ?? 'utf8',
-    env: {
-      ...process.env,
-      GIT_CONFIG_NOSYSTEM: '1',
-      GIT_CONFIG_GLOBAL: '/dev/null',
-    },
+    env: environment,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
@@ -318,7 +324,9 @@ test('malformed input and missing, unreadable, or escaping surfaces fail closed 
   } catch {
     return;
   }
-  await assert.rejects(scanPublication({ root, mode: 'artifact', artifactPath: artifact, policy }));
+  const symlinkReport = await scanPublication({ root, mode: 'artifact', artifactPath: artifact, policy });
+  assert.ok(symlinkReport.findings.some(({ ruleId }) => ruleId === 'unsafe-symlink'));
+  assertRedacted(symlinkReport, [marker]);
 
   const unreadable = write(artifact, 'unreadable.txt', 'safe');
   chmodSync(unreadable, 0o000);
