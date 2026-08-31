@@ -219,7 +219,8 @@
 
 @layer components {
   .page-shell {
-    inline-size: min(100%, var(--width-page));
+    inline-size: 100%;
+    max-inline-size: var(--width-page);
     margin-inline: auto;
     padding-inline: var(--spacing-gutter-compact);
   }

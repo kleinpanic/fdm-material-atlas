@@ -99,6 +99,14 @@ test("home and tracer remain complete semantic documents without JavaScript", as
   const homeTitle = await home.title();
   await expect(home.locator(".site-header")).toHaveCount(1);
   await expect(home.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(1);
+  await expect(home.getByRole("link", { name: "View source on GitHub (opens in a new tab)" })).toHaveAttribute(
+    "href",
+    "https://github.com/kleinpanic/fdm-material-atlas",
+  );
+  await expect(home.getByRole("link", { name: "View source on GitHub (opens in a new tab)" })).toHaveAttribute(
+    "rel",
+    "noopener noreferrer",
+  );
   await expect(home.getByRole("main")).toHaveCount(1);
   await expect(home.locator("footer")).toHaveCount(1);
   await expect(home.locator("h1:visible")).toHaveCount(1);
@@ -109,8 +117,12 @@ test("home and tracer remain complete semantic documents without JavaScript", as
   expect(await tracer.title()).not.toBe(homeTitle);
   await expect(tracer.locator("h1:visible")).toHaveCount(1);
   await expect(tracer.getByRole("navigation", { name: "Breadcrumb" })).toBeVisible();
-  await expect(tracer.getByRole("link", { name: "Material tracer" }).first()).toHaveAttribute("aria-current", "page");
-  await expect(tracer.getByRole("link", { name: "Return to atlas home" })).toBeVisible();
+  await expect(
+    tracer
+      .getByRole("navigation", { name: "Primary navigation" })
+      .getByRole("link", { name: "Material atlas", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  await expect(tracer.getByRole("link", { name: "Return to the complete material atlas" })).toBeVisible();
   await home.context().close();
   await tracer.context().close();
 });
@@ -133,6 +145,19 @@ test("skip navigation and focus order work at wide, compact, and reflow sizes", 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);
   }
+});
+
+test("the decision map and repository action reflow without document overflow", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("map/");
+  await expect(page.getByRole("link", { name: "View source on GitHub (opens in a new tab)" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Start with the job. End with what to verify.",
+  );
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
 });
 
 test("home and a generated tracer load only successful inventoried same-origin resources", async ({ page }) => {

@@ -31,6 +31,18 @@ const { homeHref, navigation } = Astro.props;
             </a>
           </li>
         ))}
+        <li class="site-navigation__repository">
+          <a
+            class="repository-link"
+            href="https://github.com/kleinpanic/fdm-material-atlas"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="View source on GitHub (opens in a new tab)"
+          >
+            <span>View on GitHub</span>
+            <span aria-hidden="true">↗</span>
+          </a>
+        </li>
       </ul>
     </nav>
   </div>
@@ -44,8 +56,15 @@ const { homeHref, navigation } = Astro.props;
 
   .site-header__inner {
     display: grid;
+    min-inline-size: 0;
     gap: var(--spacing-4);
     padding-block: var(--spacing-4);
+  }
+
+  .site-header nav,
+  .site-navigation {
+    min-inline-size: 0;
+    max-inline-size: 100%;
   }
 
   .site-identity {
@@ -81,6 +100,26 @@ const { homeHref, navigation } = Astro.props;
     color: var(--color-ink-strong);
     text-decoration: underline;
     text-underline-offset: 0.22em;
+  }
+
+  .site-navigation .repository-link {
+    gap: var(--spacing-1);
+    border: var(--size-rule) solid var(--color-accent);
+    background: var(--color-accent);
+    color: var(--color-page);
+    font-weight: var(--font-weight-semibold);
+    text-decoration: none;
+  }
+
+  .site-navigation .repository-link:hover {
+    border-color: var(--color-ink-strong);
+    background: var(--color-ink-strong);
+  }
+
+  @media (max-width: 39.999rem) {
+    .site-navigation {
+      overflow: visible;
+    }
   }
 
   @media (min-width: 64rem) {
