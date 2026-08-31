@@ -32,8 +32,12 @@ type LaneFragmentRegistration = FragmentRouteRegistration & Readonly<{
 export type PublicRouteRegistry = Readonly<{
   materialDetails: readonly MaterialRouteRegistration[];
   startingProfiles: readonly MaterialFragmentRegistration[];
+  allMaterialDetails?: boolean;
+  allStartingProfiles?: boolean;
+  allDecisionMaps?: boolean;
   compare?: FragmentRouteRegistration;
   decisionMaps: readonly LaneFragmentRegistration[];
+  decisionMapOverview?: RouteTarget;
   methodEvidence?: FragmentRouteRegistration;
 }>;
 
@@ -67,6 +71,7 @@ const LABELS = Object.freeze({
   compareLink: "Compare shortlisted",
   compareUnavailable: "Comparison is not available yet",
   mapUnavailable: "Decision map is not available yet",
+  mapLink: "Open material decision map",
   methodLink: "Read scoring method and evidence",
   methodUnavailable: "Method and evidence route is not available yet",
 });
@@ -124,6 +129,12 @@ export const PUBLIC_ROUTE_REGISTRY: PublicRouteRegistry = Object.freeze({
   materialDetails: Object.freeze([]),
   startingProfiles: Object.freeze([]),
   decisionMaps: Object.freeze([]),
+  allMaterialDetails: true,
+  allStartingProfiles: true,
+  allDecisionMaps: true,
+  compare: Object.freeze({ target: { id: "compare" }, fragment: "comparison-matrix", verifiedFragments: Object.freeze(["comparison-matrix"]) }),
+  decisionMapOverview: Object.freeze({ id: "map" }),
+  methodEvidence: Object.freeze({ target: { id: "method" }, fragment: "selector-scoring", verifiedFragments: Object.freeze(["selector-scoring"]) }),
 });
 
 /** Compile a registry into browser-safe actions without guessing a path. */
@@ -156,6 +167,7 @@ export function buildSelectorRouteAvailability(
   registry.startingProfiles.forEach(assertVerifiedFragment);
 
   if (registry.compare) assertVerifiedFragment(registry.compare);
+  if (registry.decisionMapOverview) internalHref("/", registry.decisionMapOverview);
   if (registry.methodEvidence) assertVerifiedFragment(registry.methodEvidence);
   for (const registration of registry.decisionMaps) {
     if (!laneById.has(registration.laneId)) fail("ROUTE_REGISTRY_LANE_UNKNOWN");
@@ -165,7 +177,10 @@ export function buildSelectorRouteAvailability(
     fail("ROUTE_REGISTRY_TARGET_MISMATCH");
   }
 
-  const decisionMaps = [...registry.decisionMaps]
+  const decisionMapRegistrations = registry.allDecisionMaps
+    ? catalog.lanes.map(({ id }) => ({ laneId: id, target: { id: "map" as const }, fragment: id, verifiedFragments: [id] }))
+    : [...registry.decisionMaps];
+  const decisionMaps = decisionMapRegistrations
     .sort((left, right) => left.laneId < right.laneId ? -1 : left.laneId > right.laneId ? 1 : 0)
     .map((registration) => Object.freeze({
       laneId: registration.laneId,
@@ -175,8 +190,12 @@ export function buildSelectorRouteAvailability(
   const materials = [...catalog.materials]
     .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
     .map((material) => {
-      const detail = oneById(registry.materialDetails, material.id);
-      const profile = oneById(registry.startingProfiles, material.id);
+      const detail = registry.allMaterialDetails
+        ? { materialId: material.id, target: { id: "material" as const, slug: material.slug } }
+        : oneById(registry.materialDetails, material.id);
+      const profile = registry.allStartingProfiles
+        ? { materialId: material.id, target: { id: "material" as const, slug: material.slug }, fragment: "starting-profile", verifiedFragments: ["starting-profile"] }
+        : oneById(registry.startingProfiles, material.id);
       const membership = new Set(material.decisionMapLaneIds);
       return Object.freeze({
         materialId: material.id,
@@ -196,7 +215,9 @@ export function buildSelectorRouteAvailability(
       ? link(base, registry.compare, LABELS.compareLink)
       : unavailable(LABELS.compareUnavailable),
     decisionMaps: Object.freeze(decisionMaps),
-    decisionMapFallback: unavailable(LABELS.mapUnavailable),
+    decisionMapFallback: registry.decisionMapOverview
+      ? link(base, { target: registry.decisionMapOverview }, LABELS.mapLink)
+      : unavailable(LABELS.mapUnavailable),
     methodEvidence: registry.methodEvidence
       ? link(base, registry.methodEvidence, LABELS.methodLink)
       : unavailable(LABELS.methodUnavailable),

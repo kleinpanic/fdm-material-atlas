@@ -6,6 +6,9 @@ export type RouteTarget =
   | { readonly id: "home" }
   | { readonly id: "materials" }
   | { readonly id: "method" }
+  | { readonly id: "compare" }
+  | { readonly id: "data" }
+  | { readonly id: "map" }
   | { readonly id: "material"; readonly slug: string };
 
 function fail(code: string): never {
@@ -75,18 +78,11 @@ export function routePath(target: RouteTarget): string {
     return "/";
   }
 
-  if (target.id === "materials") {
+  if (["materials", "method", "compare", "data", "map"].includes(target.id)) {
     if (Object.keys(target).some((key) => key !== "id")) {
       return fail("ROUTE_TARGET_INVALID");
     }
-    return "/materials/";
-  }
-
-  if (target.id === "method") {
-    if (Object.keys(target).some((key) => key !== "id")) {
-      return fail("ROUTE_TARGET_INVALID");
-    }
-    return "/method/";
+    return `/${target.id}/`;
   }
 
   if (target.id === "material") {
