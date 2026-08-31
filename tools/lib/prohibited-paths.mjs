@@ -12,14 +12,19 @@ export const PROHIBITED_PATH_CLASSES = Object.freeze([
   { ignore: '.continue/', pattern: /(?:^|\/)\.continue(?:\/|$)/i, fixture: '.continue/config.json' },
   { ignore: '.roo/', pattern: /(?:^|\/)\.roo(?:\/|$)/i, fixture: '.roo/rules.md' },
   { ignore: '.github/instructions/', pattern: /(?:^|\/)\.github\/instructions(?:\/|$)/i, fixture: '.github/instructions/local.md' },
+  { ignore: '.github/prompts/', pattern: /(?:^|\/)\.github\/prompts(?:\/|$)/i, fixture: '.github/prompts/review.prompt.md' },
+  { ignore: '.github/agents/', pattern: /(?:^|\/)\.github\/agents(?:\/|$)/i, fixture: '.github/agents/reviewer.agent.md' },
   { ignore: 'AGENTS.md', pattern: /(?:^|\/)AGENTS\.md$/i, fixture: 'AGENTS.md' },
   { ignore: 'CLAUDE.md', pattern: /(?:^|\/)CLAUDE\.md$/i, fixture: 'CLAUDE.md' },
   { ignore: 'CODEX.md', pattern: /(?:^|\/)CODEX\.md$/i, fixture: 'CODEX.md' },
   { ignore: 'GEMINI.md', pattern: /(?:^|\/)GEMINI\.md$/i, fixture: 'GEMINI.md' },
   { ignore: '.github/copilot-instructions.md', pattern: /(?:^|\/)\.github\/copilot-instructions\.md$/i, fixture: '.github/copilot-instructions.md' },
   { ignore: '.clinerules', pattern: /(?:^|\/)\.clinerules$/i, fixture: '.clinerules' },
+  { ignore: '.cursorrules', pattern: /(?:^|\/)\.cursorrules$/i, fixture: '.cursorrules' },
   { ignore: '.windsurfrules', pattern: /(?:^|\/)\.windsurfrules$/i, fixture: '.windsurfrules' },
   { ignore: '.aider.conf.yml', pattern: /(?:^|\/)\.aider(?:\.conf)?\.ya?ml$/i, fixture: '.aider.conf.yml' },
+  { ignore: '.publication-sensitive-patterns', pattern: /(?:^|\/)\.publication-sensitive-patterns$/i, fixture: '.publication-sensitive-patterns' },
+  { ignore: '*-handoff.md', pattern: /(?:^|\/)[^/]+(?:-|\.)handoff\.md$/i, fixture: 'session-handoff.md' },
 ]);
 
 export const OPERATIONAL_PATH_PATTERNS = Object.freeze([

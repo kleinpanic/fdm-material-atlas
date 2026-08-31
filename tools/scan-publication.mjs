@@ -214,10 +214,9 @@ async function scanHistory(root, policy) {
   let scannedCount = refNames.length;
 
   for (const refName of refNames) {
-    findings.push(...scanBytes(refName, {
+    findings.push(...scanPath(refName, {
       policy,
       surface: 'history',
-      location: refName,
       objectType: 'ref',
     }));
   }

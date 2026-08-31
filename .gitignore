@@ -14,8 +14,11 @@ GEMINI.md
 .continue/
 .roo/
 .github/instructions/
+.github/prompts/
+.github/agents/
 .github/copilot-instructions.md
 .clinerules
+.cursorrules
 .windsurfrules
 .aider.conf.yml
 continue.md

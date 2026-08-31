@@ -203,8 +203,8 @@ test('canonical model-operation path classes are ignored and rejected on every p
   for (const { ignore } of PROHIBITED_PATH_CLASSES) assert.ok(publicIgnore.includes(ignore), ignore);
 
   const root = createRepository();
-  for (const { fixture } of PROHIBITED_PATH_CLASSES) write(root, fixture, 'synthetic operating fixture\n');
   const policy = await loadPublicationPolicy({ root, env: {} });
+  for (const { fixture } of PROHIBITED_PATH_CLASSES) write(root, fixture, 'synthetic operating fixture\n');
   const working = await scanPublication({ root, mode: 'working', policy });
   assert.ok(working.findings.filter(({ ruleId }) => ruleId === 'operational-path').length >= PROHIBITED_PATH_CLASSES.length);
 
@@ -214,6 +214,15 @@ test('canonical model-operation path classes are ignored and rejected on every p
     const report = await scanPublication({ root, mode, policy });
     assert.ok(report.findings.filter(({ ruleId }) => ruleId === 'operational-path').length >= PROHIBITED_PATH_CLASSES.length, mode);
   }
+
+  write(root, 'safe.txt', 'safe\n');
+  git(root, ['add', '--', 'safe.txt']);
+  git(root, ['commit', '-m', 'Add safe ref target']);
+  git(root, ['update-ref', 'refs/custom/session-handoff.md', 'HEAD']);
+  const refs = await scanPublication({ root, mode: 'history', policy });
+  assert.ok(refs.findings.some(({ ruleId, objectType }) => (
+    ruleId === 'operational-path' && objectType === 'ref'
+  )));
 });
 
 test('environment exact patterns are detected and redacted across every mode', async () => {
