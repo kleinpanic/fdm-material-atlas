@@ -10,15 +10,24 @@ const base = import.meta.env.BASE_URL;
 const model = buildMethodPageModel(loadPublicAtlas(), base);
 const homeHref = internalHref(base, { id: "home" });
 const materialsHref = internalHref(base, { id: "materials" });
+const compareHref = internalHref(base, { id: "compare" });
+const mapHref = internalHref(base, { id: "map" });
+const dataHref = internalHref(base, { id: "data" });
 const navigation = [
   { label: "Material selector", href: homeHref, current: false },
   { label: "Material atlas", href: materialsHref, current: false },
+  { label: "Compare", href: compareHref, current: false },
+  { label: "Map", href: mapHref, current: false },
+  { label: "Data", href: dataHref, current: false },
   { label: "Method", href: model.href, current: true },
 ] as const;
 const breadcrumbs = [{ label: "Home", href: homeHref }, { label: "Method and evidence", current: true }] as const;
 const footerLinks = [
   { label: "Material selector", href: homeHref },
   { label: "Material atlas", href: materialsHref },
+  { label: "Compare", href: compareHref },
+  { label: "Map", href: mapHref },
+  { label: "Data", href: dataHref },
   { label: "Method and evidence", href: model.href },
 ] as const;
 ---

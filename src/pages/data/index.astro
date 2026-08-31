@@ -10,9 +10,9 @@ const base = import.meta.env.BASE_URL;
 const homeHref = internalHref(base, { id: "home" });
 const materialsHref = internalHref(base, { id: "materials" });
 const methodHref = internalHref(base, { id: "method" });
-const dataHref = `${base}data/`;
-const compareHref = `${base}compare/`;
-const mapHref = `${base}map/`;
+const dataHref = internalHref(base, { id: "data" });
+const compareHref = internalHref(base, { id: "compare" });
+const mapHref = internalHref(base, { id: "map" });
 const navigation = [
   { label: "Selector", href: homeHref, current: false },
   { label: "Materials", href: materialsHref, current: false },
@@ -55,4 +55,3 @@ const navigation = [
     </div>
   </article>
 </BaseLayout>
-
