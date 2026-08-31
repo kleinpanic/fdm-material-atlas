@@ -1,4 +1,5 @@
-import { readFile, stat } from "node:fs/promises";
+import { constants } from "node:fs";
+import { open } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { parseAtlas, type AtlasIssue } from "../src/data/schema/parse-atlas.ts";
@@ -32,15 +33,19 @@ async function main(): Promise<number> {
 
   const path = resolve(process.cwd(), PUBLIC_DATA_PATH);
   let bytes: Buffer;
+  let handle: Awaited<ReturnType<typeof open>> | undefined;
   try {
-    const details = await stat(path);
+    handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+    const details = await handle.stat();
     if (!details.isFile()) return fail([{ code: "DATA_FILE_UNREADABLE", pointer: "/" }]);
     if (details.size > MAX_PUBLIC_DATA_BYTES) {
       return fail([{ code: "DATA_FILE_TOO_LARGE", pointer: "/" }]);
     }
-    bytes = await readFile(path);
+    bytes = await handle.readFile();
   } catch {
     return fail([{ code: "DATA_FILE_UNREADABLE", pointer: "/" }]);
+  } finally {
+    await handle?.close().catch(() => undefined);
   }
 
   let unknownData: unknown;
@@ -74,4 +79,3 @@ async function main(): Promise<number> {
 }
 
 process.exitCode = await main();
-

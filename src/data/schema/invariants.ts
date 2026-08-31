@@ -214,14 +214,16 @@ export function validateAtlasInvariants(atlas: AtlasV1): AtlasIssue[] {
       (termIndex) => `/vocabularies/${vocabularyIndex}/terms/${termIndex}/value`,
       () => vocabulary.id,
     ));
-    const orderedTerms = vocabulary.terms.filter(({ order }) => order !== undefined);
+    const orderedTerms = vocabulary.terms
+      .map((term, index) => ({ term, index }))
+      .filter(({ term }) => term.order !== undefined);
     if (vocabulary.ordered && orderedTerms.length !== vocabulary.terms.length) {
       issues.push(issue("VOCABULARY_INVALID", `/vocabularies/${vocabularyIndex}/terms`, vocabulary.id));
     }
     issues.push(...duplicateIssues(
       orderedTerms,
-      ({ order }) => String(order),
-      (termIndex) => `/vocabularies/${vocabularyIndex}/terms/${termIndex}/order`,
+      ({ term }) => String(term.order),
+      (entryIndex) => `/vocabularies/${vocabularyIndex}/terms/${orderedTerms[entryIndex]!.index}/order`,
       () => vocabulary.id,
     ));
   });
@@ -298,4 +300,3 @@ export function validateAtlasInvariants(atlas: AtlasV1): AtlasIssue[] {
     (left.entityId ?? "").localeCompare(right.entityId ?? ""),
   );
 }
-

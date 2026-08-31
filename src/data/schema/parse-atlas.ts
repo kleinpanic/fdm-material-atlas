@@ -51,7 +51,7 @@ function structuralIssueCode(issue: z.core.$ZodIssue): AtlasIssueCode {
   }
   if (issue.code === "unrecognized_keys") {
     const keys = "keys" in issue && Array.isArray(issue.keys) ? issue.keys : [];
-    return keys.includes("candidateMaterialIds")
+    return issue.path[0] === "decisionLanes" && keys.includes("candidateMaterialIds")
       ? "LANE_CANDIDATE_EMBEDDED"
       : "SCHEMA_UNKNOWN_KEY";
   }
