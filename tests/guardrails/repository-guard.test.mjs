@@ -111,6 +111,21 @@ test('rejects a cwd that resolves to an ancestor repository', async () => {
   );
 });
 
+test('exported inspection normalizes filesystem and corrupt-Git failures', async () => {
+  const marker = 'SYNTHETIC-PRIVATE-INSPECTION-PATH';
+  const missing = join(tmpdir(), marker, 'missing');
+  await expectRule(inspectRepository({ cwd: missing, expectedRoot: missing }), 'repository-inspection-failed', [marker]);
+
+  const { child } = createNestedRepositories();
+  commitFile(child);
+  writeFileSync(join(child, '.git', 'refs', 'heads', 'main'), 'not-an-object-id\n');
+  await expectRule(
+    inspectRepository({ cwd: child, expectedRoot: child }),
+    'repository-inspection-failed',
+    [],
+  );
+});
+
 test('rejects Git files, linked worktrees, and symlinked external common directories', async () => {
   const gitFileFixture = createNestedRepositories();
   const externalGit = join(gitFileFixture.fixtureRoot, 'external-git');

@@ -93,10 +93,14 @@ function splitLines(value) {
 
 function safeContext(inspection) {
   return {
-    repositoryRoot: inspection.repositoryRoot,
-    expectedRoot: inspection.expectedRoot,
-    parentRepositoryRoot: inspection.parentRepositoryRoot,
+    repositoryRoot: inspection.repositoryRoot ? 'repository' : null,
+    expectedRoot: 'expected-root',
+    parentRepositoryRoot: inspection.parentRepositoryRoot ? 'parent-repository' : null,
   };
+}
+
+function failureContext() {
+  return { repositoryRoot: null, expectedRoot: 'expected-root', parentRepositoryRoot: null };
 }
 
 async function inspectHistory(repositoryRoot, configuredName, configuredEmail) {
@@ -166,7 +170,7 @@ async function inspectHistoryCompleteness(repositoryRoot) {
  * @param {{cwd?: string, expectedRoot?: string, remotePolicy?: 'absent' | 'any'}} options
  * @returns {Promise<RepositoryInspection>}
  */
-export async function inspectRepository(options = {}) {
+async function inspectRepositoryUnsafe(options = {}) {
   const cwd = await physicalPath(options.cwd ?? process.cwd());
   const expectedRoot = await physicalPath(options.expectedRoot ?? cwd);
   const remotePolicy = options.remotePolicy ?? 'absent';
@@ -243,6 +247,15 @@ export async function inspectRepository(options = {}) {
     parentIndexEntryCount,
     commitCount: history.commitCount,
   };
+}
+
+export async function inspectRepository(options = {}) {
+  try {
+    return await inspectRepositoryUnsafe(options);
+  } catch (error) {
+    if (error instanceof RepositoryGuardError) throw error;
+    throw new RepositoryGuardError('repository-inspection-failed', failureContext());
+  }
 }
 
 /**
