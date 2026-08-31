@@ -9,6 +9,7 @@ import {
   RepositoryGuardError,
   assertRepository,
   inspectRepository,
+  isProhibitedAttribution,
 } from '../../tools/lib/repository-guard.mjs';
 
 const MAINTAINER_NAME = 'Casey Maintainer';
@@ -353,11 +354,7 @@ test('rejects reviewed AI attribution aliases in author, committer, and co-autho
 
 test('allows human names that contain harmless attribution substrings', async () => {
   for (const name of ['Robin Botwin', 'Geminius Stone', 'Grokowski Reed', 'Cursorly Jones']) {
-    const { child } = createNestedRepositories();
-    configureIdentity(child, name, 'human@example.test');
-    commitFile(child, { authorName: name, authorEmail: 'human@example.test', committerName: name, committerEmail: 'human@example.test' });
-    const inspection = await assertRepository({ cwd: child, expectedRoot: child, remotePolicy: 'absent' });
-    assert.equal(inspection.historyAttributionAllowed, true);
+    assert.equal(isProhibitedAttribution(name), false, name);
   }
 });
 

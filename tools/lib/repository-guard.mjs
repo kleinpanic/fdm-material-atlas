@@ -9,7 +9,7 @@ const PROHIBITED_ATTRIBUTION = /(?:^|[^a-z])(?:codex|openai|claude|anthropic|cha
 const PROHIBITED_EXACT_IDENTITIES = /(?:^|[\s<:])(?:ai|artificial intelligence)(?=$|[\s>@])/i;
 const KNOWN_AUTOMATION_IDENTITIES = /(?:^|[\s<])(?:dependabot|renovate|github-actions|automation)(?:\[bot\])?(?=$|[\s>@])/i;
 
-function attributionProhibited(value) {
+export function isProhibitedAttribution(value) {
   const normalized = String(value).trim();
   return (
     PROHIBITED_ATTRIBUTION.test(normalized) ||
@@ -171,11 +171,11 @@ async function inspectHistory(repositoryRoot, configuredName, configuredEmail) {
       identityMatches = false;
     }
     if (
-      attributionProhibited(authorName) ||
-      attributionProhibited(authorEmail) ||
-      attributionProhibited(committerName) ||
-      attributionProhibited(committerEmail) ||
-      body.split('\n').some((line) => /^co-authored-by:/i.test(line) && attributionProhibited(line))
+      isProhibitedAttribution(authorName) ||
+      isProhibitedAttribution(authorEmail) ||
+      isProhibitedAttribution(committerName) ||
+      isProhibitedAttribution(committerEmail) ||
+      body.split('\n').some((line) => /^co-authored-by:/i.test(line) && isProhibitedAttribution(line))
     ) {
       attributionAllowed = false;
     }
@@ -322,8 +322,8 @@ async function inspectRepositoryUnsafe(options = {}) {
   const identityConfigured = configuredName !== '' && configuredEmail !== '';
   const identityAllowed =
     identityConfigured &&
-    !attributionProhibited(configuredName) &&
-    !attributionProhibited(configuredEmail);
+    !isProhibitedAttribution(configuredName) &&
+    !isProhibitedAttribution(configuredEmail);
   const identityOriginApproved = repositoryRoot && identityConfigured
     ? await inspectIdentityOrigin(repositoryRoot, configuredName, configuredEmail)
     : false;
