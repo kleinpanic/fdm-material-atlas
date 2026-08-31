@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 import { buildGitEnvironment } from './safe-git.mjs';
 
 const execFileAsync = promisify(execFile);
-const PROHIBITED_ATTRIBUTION = /(?:^|[^a-z])(codex|openai|claude|anthropic|chatgpt|gsd|ai[- ]?agent|bot)(?:[^a-z]|$)/i;
+const PROHIBITED_ATTRIBUTION = /(?:^|[^a-z])(?:codex|openai|claude|anthropic|chatgpt|(?:github[ -]?)?copilot|gemini|grok|cursor|kimi|minimax|glm|opencode|gsd|ai[- ]?agent|bot)(?:[^a-z]|$)/i;
 
 /**
  * A redacted repository invariant failure.

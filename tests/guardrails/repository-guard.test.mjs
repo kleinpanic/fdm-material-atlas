@@ -240,6 +240,41 @@ test('rejects an AI co-author trailer without exposing the commit body', async (
   );
 });
 
+test('rejects reviewed AI attribution aliases in author, committer, and co-author positions', async () => {
+  const aliases = [
+    'Codex', 'OpenAI', 'Claude', 'Anthropic', 'ChatGPT', 'GitHub Copilot',
+    'Gemini', 'Grok', 'Cursor', 'Kimi', 'MiniMax', 'GLM', 'opencode', 'GSD',
+    'AI Agent', 'Build Bot',
+  ];
+  for (const alias of aliases) {
+    for (const position of ['author', 'committer', 'co-author']) {
+      const { child } = createNestedRepositories();
+      const options = {};
+      if (position === 'author') options.authorName = alias;
+      if (position === 'committer') options.committerName = alias;
+      if (position === 'co-author') {
+        options.message = `Ordinary subject\n\nCo-authored-by: ${alias} <synthetic@example.test>`;
+      }
+      commitFile(child, options);
+      await expectRule(
+        assertRepository({ cwd: child, expectedRoot: child, remotePolicy: 'absent' }),
+        'history-prohibited-attribution',
+        [alias],
+      );
+    }
+  }
+});
+
+test('allows human names that contain harmless attribution substrings', async () => {
+  for (const name of ['Robin Botwin', 'Geminius Stone', 'Grokowski Reed', 'Cursorly Jones']) {
+    const { child } = createNestedRepositories();
+    configureIdentity(child, name, 'human@example.test');
+    commitFile(child, { authorName: name, authorEmail: 'human@example.test', committerName: name, committerEmail: 'human@example.test' });
+    const inspection = await assertRepository({ cwd: child, expectedRoot: child, remotePolicy: 'absent' });
+    assert.equal(inspection.historyAttributionAllowed, true);
+  }
+});
+
 test('checks commits reachable from refs outside the current branch', async () => {
   const { child } = createNestedRepositories();
   commitFile(child);
