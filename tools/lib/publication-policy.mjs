@@ -71,14 +71,15 @@ export async function loadExactPatterns({ root, env = process.env, sensitiveFile
     throw new PublicationPolicyError('sensitive-input-inspection-failed');
   }
 
+  const patterns = [];
   if (Object.hasOwn(env, 'PUBLICATION_SENSITIVE_PATTERNS_JSON')) {
-    return parsePatternDocument(Buffer.from(env.PUBLICATION_SENSITIVE_PATTERNS_JSON ?? ''));
+    patterns.push(...parsePatternDocument(Buffer.from(env.PUBLICATION_SENSITIVE_PATTERNS_JSON ?? '')));
   }
 
   const selected = resolve(physicalRoot, sensitiveFile ?? DEFAULT_SENSITIVE_FILE);
   if (!(await fileExists(selected))) {
     if (sensitiveFile) throw new PublicationPolicyError('sensitive-input-inspection-failed');
-    return [];
+    return patterns;
   }
 
   let physicalFile;
@@ -99,7 +100,14 @@ export async function loadExactPatterns({ root, env = process.env, sensitiveFile
   }
 
   try {
-    return parsePatternDocument(await readFile(physicalFile));
+    patterns.push(...parsePatternDocument(await readFile(physicalFile)));
+    const seen = new Set();
+    return patterns.filter(({ bytes }) => {
+      const key = bytes.toString('base64');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   } catch (error) {
     if (error instanceof PublicationPolicyError) throw error;
     throw new PublicationPolicyError('sensitive-input-inspection-failed');

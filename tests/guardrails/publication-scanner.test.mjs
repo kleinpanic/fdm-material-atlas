@@ -240,6 +240,29 @@ test('sensitive files obey the outside-root or ignored, unstaged, untracked inva
   }
 });
 
+test('environment and explicit sensitive files merge without ambient precedence', async () => {
+  const { loadPublicationPolicy, scanPublication } = await loadInterfaces();
+  const root = createRepository();
+  const environmentMarker = privateMarker('MERGED-ENV');
+  const fileMarker = privateMarker('MERGED-FILE');
+  write(root, '.gitignore', '.publication-sensitive-patterns\n');
+  const sensitiveFile = write(
+    root,
+    '.publication-sensitive-patterns',
+    JSON.stringify([fileMarker, fileMarker]),
+  );
+  write(root, 'fixture.txt', `${environmentMarker}\n${fileMarker}\n`);
+  const policy = await loadPublicationPolicy({
+    root,
+    sensitiveFile,
+    env: { PUBLICATION_SENSITIVE_PATTERNS_JSON: JSON.stringify([environmentMarker]) },
+  });
+  assert.equal(policy.exactPatterns.length, 2);
+  const report = await scanPublication({ root, mode: 'working', policy });
+  assert.equal(report.findings.filter(({ ruleId }) => ruleId === 'private-source-pattern').length, 1);
+  assertRedacted(report, [environmentMarker, fileMarker]);
+});
+
 test('ignored-file exact patterns are detected in every surface', async () => {
   const { loadPublicationPolicy, scanPublication } = await loadInterfaces();
   const root = createRepository();
