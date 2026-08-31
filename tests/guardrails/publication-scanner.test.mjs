@@ -73,6 +73,18 @@ function privateKeyShape() {
   return ['-----BEGIN ', 'PRIVATE KEY', '-----\n', 'synthetic-fixture', '\n-----END ', 'PRIVATE KEY', '-----'].join('');
 }
 
+function additionalCredentialShapes() {
+  return [
+    ['github', '_pat_', 'A'.repeat(52)].join(''),
+    ['AI', 'za', 'B'.repeat(35)].join(''),
+    ['ya', '29.', 'C'.repeat(24)].join(''),
+    ['1', '//', 'D'.repeat(34)].join(''),
+    ['session', '_token=', 'E'.repeat(20)].join(''),
+    ['cookie', ':', 'F'.repeat(20)].join(''),
+    ['-----BEGIN ', 'ENCRYPTED PRIVATE KEY', '-----'].join(''),
+  ];
+}
+
 async function loadInterfaces() {
   try {
     const [scanner, policy] = await Promise.all([import(SCANNER_URL), import(POLICY_URL)]);
@@ -386,6 +398,22 @@ test('credential shapes and private key fixtures are detected without disclosure
   assertRedacted(report, [token, key, `nested-${token}`]);
 });
 
+test('current GitHub, Google, session, and encrypted-key credential shapes are detected', async () => {
+  const { loadPublicationPolicy, scanBytes } = await loadInterfaces();
+  const root = createRepository();
+  const policy = await loadPublicationPolicy({ root, env: {} });
+  for (const value of additionalCredentialShapes()) {
+    const findings = scanBytes(Buffer.from(value), {
+      policy,
+      surface: 'working',
+      location: Buffer.from('synthetic-fixture'),
+      objectType: 'file',
+    });
+    assert.ok(findings.some(({ ruleId }) => ruleId === 'credential-signature'), value.slice(0, 8));
+    assertRedacted({ findings }, [value]);
+  }
+});
+
 test('unsafe source maps and generated metadata are rejected in tracked and artifact modes', async () => {
   const { loadPublicationPolicy, scanPublication } = await loadInterfaces();
   const root = createRepository();
@@ -563,4 +591,5 @@ test('the committed test source contains no contiguous runtime credential fixtur
   const source = readFileSync(new URL(import.meta.url), 'utf8');
   assert.equal(source.includes(credentialShape('A')), false);
   assert.equal(source.includes(privateKeyShape()), false);
+  for (const value of additionalCredentialShapes()) assert.equal(source.includes(value), false);
 });

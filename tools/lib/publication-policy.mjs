@@ -167,9 +167,15 @@ export async function loadPublicationPolicy(options = {}) {
     operationalPathPatterns: OPERATIONAL_PATH_PATTERNS,
     credentialPatterns: Object.freeze([
       /gh[pousr]_[A-Za-z0-9]{30,}/g,
+      /github_pat_[A-Za-z0-9_]{50,}/g,
+      /AIza[0-9A-Za-z_-]{35}/g,
+      /ya29\.[0-9A-Za-z_-]{20,}/g,
+      /1\/\/[0-9A-Za-z_-]{30,}/g,
       /AKIA[A-Z0-9]{16}/g,
       /(?:api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password)\s*[:=]\s*["']?[A-Za-z0-9_./+=-]{16,}/gi,
+      /(?:cookie|session(?:_?token|_?id)?)\s*[:=]\s*["']?[^\s"';]{16,}/gi,
       new RegExp(['-----BEGIN ', '(?:RSA |EC |OPENSSH )?', 'PRIVATE KEY', '-----'].join(''), 'g'),
+      new RegExp(['-----BEGIN ', 'ENCRYPTED ', 'PRIVATE KEY', '-----'].join(''), 'g'),
     ]),
     maximumBytes: 64 * 1024 * 1024,
   });
