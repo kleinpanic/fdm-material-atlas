@@ -361,6 +361,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -930,6 +935,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -1482,6 +1492,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-comp",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -1497,6 +1512,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -2062,6 +2082,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -2628,6 +2653,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -3196,6 +3226,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -3751,6 +3786,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-comp",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -3766,6 +3806,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -3841,6 +3886,11 @@
             {
               "kind": "method",
               "methodId": "method-family-guidance",
+              "scope": "family-guidance"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-bambu-asa-paht-cf",
               "scope": "family-guidance"
             },
             {
@@ -4332,6 +4382,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -4887,6 +4942,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-comp",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -4902,6 +4962,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -5472,6 +5537,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -6038,6 +6108,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -6604,6 +6679,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -7173,6 +7253,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -7727,6 +7812,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-comp",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -7742,6 +7832,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -7817,6 +7912,11 @@
             {
               "kind": "method",
               "methodId": "method-family-guidance",
+              "scope": "family-guidance"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-bambu-pet-cf-ppa-cf",
               "scope": "family-guidance"
             },
             {
@@ -8311,6 +8411,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -8864,6 +8969,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-comp",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -8879,6 +8989,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -9447,6 +9562,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -10013,6 +10133,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -10568,6 +10693,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-comp",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -10583,6 +10713,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -10658,6 +10793,11 @@
             {
               "kind": "method",
               "methodId": "method-family-guidance",
+              "scope": "family-guidance"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-bambu-pet-cf-ppa-cf",
               "scope": "family-guidance"
             },
             {
@@ -11151,6 +11291,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -11719,6 +11864,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -12285,6 +12435,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -12836,6 +12991,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-comp",
+              "scope": "family-guidance"
             }
           ]
         },
@@ -12851,6 +13011,11 @@
               "kind": "method",
               "methodId": "method-qualitative-ratings",
               "scope": "qualitative-heuristic"
+            },
+            {
+              "kind": "source",
+              "sourceId": "source-prusa-dry",
+              "scope": "family-guidance"
             }
           ]
         },
