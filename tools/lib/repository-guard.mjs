@@ -34,6 +34,7 @@ export class RepositoryGuardError extends Error {
  * @property {boolean} parentRepositoryPresent
  * @property {boolean} repositoryRootMatches
  * @property {boolean} commonDirectoryOwned
+ * @property {boolean} objectStoreOwned
  * @property {boolean} identityConfigured
  * @property {boolean} identityAllowed
  * @property {boolean} remotePolicySatisfied
@@ -167,6 +168,41 @@ async function assertRawHistoryState(repositoryRoot) {
   }
 }
 
+async function inspectObjectStore(repositoryRoot, expectedGitDirectory) {
+  const objectsResult = await runGit(repositoryRoot, [
+    'rev-parse',
+    '--path-format=absolute',
+    '--git-path',
+    'objects',
+  ]);
+  const expectedObjects = join(expectedGitDirectory, 'objects');
+  let objectsOwned = false;
+  try {
+    const info = await lstat(objectsResult.stdout);
+    const physicalObjects = await realpath(objectsResult.stdout);
+    objectsOwned =
+      info.isDirectory() &&
+      !info.isSymbolicLink() &&
+      resolve(objectsResult.stdout) === expectedObjects &&
+      physicalObjects === expectedObjects;
+  } catch {
+    return false;
+  }
+  if (!objectsOwned) return false;
+
+  for (const name of ['alternates', 'http-alternates']) {
+    const alternatePath = join(expectedObjects, 'info', name);
+    try {
+      const info = await lstat(alternatePath);
+      if (!info.isFile() || info.isSymbolicLink()) return false;
+      if ((await readFile(alternatePath)).toString('utf8').trim() !== '') return false;
+    } catch (error) {
+      if (error?.code !== 'ENOENT') return false;
+    }
+  }
+  return true;
+}
+
 async function inspectHistoryCompleteness(repositoryRoot) {
   const shallow = await runGit(repositoryRoot, ['rev-parse', '--is-shallow-repository']);
   const partialExtension = await runGit(
@@ -216,6 +252,9 @@ async function inspectRepositoryUnsafe(options = {}) {
     (await literalDirectoryExists(expectedGitDirectory)) &&
     resolve(commonResult.stdout) === expectedGitDirectory &&
     gitCommonDirectory === expectedGitDirectory;
+  const objectStoreOwned = repositoryRoot && commonDirectoryOwned
+    ? await inspectObjectStore(repositoryRoot, expectedGitDirectory)
+    : false;
 
   const parentRepositoryRoot = await findAncestorRepository(expectedRoot);
   let parentIndexEntryCount = 0;
@@ -259,6 +298,7 @@ async function inspectRepositoryUnsafe(options = {}) {
     parentRepositoryRoot,
     repositoryRootMatches: repositoryRoot === expectedRoot,
     commonDirectoryOwned,
+    objectStoreOwned,
     identityConfigured,
     identityAllowed,
     remotePolicySatisfied: remotePolicy === 'any' || remoteCount === 0,
@@ -305,6 +345,7 @@ export async function assertRepository(options = {}) {
   const context = safeContext(inspection);
   if (!inspection.repositoryRootMatches) throw new RepositoryGuardError('repository-root-mismatch', context);
   if (!inspection.commonDirectoryOwned) throw new RepositoryGuardError('common-directory-mismatch', context);
+  if (!inspection.objectStoreOwned) throw new RepositoryGuardError('external-object-store', context);
   if (!inspection.parentIndexClean) throw new RepositoryGuardError('parent-index-entry', context);
   if (!inspection.remotePolicySatisfied) throw new RepositoryGuardError('remote-present', context);
   if (!inspection.identityConfigured) throw new RepositoryGuardError('identity-missing', context);

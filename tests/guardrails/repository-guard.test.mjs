@@ -91,6 +91,7 @@ test('accepts an unborn independent nested repository without exposing identity'
 
   assert.equal(inspection.repositoryRootMatches, true);
   assert.equal(inspection.commonDirectoryOwned, true);
+  assert.equal(inspection.objectStoreOwned, true);
   assert.equal(inspection.remoteCount, 0);
   assert.equal(inspection.identityConfigured, true);
   assert.equal(inspection.parentIndexEntryCount, 0);
@@ -170,6 +171,29 @@ test('rejects Git files, linked worktrees, and symlinked external common directo
   await expectRule(
     assertRepository({ cwd: linkedPath, expectedRoot: linkedPath, remotePolicy: 'absent' }),
     'common-directory-mismatch',
+  );
+});
+
+test('rejects shared clones and symlinked object databases', async () => {
+  const sharedSource = createNestedRepositories();
+  commitFile(sharedSource.child);
+  const shared = join(sharedSource.fixtureRoot, 'shared-child');
+  git(sharedSource.fixtureRoot, ['clone', '--shared', sharedSource.child, shared]);
+  configureIdentity(shared);
+  await expectRule(
+    assertRepository({ cwd: shared, expectedRoot: shared, remotePolicy: 'any' }),
+    'external-object-store',
+  );
+
+  const symlinkFixture = createNestedRepositories();
+  commitFile(symlinkFixture.child);
+  const objects = join(symlinkFixture.child, '.git', 'objects');
+  const externalObjects = join(symlinkFixture.fixtureRoot, 'external-objects');
+  renameSync(objects, externalObjects);
+  symlinkSync(externalObjects, objects, 'dir');
+  await expectRule(
+    assertRepository({ cwd: symlinkFixture.child, expectedRoot: symlinkFixture.child }),
+    'external-object-store',
   );
 });
 
