@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { realpath, stat } from 'node:fs/promises';
+import { lstat, realpath } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -65,9 +65,10 @@ async function physicalPath(path) {
   return realpath(resolve(path));
 }
 
-async function directoryExists(path) {
+async function literalDirectoryExists(path) {
   try {
-    return (await stat(path)).isDirectory();
+    const info = await lstat(path);
+    return info.isDirectory() && !info.isSymbolicLink();
   } catch {
     return false;
   }
@@ -162,8 +163,9 @@ export async function inspectRepository(options = {}) {
   const expectedGitDirectory = join(expectedRoot, '.git');
   const commonDirectoryOwned =
     gitCommonDirectory !== null &&
-    (await directoryExists(expectedGitDirectory)) &&
-    gitCommonDirectory === (await physicalPath(expectedGitDirectory));
+    (await literalDirectoryExists(expectedGitDirectory)) &&
+    resolve(commonResult.stdout) === expectedGitDirectory &&
+    gitCommonDirectory === expectedGitDirectory;
 
   const parentRepositoryRoot = await findAncestorRepository(expectedRoot);
   let parentIndexEntryCount = 0;

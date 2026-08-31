@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, renameSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
@@ -108,6 +108,35 @@ test('rejects a cwd that resolves to an ancestor repository', async () => {
   await expectRule(
     assertRepository({ cwd: nested, expectedRoot: nested, remotePolicy: 'absent' }),
     'repository-root-mismatch',
+  );
+});
+
+test('rejects Git files, linked worktrees, and symlinked external common directories', async () => {
+  const gitFileFixture = createNestedRepositories();
+  const externalGit = join(gitFileFixture.fixtureRoot, 'external-git');
+  renameSync(join(gitFileFixture.child, '.git'), externalGit);
+  writeFileSync(join(gitFileFixture.child, '.git'), `gitdir: ${externalGit}\n`);
+  await expectRule(
+    assertRepository({ cwd: gitFileFixture.child, expectedRoot: gitFileFixture.child, remotePolicy: 'absent' }),
+    'common-directory-mismatch',
+  );
+
+  const symlinkFixture = createNestedRepositories();
+  const symlinkTarget = join(symlinkFixture.fixtureRoot, 'external-git');
+  renameSync(join(symlinkFixture.child, '.git'), symlinkTarget);
+  symlinkSync(symlinkTarget, join(symlinkFixture.child, '.git'), 'dir');
+  await expectRule(
+    assertRepository({ cwd: symlinkFixture.child, expectedRoot: symlinkFixture.child, remotePolicy: 'absent' }),
+    'common-directory-mismatch',
+  );
+
+  const linkedFixture = createNestedRepositories();
+  const linkedPath = join(linkedFixture.fixtureRoot, 'linked-child');
+  git(linkedFixture.child, ['worktree', 'add', '-b', 'linked-fixture', linkedPath]);
+  configureIdentity(linkedPath);
+  await expectRule(
+    assertRepository({ cwd: linkedPath, expectedRoot: linkedPath, remotePolicy: 'absent' }),
+    'common-directory-mismatch',
   );
 });
 
