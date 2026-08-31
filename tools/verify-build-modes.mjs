@@ -358,22 +358,23 @@ async function inspectExistingBuilds() {
   return reports;
 }
 
-async function serveMode(modeName) {
-  const mode = MODES.find((candidate) => candidate.name === modeName);
-  if (mode === undefined) fail("SERVE_MODE_INVALID");
+const PREVIEW_CONTENT_TYPES = new Map([
+  [".css", "text/css; charset=utf-8"],
+  [".html", "text/html; charset=utf-8"],
+  [".js", "text/javascript; charset=utf-8"],
+  [".json", "application/json; charset=utf-8"],
+  [".mjs", "text/javascript; charset=utf-8"],
+  [".svg", "image/svg+xml"],
+  [".woff2", "font/woff2"],
+]);
+
+export async function createPreviewServer(mode) {
   const files = await collectFiles(mode.output);
-  const contentTypes = new Map([
-    [".css", "text/css; charset=utf-8"],
-    [".html", "text/html; charset=utf-8"],
-    [".json", "application/json; charset=utf-8"],
-    [".svg", "image/svg+xml"],
-    [".woff2", "font/woff2"],
-  ]);
-  const server = createServer(async (request, response) => {
+  return createServer(async (request, response) => {
     try {
       if (request.method !== "GET" && request.method !== "HEAD") fail("SERVE_METHOD_INVALID");
-      const url = new URL(request.url ?? "", `http://127.0.0.1:${mode.name === "root" ? 4321 : 4322}`);
-      if (!url.pathname.startsWith(mode.base) || url.search !== "") fail("SERVE_PATH_INVALID");
+      const url = new URL(request.url ?? "", "http://127.0.0.1");
+      if (!url.pathname.startsWith(mode.base)) fail("SERVE_PATH_INVALID");
       const logical = decodeURIComponent(url.pathname.slice(mode.base.length));
       if (logical.includes("\\") || logical.split("/").some((segment) => segment === "." || segment === "..")) fail("SERVE_PATH_INVALID");
       const relativeFile = logical === "" || logical.endsWith("/") ? `${logical}index.html` : logical;
@@ -387,7 +388,7 @@ async function serveMode(modeName) {
       const bytes = request.method === "HEAD" ? undefined : await readFile(record.path);
       response.writeHead(200, {
         "content-length": String(record.size),
-        "content-type": contentTypes.get(extension) ?? "application/octet-stream",
+        "content-type": PREVIEW_CONTENT_TYPES.get(extension) ?? "application/octet-stream",
         "x-content-type-options": "nosniff",
       });
       response.end(bytes);
@@ -396,6 +397,12 @@ async function serveMode(modeName) {
       response.end("Invalid request");
     }
   });
+}
+
+async function serveMode(modeName) {
+  const mode = MODES.find((candidate) => candidate.name === modeName);
+  if (mode === undefined) fail("SERVE_MODE_INVALID");
+  const server = await createPreviewServer(mode);
   const port = mode.name === "root" ? 4321 : 4322;
   await new Promise((accept, reject) => {
     server.once("error", reject);
@@ -431,8 +438,10 @@ async function main() {
   })}\n`);
 }
 
-main().catch((error) => {
-  const code = error instanceof VerificationError ? error.code : "VERIFICATION_FAILED";
-  process.stderr.write(`${JSON.stringify({ ok: false, code })}\n`);
-  process.exitCode = 1;
-});
+if (resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    const code = error instanceof VerificationError ? error.code : "VERIFICATION_FAILED";
+    process.stderr.write(`${JSON.stringify({ ok: false, code })}\n`);
+    process.exitCode = 1;
+  });
+}
