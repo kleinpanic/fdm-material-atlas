@@ -80,7 +80,9 @@ async function expectRule(promise, ruleCode, forbiddenValues = []) {
     assert.ok(error instanceof RepositoryGuardError);
     assert.equal(error.ruleCode, ruleCode);
     const serialized = JSON.stringify({ message: error.message, context: error.context });
-    for (const value of forbiddenValues) assert.doesNotMatch(serialized, new RegExp(value, 'i'));
+    for (const value of forbiddenValues) {
+      assert.equal(serialized.toLowerCase().includes(String(value).toLowerCase()), false);
+    }
     return true;
   });
 }
@@ -244,6 +246,25 @@ test('rejects prohibited AI or bot identity without echoing it', async () => {
   );
 });
 
+test('rejects common configured automation and exact AI identities', async () => {
+  for (const [name, email] of [
+    ['AI', 'person@example.test'],
+    ['Artificial Intelligence', 'person@example.test'],
+    ['Dependabot', 'dependabot@users.noreply.github.com'],
+    ['Renovate', 'renovate[bot]@users.noreply.github.com'],
+    ['GitHub Actions', 'github-actions[bot]@users.noreply.github.com'],
+    ['Automation', 'automation@users.noreply.github.com'],
+  ]) {
+    const { child } = createNestedRepositories();
+    configureIdentity(child, name, email);
+    await expectRule(
+      assertRepository({ cwd: child, expectedRoot: child }),
+      'identity-prohibited',
+      name === 'AI' ? [email] : [name, email],
+    );
+  }
+});
+
 test('rejects a remote when policy requires none without exposing its URL', async () => {
   const { child } = createNestedRepositories();
   const sensitiveRemote = 'https://example.test/private/fixture.git';
@@ -285,6 +306,8 @@ test('rejects reviewed AI attribution aliases in author, committer, and co-autho
     'Codex', 'OpenAI', 'Claude', 'Anthropic', 'ChatGPT', 'GitHub Copilot',
     'Gemini', 'Grok', 'Cursor', 'Kimi', 'MiniMax', 'GLM', 'opencode', 'GSD',
     'AI Agent', 'Build Bot',
+    'AI', 'Artificial Intelligence', 'dependabot', 'renovate[bot]',
+    'github-actions[bot]', 'automation@users.noreply.github.com',
   ];
   for (const alias of aliases) {
     for (const position of ['author', 'committer', 'co-author']) {
@@ -299,7 +322,7 @@ test('rejects reviewed AI attribution aliases in author, committer, and co-autho
       await expectRule(
         assertRepository({ cwd: child, expectedRoot: child, remotePolicy: 'absent' }),
         'history-prohibited-attribution',
-        [alias],
+        alias === 'AI' ? [] : [alias],
       );
     }
   }

@@ -6,6 +6,18 @@ import { buildGitEnvironment } from './safe-git.mjs';
 
 const execFileAsync = promisify(execFile);
 const PROHIBITED_ATTRIBUTION = /(?:^|[^a-z])(?:codex|openai|claude|anthropic|chatgpt|(?:github[ -]?)?copilot|gemini|grok|cursor|kimi|minimax|glm|opencode|gsd|ai[- ]?agent|bot)(?:[^a-z]|$)/i;
+const PROHIBITED_EXACT_IDENTITIES = /(?:^|[\s<:])(?:ai|artificial intelligence)(?=$|[\s>@])/i;
+const KNOWN_AUTOMATION_IDENTITIES = /(?:^|[\s<])(?:dependabot|renovate|github-actions|automation)(?:\[bot\])?(?=$|[\s>@])/i;
+
+function attributionProhibited(value) {
+  const normalized = String(value).trim();
+  return (
+    PROHIBITED_ATTRIBUTION.test(normalized) ||
+    PROHIBITED_EXACT_IDENTITIES.test(normalized) ||
+    KNOWN_AUTOMATION_IDENTITIES.test(normalized) ||
+    /\[bot\](?:@|$)/i.test(normalized)
+  );
+}
 
 /**
  * A redacted repository invariant failure.
@@ -128,11 +140,11 @@ async function inspectHistory(repositoryRoot, configuredName, configuredEmail) {
       identityMatches = false;
     }
     if (
-      PROHIBITED_ATTRIBUTION.test(authorName) ||
-      PROHIBITED_ATTRIBUTION.test(authorEmail) ||
-      PROHIBITED_ATTRIBUTION.test(committerName) ||
-      PROHIBITED_ATTRIBUTION.test(committerEmail) ||
-      body.split('\n').some((line) => /^co-authored-by:/i.test(line) && PROHIBITED_ATTRIBUTION.test(line))
+      attributionProhibited(authorName) ||
+      attributionProhibited(authorEmail) ||
+      attributionProhibited(committerName) ||
+      attributionProhibited(committerEmail) ||
+      body.split('\n').some((line) => /^co-authored-by:/i.test(line) && attributionProhibited(line))
     ) {
       attributionAllowed = false;
     }
@@ -279,8 +291,8 @@ async function inspectRepositoryUnsafe(options = {}) {
   const identityConfigured = configuredName !== '' && configuredEmail !== '';
   const identityAllowed =
     identityConfigured &&
-    !PROHIBITED_ATTRIBUTION.test(configuredName) &&
-    !PROHIBITED_ATTRIBUTION.test(configuredEmail);
+    !attributionProhibited(configuredName) &&
+    !attributionProhibited(configuredEmail);
 
   if (repositoryRoot) await assertRawHistoryState(repositoryRoot);
 
