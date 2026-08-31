@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 import playwrightTest from "@playwright/test";
@@ -32,11 +32,11 @@ const origin = `http://127.0.0.1:${port}`;
 const baseURL = new URL(basePath, origin).href;
 const outputRoot = resolve(`dist-test/${mode}`);
 
-async function tracerHref(page: Page): Promise<string> {
-  const href = await page.getByRole("link", { name: "Open material tracer" }).getAttribute("href");
-  expect(href).toBeTruthy();
-  expect(href).toMatch(new RegExp(`^${basePath.replaceAll("/", "\\/")}materials\\/[a-z0-9-]+\\/$`));
-  return href as string;
+function generatedTracerPath(): string {
+  const material = readdirSync(resolve(outputRoot, "materials"), { withFileTypes: true })
+    .find((entry) => entry.isDirectory());
+  expect(material?.name).toBeTruthy();
+  return `${basePath}materials/${material!.name}/`;
 }
 
 async function openNoScriptPage(browser: Browser, path: string): Promise<Page> {
@@ -104,9 +104,9 @@ test("home and tracer remain complete semantic documents without JavaScript", as
   await expect(home.locator("footer")).toHaveCount(1);
   await expect(home.locator("h1:visible")).toHaveCount(1);
   await expect(home.getByRole("link", { name: "Atlas home" }).first()).toHaveAttribute("aria-current", "page");
-  const href = await tracerHref(home);
+  await expect(home.getByRole("button", { name: "View recommendations" })).toBeDisabled();
 
-  const tracer = await openNoScriptPage(browser, new URL(href, origin).href);
+  const tracer = await openNoScriptPage(browser, new URL(generatedTracerPath(), origin).href);
   expect(await tracer.title()).not.toBe(homeTitle);
   await expect(tracer.locator("h1:visible")).toHaveCount(1);
   await expect(tracer.getByRole("navigation", { name: "Breadcrumb" })).toBeVisible();
@@ -130,21 +130,16 @@ test("skip navigation and focus order work at wide, compact, and reflow sizes", 
     await expectFocusedAndVisible(page);
     await page.keyboard.press("Enter");
     await expect(page.getByRole("main")).toBeFocused();
-    await page.keyboard.press("Tab");
-    const action = page.getByRole("link", { name: "Open material tracer" });
-    await expect(action).toBeFocused();
-    if (viewport.zoom === "200%") await action.scrollIntoViewIfNeeded();
-    await expectFocusedAndVisible(page);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Choose a material that fits your process");
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);
   }
 });
 
-test("both generated routes load only successful inventoried same-origin resources", async ({ page }) => {
+test("home and a generated tracer load only successful inventoried same-origin resources", async ({ page }) => {
   const assertNetwork = attachNetworkGate(page);
   await page.goto("./");
-  const href = await tracerHref(page);
-  await page.goto(href);
+  await page.goto(generatedTracerPath());
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   assertNetwork();
 });

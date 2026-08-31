@@ -1,0 +1,224 @@
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+import playwrightTest from "@playwright/test";
+import type {
+  Browser,
+  BrowserContext,
+  Page,
+  PlaywrightTestArgs,
+  PlaywrightTestOptions,
+  PlaywrightWorkerArgs,
+  PlaywrightWorkerOptions,
+  TestType,
+} from "playwright/types/test";
+
+import { presentSelectorOutcome } from "../../src/features/selector/presentation.ts";
+import { buildSelectorPageModel } from "../../src/features/selector/page-model.ts";
+import { selectProjectedMaterials } from "../../src/domain/selector/index.ts";
+import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
+import { PUBLIC_ROUTE_REGISTRY } from "../../src/lib/public-route-registry.ts";
+
+const test = playwrightTest as unknown as TestType<
+  PlaywrightTestArgs & PlaywrightTestOptions,
+  PlaywrightWorkerArgs & PlaywrightWorkerOptions
+>;
+// Astro check currently resolves only the default runtime export for this ESM package.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const expect = (playwrightTest as unknown as { expect: (...args: any[]) => any }).expect;
+
+const mode = process.env.ATLAS_TEST_MODE;
+if (mode !== "root" && mode !== "repository") throw new Error("ATLAS_TEST_MODE_INVALID");
+const basePath = mode === "root" ? "/" : "/atlas-preview/";
+const outputRoot = resolve(`dist-test/${mode}`);
+const pageModel = buildSelectorPageModel(loadPublicAtlas(), basePath, PUBLIC_ROUTE_REGISTRY);
+const defaultOutcome = selectProjectedMaterials(pageModel.projection, pageModel.defaults);
+const defaultPresentation = presentSelectorOutcome(pageModel, defaultOutcome);
+if (defaultPresentation.kind !== "ranked") throw new Error("SELECTOR_DEFAULT_NOT_RANKED");
+
+function compatibleItems(page: Page) {
+  return page.locator(".selector-compatible-list > li");
+}
+
+async function waitForSelector(page: Page): Promise<void> {
+  await page.goto("./");
+  await expect(page.getByRole("button", { name: "View recommendations" })).toBeEnabled();
+}
+
+async function openWithoutJavaScript(browser: Browser): Promise<{ context: BrowserContext; page: Page }> {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+  await page.goto("./");
+  return { context, page };
+}
+
+function selectorComponentUrl(): string {
+  const html = readFileSync(resolve(outputRoot, "index.html"), "utf8");
+  const match = html.match(/<astro-island\b[^>]*\bcomponent-url="([^"]+)"/u);
+  if (!match?.[1]) throw new Error("SELECTOR_COMPONENT_URL_MISSING");
+  return match[1].replaceAll("&amp;", "&");
+}
+
+async function openWithSelectorChunkAborted(browser: Browser): Promise<{ context: BrowserContext; page: Page }> {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  const componentUrl = new URL(selectorComponentUrl(), `http://127.0.0.1:${mode === "root" ? 4321 : 4322}`).href;
+  await page.route(componentUrl, (route) => route.abort("blockedbyclient"));
+  await page.goto("./");
+  return { context, page };
+}
+
+async function displayedRanking(page: Page): Promise<readonly string[]> {
+  return compatibleItems(page).evaluateAll((items) => items.map((item) => {
+    const rank = item.querySelector("article > p:first-child")?.textContent?.trim() ?? "";
+    const name = item.querySelector("h3")?.textContent?.trim() ?? "";
+    const score = [...item.querySelectorAll("p")]
+      .map((node) => node.textContent?.trim() ?? "")
+      .find((text) => /^\d+ of \d+ alignment points$/u.test(text)) ?? "";
+    return `${rank}|${name}|${score}`;
+  }));
+}
+
+async function selectRelaxedHardware(page: Page): Promise<void> {
+  await page.getByRole("radio", { name: "High heat or sustained load" }).check();
+  await page.getByLabel("Maximum print difficulty").selectOption("option-difficulty-expert");
+  await page.getByLabel("Enclosure capability").selectOption("option-enclosure-available");
+  await page.getByLabel("Wear-resistant nozzle capability").selectOption("option-hardened-nozzle-available");
+  await page.getByLabel("Dryer or drybox capability").selectOption("option-dryer-available");
+  await page.getByLabel("Cooling-shrink tolerance").selectOption("option-shrink-any");
+  await page.getByLabel("Ventilation capability").selectOption("option-ventilation-engineered");
+  await expect(compatibleItems(page)).toHaveCount(10);
+  await expect(page.getByRole("button", { name: "Show all 23 compatible materials" })).toBeVisible();
+}
+
+test("selector keeps complete default meaning without JavaScript and when only its island aborts", async ({ browser }) => {
+  const noScript = await openWithoutJavaScript(browser);
+  await expect(noScript.page.getByRole("heading", { level: 1 })).toHaveText("Choose a material that fits your process");
+  await expect(noScript.page.locator("h1")).toHaveCount(1);
+  await expect(noScript.page.getByText("Alignment scores reflect only the criteria you selected.", { exact: false })).toBeVisible();
+  await expect(noScript.page.getByText("Interactive filtering needs JavaScript.", { exact: false })).toBeVisible();
+  await expect(noScript.page.getByRole("radio", { checked: true })).toHaveValue(pageModel.defaults["selector-primary-goal"]);
+  for (const criterion of pageModel.projection.criteria.filter(({ role }) => role === "secondary")) {
+    await expect(noScript.page.getByLabel(criterion.label)).toHaveValue(criterion.defaultOptionId);
+  }
+  expect(await displayedRanking(noScript.page)).toEqual(defaultPresentation.compatible.map((material) =>
+    `Rank ${material.rank}|${material.materialLabel}|${material.scoreLabel}`));
+  await noScript.context.close();
+
+  const aborted = await openWithSelectorChunkAborted(browser);
+  await expect(aborted.page.getByText("Interactive filtering needs JavaScript.", { exact: false })).toHaveCount(0);
+  await expect(aborted.page.getByText("Selector is preparing", { exact: true })).toBeVisible();
+  await expect(aborted.page.getByRole("button", { name: "View recommendations" })).toBeDisabled();
+  expect(await displayedRanking(aborted.page)).toEqual(defaultPresentation.compatible.map((material) =>
+    `Rank ${material.rank}|${material.materialLabel}|${material.scoreLabel}`));
+  await aborted.context.close();
+});
+
+test("hydration preserves SSR ranking and controls drive transparent engine records without data requests", async ({ browser, page }) => {
+  const aborted = await openWithSelectorChunkAborted(browser);
+  const ssrRanking = await displayedRanking(aborted.page);
+  await aborted.context.close();
+
+  const dataRequests: string[] = [];
+  page.on("request", (request) => {
+    if (["fetch", "xhr"].includes(request.resourceType())) dataRequests.push(request.resourceType());
+  });
+  await waitForSelector(page);
+  expect(await displayedRanking(page)).toEqual(ssrRanking);
+  await expect(page.getByRole("radio", { checked: true })).toHaveValue(pageModel.defaults["selector-primary-goal"]);
+
+  const firstExpected = defaultPresentation.compatible[0]!;
+  const firstResult = compatibleItems(page).first();
+  await firstResult.getByText("Why this rank").click();
+  const renderedContributions = await firstResult.locator("details li").allInnerTexts();
+  expect(renderedContributions).toEqual(firstExpected.contributions.map((record) =>
+    `${record.criterionLabel}: ${record.optionLabel}\n${record.explanation}`));
+
+  const secondary = page.getByText("Printer and process constraints", { exact: true });
+  await secondary.click();
+  await expect(page.locator("details.selector-secondary")).toHaveAttribute("open", "");
+  const ventilation = page.getByLabel("Ventilation capability");
+  await ventilation.focus();
+  await ventilation.selectOption("option-ventilation-good");
+  await expect(ventilation).toBeFocused();
+  await expect(firstResult.getByText("Why this rank")).toHaveAttribute("open", "");
+  await expect(page.locator("[role=status]")).toContainText(/compatible materials; \d+ eliminated\./u);
+
+  const eliminated = page.locator("details.selector-eliminated");
+  await eliminated.locator(":scope > summary").click();
+  const expectedEliminated = defaultPresentation.eliminated[0]!;
+  const eliminatedItem = eliminated.locator("article").filter({ has: page.getByRole("heading", { name: expectedEliminated.materialLabel }) });
+  await expect(eliminatedItem).toBeVisible();
+  const renderedReasons = await eliminatedItem.locator("li").allInnerTexts();
+  expect(renderedReasons.length).toBeGreaterThan(0);
+  await expect(eliminatedItem.getByText(/Rank \d+|alignment points/u)).toHaveCount(0);
+
+  await page.getByRole("button", { name: "View recommendations" }).click();
+  await expect(page.getByRole("heading", { name: "Compatible materials" })).toBeFocused();
+  expect(dataRequests).toEqual([]);
+  for (const unavailable of [
+    "Material details are not available yet",
+    "Starting profile is not available yet",
+    "Decision map is not available yet",
+    "Method and evidence route is not available yet",
+  ]) {
+    const item = page.getByText(unavailable, { exact: true }).first();
+    await expect(item).toBeVisible();
+    expect(await item.evaluate((element) => element.tagName)).not.toBe("A");
+  }
+  await expect(page.locator('a[href*="materials"], a[href*="compare"], a[href*="map"], a[href*="method"]')).toHaveCount(0);
+});
+
+test("shortlist is ordered, bounded, retained across exclusions, and returns focus deterministically", async ({ page }) => {
+  await waitForSelector(page);
+  await page.getByText("Printer and process constraints", { exact: true }).click();
+  await selectRelaxedHardware(page);
+  await page.getByRole("button", { name: "Show all 23 compatible materials" }).click();
+
+  const addButtons = page.getByRole("button", { name: /^Add .+ to shortlist$/u });
+  const labels = await addButtons.evaluateAll((buttons) => buttons.slice(0, 5).map((button) => button.textContent?.trim() ?? ""));
+  for (let index = 0; index < 4; index += 1) await addButtons.nth(index).click();
+  const shortlist = page.locator(".selector-shortlist");
+  await expect(shortlist.locator("li")).toHaveCount(4);
+  const shortlistedNames = await shortlist.locator("li > span:first-child").allInnerTexts();
+  expect(shortlistedNames).toEqual(labels.slice(0, 4).map((label) => label.replace(/^Add /u, "").replace(/ to shortlist$/u, "")));
+
+  await addButtons.nth(4).click();
+  await expect(shortlist.locator("li")).toHaveCount(4);
+  await expect(page.locator("[role=status]")).toHaveText("Shortlist holds up to 4 materials. Remove one before adding another.");
+
+  const firstName = shortlistedNames[0]!;
+  await shortlist.getByRole("button", { name: `Remove ${firstName} from shortlist` }).click();
+  await expect(page.getByRole("button", { name: `Add ${firstName} to shortlist` })).toBeFocused();
+
+  await page.getByRole("button", { name: "Reset criteria" }).click();
+  await expect(shortlist.getByText("Now eliminated by current constraints").first()).toBeVisible();
+  await expect(shortlist.getByRole("link", { name: "Review exclusion" }).first()).toHaveAttribute("href", /^#eliminated-material-/u);
+  await shortlist.getByRole("button", { name: "Clear shortlist" }).click();
+  await expect(shortlist).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Compatible materials" })).toBeFocused();
+});
+
+test("show-all preserves order and every browser resource maps to the built deployment base", async ({ page }) => {
+  const badResources: string[] = [];
+  page.on("response", (response) => {
+    const url = new URL(response.url());
+    if (url.origin !== `http://127.0.0.1:${mode === "root" ? 4321 : 4322}` || !response.ok()) {
+      badResources.push("remote-or-failed");
+      return;
+    }
+    if (!url.pathname.startsWith(basePath)) badResources.push("base-path-missing");
+    const logical = url.pathname.slice(basePath.length);
+    const relativeFile = logical === "" || logical.endsWith("/") ? `${logical}index.html` : logical;
+    if (!existsSync(resolve(outputRoot, relativeFile))) badResources.push("inventory-miss");
+  });
+  await waitForSelector(page);
+  await page.getByText("Printer and process constraints", { exact: true }).click();
+  await selectRelaxedHardware(page);
+  await page.getByRole("button", { name: "Show all 23 compatible materials" }).click();
+  await expect(compatibleItems(page)).toHaveCount(23);
+  await expect(page.getByText("Showing all 23 compatible materials", { exact: true })).toBeVisible();
+  const ranks = await compatibleItems(page).locator("article > p:first-child").allInnerTexts();
+  expect(ranks).toEqual(Array.from({ length: 23 }, (_, index) => `Rank ${index + 1}`));
+  expect(badResources).toEqual([]);
+});

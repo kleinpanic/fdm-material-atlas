@@ -1,4 +1,6 @@
 import playwrightTest from "@playwright/test";
+import { readdirSync } from "node:fs";
+import { resolve } from "node:path";
 import type {
   PlaywrightTestArgs,
   PlaywrightTestOptions,
@@ -17,10 +19,13 @@ const test = playwrightTest as unknown as TestType<
 const expect = (playwrightTest as unknown as { expect: (...args: any[]) => any }).expect;
 
 async function openTracer(page: Page): Promise<void> {
-  await page.goto("./");
-  const entry = page.getByRole("link", { name: "Open material tracer" });
-  await expect(entry).toBeVisible();
-  await entry.click();
+  const mode = process.env.ATLAS_TEST_MODE;
+  if (mode !== "root" && mode !== "repository") throw new Error("ATLAS_TEST_MODE_INVALID");
+  const basePath = mode === "root" ? "/" : "/atlas-preview/";
+  const material = readdirSync(resolve(`dist-test/${mode}/materials`), { withFileTypes: true })
+    .find((entry) => entry.isDirectory());
+  expect(material?.name).toBeTruthy();
+  await page.goto(`${basePath}materials/${material!.name}/`);
   await expect(page).toHaveURL(/\/materials\/[a-z0-9-]+\/$/);
 }
 
@@ -54,7 +59,7 @@ test("breadcrumb and return journeys stay within the selected deployment base", 
   await expect(breadcrumb.getByText("Material tracer", { exact: true })).toHaveAttribute("aria-current", "page");
   await page.getByRole("link", { name: "Return to atlas home" }).click();
   await expect(page).toHaveURL(new RegExp(`${basePath.replaceAll("/", "\\/")}$`));
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Choose a material by what the part must do");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Choose a material that fits your process");
 });
 
 test("tracer meaning remains visible without hover, animation, or color", async ({ page }) => {
