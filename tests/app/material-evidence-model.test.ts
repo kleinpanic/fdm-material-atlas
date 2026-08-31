@@ -35,7 +35,12 @@ describe("material evidence model", () => {
     expect(index.materials).toHaveLength(23);
     expect(index.records.flatMap(({ uses }) => uses)).toHaveLength(999);
     expect(index.materials.reduce((sum, material) => sum + material.edgeCount, 0)).toBe(999);
-    expect(index.records.every(({ uses }) => uses.length > 0)).toBe(true);
+    expect(index.records
+      .filter(({ record }) => record.kind === "source")
+      .every(({ uses }) => uses.length > 0)).toBe(true);
+    expect(index.records
+      .filter(({ record, uses }) => record.kind === "method" && uses.length === 0))
+      .toHaveLength(3);
   });
 
   it("groups records only after preserving scopes and exact supported claims", () => {
