@@ -2,6 +2,7 @@
 
 import { spawn } from "node:child_process";
 import { lstat, opendir, readFile, realpath, rm } from "node:fs/promises";
+import { createServer } from "node:http";
 import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -322,8 +323,60 @@ async function runBrowserChecks() {
   return reports;
 }
 
+async function serveMode(modeName) {
+  const mode = MODES.find((candidate) => candidate.name === modeName);
+  if (mode === undefined) fail("SERVE_MODE_INVALID");
+  const files = await collectFiles(mode.output);
+  const contentTypes = new Map([
+    [".css", "text/css; charset=utf-8"],
+    [".html", "text/html; charset=utf-8"],
+    [".json", "application/json; charset=utf-8"],
+    [".svg", "image/svg+xml"],
+    [".woff2", "font/woff2"],
+  ]);
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.method !== "GET" && request.method !== "HEAD") fail("SERVE_METHOD_INVALID");
+      const url = new URL(request.url ?? "", `http://127.0.0.1:${mode.name === "root" ? 4321 : 4322}`);
+      if (!url.pathname.startsWith(mode.base) || url.search !== "") fail("SERVE_PATH_INVALID");
+      const logical = decodeURIComponent(url.pathname.slice(mode.base.length));
+      if (logical.includes("\\") || logical.split("/").some((segment) => segment === "." || segment === "..")) fail("SERVE_PATH_INVALID");
+      const relativeFile = logical === "" || logical.endsWith("/") ? `${logical}index.html` : logical;
+      const record = files.get(relativeFile);
+      if (record === undefined) {
+        response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+        response.end("Not found");
+        return;
+      }
+      const extension = posix.extname(relativeFile);
+      const bytes = request.method === "HEAD" ? undefined : await readFile(record.path);
+      response.writeHead(200, {
+        "content-length": String(record.size),
+        "content-type": contentTypes.get(extension) ?? "application/octet-stream",
+        "x-content-type-options": "nosniff",
+      });
+      response.end(bytes);
+    } catch {
+      response.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
+      response.end("Invalid request");
+    }
+  });
+  const port = mode.name === "root" ? 4321 : 4322;
+  await new Promise((accept, reject) => {
+    server.once("error", reject);
+    server.listen(port, "127.0.0.1", accept);
+  }).catch(() => fail("SERVE_START_FAILED"));
+  process.on("SIGTERM", () => server.close());
+  process.on("SIGINT", () => server.close());
+}
+
 async function main() {
   const command = process.argv[2];
+  if (command === "serve") {
+    if (process.argv.length !== 4) fail("ARGUMENTS_INVALID");
+    await serveMode(process.argv[3]);
+    return;
+  }
   if (process.argv.length !== 3 || !["build", "browser"].includes(command)) fail("ARGUMENTS_INVALID");
   const reports = command === "build" ? await buildAndInspect() : await runBrowserChecks();
   process.stdout.write(`${JSON.stringify({ ok: true, command, modes: reports.map((report, index) => ({ mode: MODES[index].name, routeCount: report.routes.length, fileCount: report.fileCount })) })}\n`);
