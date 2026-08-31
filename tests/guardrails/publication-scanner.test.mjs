@@ -15,6 +15,7 @@ import test from 'node:test';
 
 const SCANNER_URL = new URL('../../tools/scan-publication.mjs', import.meta.url);
 const POLICY_URL = new URL('../../tools/lib/publication-policy.mjs', import.meta.url);
+const PROHIBITED_PATHS_URL = new URL('../../tools/lib/prohibited-paths.mjs', import.meta.url);
 const MAINTAINER_NAME = 'Casey Maintainer';
 const MAINTAINER_EMAIL = 'casey@example.test';
 
@@ -158,6 +159,28 @@ test('working and tracked modes reject operational paths with NUL-safe names', a
   assert.ok(tracked.findings.some(({ ruleId }) => ruleId === 'operational-path'));
   assert.equal(tracked.scannedCount, 2);
   assertRedacted(tracked, ['AGENTS.md', oddPath]);
+});
+
+test('canonical model-operation path classes are ignored and rejected on every public surface', async () => {
+  const [{ PROHIBITED_PATH_CLASSES }, { loadPublicationPolicy, scanPublication }] = await Promise.all([
+    import(PROHIBITED_PATHS_URL),
+    loadInterfaces(),
+  ]);
+  const publicIgnore = readFileSync(new URL('../../.gitignore', import.meta.url), 'utf8').split(/\r?\n/);
+  for (const { ignore } of PROHIBITED_PATH_CLASSES) assert.ok(publicIgnore.includes(ignore), ignore);
+
+  const root = createRepository();
+  for (const { fixture } of PROHIBITED_PATH_CLASSES) write(root, fixture, 'synthetic operating fixture\n');
+  const policy = await loadPublicationPolicy({ root, env: {} });
+  const working = await scanPublication({ root, mode: 'working', policy });
+  assert.ok(working.findings.filter(({ ruleId }) => ruleId === 'operational-path').length >= PROHIBITED_PATH_CLASSES.length);
+
+  git(root, ['add', '-f', '--', ...PROHIBITED_PATH_CLASSES.map(({ fixture }) => fixture)]);
+  git(root, ['commit', '-m', 'Add prohibited fixtures']);
+  for (const mode of ['tracked', 'history']) {
+    const report = await scanPublication({ root, mode, policy });
+    assert.ok(report.findings.filter(({ ruleId }) => ruleId === 'operational-path').length >= PROHIBITED_PATH_CLASSES.length, mode);
+  }
 });
 
 test('environment exact patterns are detected and redacted across every mode', async () => {

@@ -3,6 +3,7 @@ import { readFile, realpath, stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
+import { OPERATIONAL_PATH_PATTERNS } from './prohibited-paths.mjs';
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_SENSITIVE_FILE = '.publication-sensitive-patterns';
@@ -128,14 +129,7 @@ export async function loadPublicationPolicy(options = {}) {
   const exactPatterns = await loadExactPatterns(options);
   return Object.freeze({
     exactPatterns,
-    operationalPathPatterns: Object.freeze([
-      /(?:^|\/)(?:\.planning|\.claude|\.codex|\.agents|\.gsd|\.cursor|\.gemini|\.opencode|\.windsurf)(?:\/|$)/i,
-      /(?:^|\/)(?:AGENTS|CLAUDE|CODEX|GEMINI)\.md$/i,
-      /(?:^|\/)(?:continue|handoff)(?:[-_.][^/]*)?\.md$/i,
-      /(?:^|\/)(?:prompt|transcript)[^/]*\.(?:md|txt|json|jsonl|prompt|transcript)$/i,
-      /(?:^|\/)\.env(?:\.[^/]*)?$/i,
-      /(?:^|\/)(?:\.publication-audit|publication-audit)(?:\/|$)/i,
-    ]),
+    operationalPathPatterns: OPERATIONAL_PATH_PATTERNS,
     credentialPatterns: Object.freeze([
       /gh[pousr]_[A-Za-z0-9]{30,}/g,
       /AKIA[A-Z0-9]{16}/g,

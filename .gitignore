@@ -11,6 +11,13 @@ GEMINI.md
 .gemini/
 .opencode/
 .windsurf/
+.continue/
+.roo/
+.github/instructions/
+.github/copilot-instructions.md
+.clinerules
+.windsurfrules
+.aider.conf.yml
 continue.md
 .continue-here.md
 handoff.md
