@@ -11,6 +11,7 @@ import {
   selectorScenarioKeys,
   selectorScenarios,
 } from "./fixtures.ts";
+import type { SelectorScenarioFixture } from "./fixtures.ts";
 
 const expectedScenarioKeys = [
   "easy-prototype-no-enclosure",
@@ -116,7 +117,7 @@ describe("selector regression fixture catalog", () => {
 
   it("uses only canonical selection keys and controlled public IDs", () => {
     const criterionIds = new Set<string>(selectorCriterionIds);
-    for (const scenario of Object.values(selectorScenarios)) {
+    for (const scenario of Object.values(selectorScenarios) as readonly SelectorScenarioFixture[]) {
       for (const selection of [scenario.input, scenario.baselineInput].filter(Boolean)) {
         for (const [criterionId, optionId] of Object.entries(selection ?? {})) {
           expect(criterionIds.has(criterionId), `${scenario.key}:${criterionId}`).toBe(true);
