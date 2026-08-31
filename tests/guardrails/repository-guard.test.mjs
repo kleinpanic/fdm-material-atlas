@@ -236,3 +236,23 @@ test('checks commits reachable from refs outside the current branch', async () =
     ['Different Person'],
   );
 });
+
+test('rejects shallow and promisor repositories before auditing history', async () => {
+  const sourceFixture = createNestedRepositories();
+  commitFile(sourceFixture.child, { filename: 'first.txt', message: 'First fixture' });
+  commitFile(sourceFixture.child, { filename: 'second.txt', message: 'Second fixture' });
+  const shallow = join(sourceFixture.fixtureRoot, 'shallow');
+  git(sourceFixture.fixtureRoot, ['clone', '--depth', '1', `file://${sourceFixture.child}`, shallow]);
+  configureIdentity(shallow);
+  await expectRule(
+    assertRepository({ cwd: shallow, expectedRoot: shallow, remotePolicy: 'any' }),
+    'history-incomplete',
+  );
+
+  const partialFixture = createNestedRepositories();
+  git(partialFixture.child, ['config', 'extensions.partialClone', 'synthetic-origin']);
+  await expectRule(
+    assertRepository({ cwd: partialFixture.child, expectedRoot: partialFixture.child, remotePolicy: 'absent' }),
+    'history-incomplete',
+  );
+});

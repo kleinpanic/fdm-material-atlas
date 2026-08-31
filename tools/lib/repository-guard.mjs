@@ -41,6 +41,7 @@ export class RepositoryGuardError extends Error {
  * @property {boolean} parentIndexClean
  * @property {boolean} historyIdentityMatches
  * @property {boolean} historyAttributionAllowed
+ * @property {boolean} historyComplete
  * @property {number} remoteCount
  * @property {number} parentIndexEntryCount
  * @property {number} commitCount
@@ -135,6 +136,28 @@ async function inspectHistory(repositoryRoot, configuredName, configuredEmail) {
   return { commitCount: hashes.length, identityMatches, attributionAllowed };
 }
 
+async function inspectHistoryCompleteness(repositoryRoot) {
+  const shallow = await runGit(repositoryRoot, ['rev-parse', '--is-shallow-repository']);
+  const partialExtension = await runGit(
+    repositoryRoot,
+    ['config', '--get', 'extensions.partialClone'],
+    { allowFailure: true },
+  );
+  const promisorRemotes = await runGit(
+    repositoryRoot,
+    ['config', '--get-regexp', '^remote\..*\.promisor$'],
+    { allowFailure: true },
+  );
+  const missing = await runGit(repositoryRoot, ['rev-list', '--objects', '--all', '--missing=print']);
+  return {
+    shallow: shallow.stdout === 'true',
+    partial:
+      (partialExtension.ok && partialExtension.stdout !== '') ||
+      (promisorRemotes.ok && splitLines(promisorRemotes.stdout).length > 0),
+    objectsMissing: splitLines(missing.stdout).some((line) => line.startsWith('?')),
+  };
+}
+
 /**
  * Inspect repository boundaries and authorship without changing Git state.
  * Configured identities, remote URLs, and commit bodies never enter the result.
@@ -196,6 +219,9 @@ export async function inspectRepository(options = {}) {
   const history = repositoryRoot && identityConfigured
     ? await inspectHistory(repositoryRoot, configuredName, configuredEmail)
     : { commitCount: 0, identityMatches: false, attributionAllowed: true };
+  const historyCompleteness = repositoryRoot
+    ? await inspectHistoryCompleteness(repositoryRoot)
+    : { shallow: false, partial: false, objectsMissing: false };
 
   return {
     repositoryRoot,
@@ -210,6 +236,8 @@ export async function inspectRepository(options = {}) {
     parentIndexClean: parentIndexEntryCount === 0,
     historyIdentityMatches: history.commitCount === 0 || history.identityMatches,
     historyAttributionAllowed: history.attributionAllowed,
+    historyComplete:
+      !historyCompleteness.shallow && !historyCompleteness.partial && !historyCompleteness.objectsMissing,
     remoteCount,
     parentIndexEntryCount,
     commitCount: history.commitCount,
@@ -231,6 +259,7 @@ export async function assertRepository(options = {}) {
   if (!inspection.remotePolicySatisfied) throw new RepositoryGuardError('remote-present', context);
   if (!inspection.identityConfigured) throw new RepositoryGuardError('identity-missing', context);
   if (!inspection.identityAllowed) throw new RepositoryGuardError('identity-prohibited', context);
+  if (!inspection.historyComplete) throw new RepositoryGuardError('history-incomplete', context);
   if (!inspection.historyAttributionAllowed) {
     throw new RepositoryGuardError('history-prohibited-attribution', context);
   }
