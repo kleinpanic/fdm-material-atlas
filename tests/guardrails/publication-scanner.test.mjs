@@ -294,6 +294,27 @@ test('environment and explicit sensitive files merge without ambient precedence'
   assertRedacted(report, [environmentMarker, fileMarker]);
 });
 
+test('exact-pattern documents enforce redacted size, count, and total bounds', async () => {
+  const { loadExactPatterns } = await loadInterfaces();
+  const root = createRepository();
+  const cases = [
+    JSON.stringify(['x'.repeat(4097)]),
+    JSON.stringify(Array.from({ length: 129 }, (_, index) => `pattern-${index}`)),
+    JSON.stringify(Array.from({ length: 32 }, (_, index) => `${index}-${'x'.repeat(3000)}`)),
+    JSON.stringify(['x'.repeat(1024 * 1024)]),
+  ];
+  for (const document of cases) {
+    await assert.rejects(
+      loadExactPatterns({ root, env: { PUBLICATION_SENSITIVE_PATTERNS_JSON: document } }),
+      (error) => {
+        assert.ok(['sensitive-input-invalid', 'sensitive-input-too-large'].includes(error.ruleId));
+        assertRedacted(String(error), [document.slice(-48)]);
+        return true;
+      },
+    );
+  }
+});
+
 test('ignored-file exact patterns are detected in every surface', async () => {
   const { loadPublicationPolicy, scanPublication } = await loadInterfaces();
   const root = createRepository();

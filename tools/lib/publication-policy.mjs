@@ -8,6 +8,10 @@ import { buildGitEnvironment } from './safe-git.mjs';
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_SENSITIVE_FILE = '.publication-sensitive-patterns';
+const MAX_PATTERN_DOCUMENT_BYTES = 1024 * 1024;
+const MAX_PATTERN_COUNT = 128;
+const MAX_PATTERN_BYTES = 4096;
+const MAX_TOTAL_PATTERN_BYTES = 64 * 1024;
 
 export class PublicationPolicyError extends Error {
   constructor(ruleId) {
@@ -37,6 +41,9 @@ async function gitStatus(root, args) {
 }
 
 function parsePatternDocument(bytes) {
+  if (bytes.length > MAX_PATTERN_DOCUMENT_BYTES) {
+    throw new PublicationPolicyError('sensitive-input-too-large');
+  }
   let value;
   try {
     value = JSON.parse(bytes.toString('utf8'));
@@ -46,9 +53,17 @@ function parsePatternDocument(bytes) {
   if (
     !Array.isArray(value) ||
     value.length === 0 ||
-    value.some((item) => typeof item !== 'string' || Buffer.byteLength(item) === 0)
+    value.length > MAX_PATTERN_COUNT ||
+    value.some((item) => (
+      typeof item !== 'string' ||
+      Buffer.byteLength(item) === 0 ||
+      Buffer.byteLength(item) > MAX_PATTERN_BYTES
+    ))
   ) {
     throw new PublicationPolicyError('sensitive-input-invalid');
+  }
+  if (value.reduce((total, item) => total + Buffer.byteLength(item), 0) > MAX_TOTAL_PATTERN_BYTES) {
+    throw new PublicationPolicyError('sensitive-input-too-large');
   }
   return value.map((item) => ({ ruleId: 'private-source-pattern', bytes: Buffer.from(item) }));
 }
@@ -103,12 +118,19 @@ export async function loadExactPatterns({ root, env = process.env, sensitiveFile
   try {
     patterns.push(...parsePatternDocument(await readFile(physicalFile)));
     const seen = new Set();
-    return patterns.filter(({ bytes }) => {
+    const deduplicated = patterns.filter(({ bytes }) => {
       const key = bytes.toString('base64');
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
+    if (
+      deduplicated.length > MAX_PATTERN_COUNT ||
+      deduplicated.reduce((total, { bytes }) => total + bytes.length, 0) > MAX_TOTAL_PATTERN_BYTES
+    ) {
+      throw new PublicationPolicyError('sensitive-input-too-large');
+    }
+    return deduplicated;
   } catch (error) {
     if (error instanceof PublicationPolicyError) throw error;
     throw new PublicationPolicyError('sensitive-input-inspection-failed');
