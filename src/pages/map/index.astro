@@ -1,13 +1,16 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import DecisionBoard from "../../components/map/DecisionBoard.astro";
 import { deriveDecisionLaneMembership } from "../../domain/decision-lanes/membership.ts";
 import { loadPublicAtlas } from "../../lib/public-atlas.ts";
 import { internalHref } from "../../lib/routes.ts";
-import "../../styles/reference-tools.css";
+import "../../styles/map-board.css";
 
 const atlas = loadPublicAtlas();
 const lanes = deriveDecisionLaneMembership(atlas);
 const materialById = new Map(atlas.materials.map((material) => [material.id, material]));
+const distinctCandidateCount = new Set(lanes.flatMap(({ candidateMaterialIds }) => candidateMaterialIds)).size;
+const processGateCount = new Set(lanes.flatMap(({ processGates }) => processGates.map(({ id }) => id))).size;
 const base = import.meta.env.BASE_URL;
 const homeHref = internalHref(base, { id: "home" });
 const materialsHref = internalHref(base, { id: "materials" });
@@ -26,42 +29,25 @@ const navigation = [
 ---
 
 <BaseLayout title="Material decision map | FDM Material Atlas" description="Eight data-derived decision paths from printing need to candidate materials and process gates." canonicalPath={mapHref} homeHref={homeHref} navigation={navigation} footerLinks={navigation.map(({ label, href }) => ({ label, href }))}>
-  <article class="reference-tool">
-    <header class="reference-intro">
-      <p class="technical-eyebrow">Decision-path map</p>
-      <h1>Move from need to verification</h1>
-      <p>Each lane derives its candidates from the canonical material facts. A candidate is a starting point, not a certification: verify the exact product, geometry, environment, and process.</p>
+  <article class="map-page">
+    <header class="map-hero">
+      <div class="map-hero__copy">
+        <p class="technical-eyebrow">Material routing board / 08 paths</p>
+        <h1>Start with the job. End with what to verify.</h1>
+        <p class="map-hero__lede">Trace a real printing need through the properties that matter, the materials that currently match, and the equipment or evidence checks that remain.</p>
+      </div>
+      <dl class="map-hero__stats" aria-label="Decision map coverage">
+        <div><dt>Decision paths</dt><dd>{lanes.length}</dd></div>
+        <div><dt>Materials routed</dt><dd>{distinctCandidateCount}</dd></div>
+        <div><dt>Process gates</dt><dd>{processGateCount}</dd></div>
+      </dl>
     </header>
-    <div class="lane-grid">
-      {lanes.map((lane) => (
-        <section id={lane.id} class="lane-card" aria-labelledby={`${lane.id}-heading`}>
-          <p class="technical-eyebrow">Need → check → candidates → verify</p>
-          <h2 id={`${lane.id}-heading`}>{lane.label}</h2>
-          <p>{lane.need}</p>
-          <dl class="lane-flow">
-            <dt>Check</dt>
-            <dd>{lane.propertyChecks.join(", ")}</dd>
-            <dt>Live candidates</dt>
-            <dd>
-              {lane.candidateMaterialIds.map((materialId, index) => {
-                const material = materialById.get(materialId);
-                if (material === undefined) throw new Error("MAP_MATERIAL_MISSING");
-                return <><a href={internalHref(base, { id: "material", slug: material.slug })}>{material.name}</a>{index < lane.candidateMaterialIds.length - 1 ? ", " : ""}</>;
-              })}
-            </dd>
-            <dt>Process gates</dt>
-            <dd>{lane.processGates.map(({ label }) => label).join("; ") || "No additional gate recorded"}</dd>
-            <dt>Verify</dt>
-            <dd>{lane.verification.join(" ")}</dd>
-          </dl>
-          {lane.indeterminateMaterialIds.length > 0 && (
-            <details>
-              <summary>{lane.indeterminateMaterialIds.length} materials need more evidence</summary>
-              <p>These records are not treated as candidates because the required property is unknown or conditional.</p>
-            </details>
-          )}
-        </section>
-      ))}
+
+    <div class="map-principle" role="note">
+      <strong>Read this first</strong>
+      <p>A match is a defensible place to begin—not a product certification. Exact formulation, geometry, moisture, orientation, load, and process history can change the result.</p>
     </div>
+
+    <DecisionBoard lanes={lanes} materials={materialById} base={base} />
   </article>
 </BaseLayout>
