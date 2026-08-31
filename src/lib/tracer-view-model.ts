@@ -3,7 +3,6 @@ import type {
   BasisRef,
   EvidenceScope,
 } from "../data/schema/evidence.ts";
-import type { FactState } from "../data/schema/fact-state.ts";
 import type {
   Material,
   ThermalMethod,
@@ -15,52 +14,19 @@ import type {
   ProcessGateCapability,
   ProcessGateRecord,
 } from "../data/schema/process-gate.ts";
+import {
+  EVIDENCE_SCOPE_ORDER,
+  projectFactState,
+  tracerEvidenceScopeLabel,
+  type DisplayFact,
+} from "./presentation/labels.ts";
 
-const EVIDENCE_SCOPE_LABELS = {
-  "product-specific": "Product-specific value",
-  "representative-product": "Representative product example",
-  "family-guidance": "Family-level guidance",
-  "qualitative-heuristic": "Qualitative heuristic",
-  "starting-profile-guidance": "Starting-profile guidance",
-  "derived-selector-logic": "Derived selector logic",
-} as const satisfies Readonly<Record<EvidenceScope, string>>;
-
-const EVIDENCE_SCOPE_ORDER = [
-  "product-specific",
-  "representative-product",
-  "family-guidance",
-  "qualitative-heuristic",
-  "starting-profile-guidance",
-  "derived-selector-logic",
-] as const satisfies readonly EvidenceScope[];
-
-export type DisplayFact<T> =
-  | { readonly state: "known"; readonly label: "Known"; readonly value: T }
-  | {
-      readonly state: "unknown";
-      readonly label: "Unknown — the public evidence does not provide this value.";
-      readonly reason: string;
-    }
-  | {
-      readonly state: "conditional";
-      readonly label: "Conditional — review the stated conditions before use.";
-      readonly condition: string;
-      readonly value?: T | undefined;
-    }
-  | {
-      readonly state: "not-applicable";
-      readonly label: "Not applicable for this material or claim.";
-      readonly reason?: string | undefined;
-    }
-  | {
-      readonly state: "missing";
-      readonly label: "Not reported — the public evidence does not provide this value.";
-      readonly reason: string;
-    };
+export { projectFactState } from "./presentation/labels.ts";
+export type { DisplayFact } from "./presentation/labels.ts";
 
 export type TracerEvidenceScope = {
   readonly scope: EvidenceScope;
-  readonly label: (typeof EVIDENCE_SCOPE_LABELS)[EvidenceScope];
+  readonly label: ReturnType<typeof tracerEvidenceScopeLabel>;
   readonly referenceKind: BasisRef["kind"];
   readonly referenceId: string;
 };
@@ -117,51 +83,11 @@ function stableFirst<T>(
   return selected;
 }
 
-function assertNever(value: never): never {
-  void value;
-  return fail("TRACER_FACT_STATE_INVALID");
-}
-
-/** Preserve canonical fact-state meaning without treating falsey values as absent. */
-export function projectFactState<T>(state: FactState<T>): DisplayFact<T> {
-  switch (state.state) {
-    case "known":
-      return { state: "known", label: "Known", value: state.value };
-    case "unknown":
-      return {
-        state: "unknown",
-        label: "Unknown — the public evidence does not provide this value.",
-        reason: state.reason,
-      };
-    case "conditional":
-      return {
-        state: "conditional",
-        label: "Conditional — review the stated conditions before use.",
-        condition: state.condition,
-        ...(state.value === undefined ? {} : { value: state.value }),
-      };
-    case "not-applicable":
-      return {
-        state: "not-applicable",
-        label: "Not applicable for this material or claim.",
-        ...(state.reason === undefined ? {} : { reason: state.reason }),
-      };
-    case "missing":
-      return {
-        state: "missing",
-        label: "Not reported — the public evidence does not provide this value.",
-        reason: state.reason,
-      };
-    default:
-      return assertNever(state);
-  }
-}
-
 /** Return the complete public label for an evidence applicability scope. */
 export function evidenceScopeLabel(
   scope: EvidenceScope,
-): (typeof EVIDENCE_SCOPE_LABELS)[EvidenceScope] {
-  return EVIDENCE_SCOPE_LABELS[scope];
+): ReturnType<typeof tracerEvidenceScopeLabel> {
+  return tracerEvidenceScopeLabel(scope);
 }
 
 function basisReferenceId(reference: BasisRef): string {
