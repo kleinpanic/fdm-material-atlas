@@ -292,6 +292,28 @@ test('history finds content removed from the current tree and scans reachable si
   assertRedacted(history, [marker]);
 });
 
+test('history scans branch, tag, note, and unusual ref names without disclosure', async () => {
+  const { loadPublicationPolicy, scanPublication } = await loadInterfaces();
+  const root = createRepository();
+  write(root, 'seed.txt', 'safe\n');
+  commit(root, ['seed.txt']);
+  const marker = privateMarker('REF');
+  const policy = await loadPublicationPolicy({
+    root,
+    env: { PUBLICATION_SENSITIVE_PATTERNS_JSON: JSON.stringify([marker]) },
+  });
+  git(root, ['branch', `feature-${marker}`]);
+  git(root, ['tag', `release-${marker}`]);
+  git(root, ['update-ref', `refs/notes/topic-${marker}`, 'HEAD']);
+  git(root, ['update-ref', `refs/custom/space-safe-${marker}`, 'HEAD']);
+
+  const report = await scanPublication({ root, mode: 'history', policy });
+  assert.ok(report.findings.some(({ ruleId, objectType }) => (
+    ruleId === 'private-source-pattern' && objectType === 'ref'
+  )));
+  assertRedacted(report, [marker]);
+});
+
 test('malformed input and missing, unreadable, or escaping surfaces fail closed and redact errors', async () => {
   const { loadExactPatterns, loadPublicationPolicy, scanPublication } = await loadInterfaces();
   const root = createRepository();

@@ -184,14 +184,27 @@ function parseTreeRecord(record) {
 }
 
 async function scanHistory(root, policy) {
-  const refs = await runGit(root, ['for-each-ref', '--format=%(objectname)']);
-  if (refs.stdout.length === 0) return { scannedCount: 0, findings: [] };
+  // Git ref names cannot contain LF or NUL, so one ref per line is unambiguous.
+  const refs = await runGit(root, ['for-each-ref', '--format=%(refname)']);
+  const refNames = refs.stdout.length === 0
+    ? []
+    : refs.stdout.toString('utf8').trimEnd().split('\n').map((name) => Buffer.from(name));
+  if (refNames.length === 0) return { scannedCount: 0, findings: [] };
   const commitList = await runGit(root, ['rev-list', '--all']);
   const commits = commitList.stdout.toString('ascii').trim().split('\n').filter(Boolean);
   const objectList = await runGit(root, ['rev-list', '--objects', '--all', '--no-object-names']);
   const objectIds = [...new Set(objectList.stdout.toString('ascii').trim().split('\n').filter(Boolean))];
   const findings = [];
-  let scannedCount = 0;
+  let scannedCount = refNames.length;
+
+  for (const refName of refNames) {
+    findings.push(...scanBytes(refName, {
+      policy,
+      surface: 'history',
+      location: refName,
+      objectType: 'ref',
+    }));
+  }
 
   for (const commit of commits) {
     const tree = await runGit(root, ['ls-tree', '-rz', '-r', commit]);
