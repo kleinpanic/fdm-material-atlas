@@ -1,4 +1,5 @@
 import tailwindcss from "@tailwindcss/vite";
+import preact from "@astrojs/preact";
 import { defineConfig, fontProviders } from "astro/config";
 
 const DEFAULT_SITE_ORIGIN = "https://atlas.example";
@@ -87,6 +88,7 @@ export default defineConfig({
   site,
   base,
   trailingSlash: "always",
+  integrations: [preact()],
   build: {
     format: "directory",
   },

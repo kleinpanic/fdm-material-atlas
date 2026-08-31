@@ -24,11 +24,9 @@ describe("the approved Preact renderer boundary", () => {
 
   it("loads exactly one official Preact integration without weakening the static build", () => {
     const integrations = astroConfig.integrations ?? [];
-    const preactIntegrations = integrations.filter(
-      (integration) => integration.name === "@astrojs/preact",
-    );
 
-    expect(preactIntegrations).toHaveLength(1);
+    expect(integrations).toHaveLength(1);
+    expect((integrations[0] as { name?: string } | undefined)?.name).toBe("@astrojs/preact");
     expect(astroConfig.output).toBe("static");
     expect(astroConfig.trailingSlash).toBe("always");
     expect(astroConfig.build?.format).toBe("directory");

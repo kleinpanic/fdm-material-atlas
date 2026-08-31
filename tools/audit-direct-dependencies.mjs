@@ -13,6 +13,15 @@ const LIFECYCLE_FIELDS = [
 ];
 
 const DIRECT_DEPENDENCIES = Object.freeze({
+  "@astrojs/preact": {
+    section: "dependencies",
+    version: "6.0.4",
+    repository: "https://github.com/withastro/astro",
+    directory: "packages/integrations/preact",
+    resolved: `${REGISTRY_ORIGIN}/@astrojs/preact/-/preact-6.0.4.tgz`,
+    integrity:
+      "sha512-DDBRpiO7EhDHGiRKReXV4T7IbwuzWhIpF+yce2GBOgormXpsE1uOrBd81snImaYgnMJ7g5hzSHZnmX0VO5D80A==",
+  },
   "@astrojs/check": {
     section: "devDependencies",
     version: "0.9.10",
@@ -87,6 +96,18 @@ const DIRECT_DEPENDENCIES = Object.freeze({
     resolved: `${REGISTRY_ORIGIN}/astro/-/astro-7.2.9.tgz`,
     integrity:
       "sha512-o5nZFo/bieF6rp4x9sQSLhI7GO7Bahpld38Y4LvX27nFoxNiuttjI+Hea81w5ksORLHgdPUlQpU9obPz5QRa8g==",
+  },
+  preact: {
+    section: "dependencies",
+    version: "10.29.8",
+    repository: "https://github.com/preactjs/preact",
+    directory: null,
+    resolved: `${REGISTRY_ORIGIN}/preact/-/preact-10.29.8.tgz`,
+    integrity:
+      "sha512-ej2aVZ+vZ8WO7tvlQWRM9N63A0KzF9q4mWJfDUHgYaIofWY9hu74QdnQrjoPMmZi2/nZ5gN0bJCQF49xQqx09Q==",
+    lifecycle: {
+      prepare: "husky && npm run test:install && run-s build",
+    },
   },
   tailwindcss: {
     section: "dependencies",
