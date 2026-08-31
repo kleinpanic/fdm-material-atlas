@@ -4,6 +4,8 @@ const FRAGMENT_ID_PATTERN = /^[A-Za-z][A-Za-z0-9_-]*$/u;
 
 export type RouteTarget =
   | { readonly id: "home" }
+  | { readonly id: "materials" }
+  | { readonly id: "method" }
   | { readonly id: "material"; readonly slug: string };
 
 function fail(code: string): never {
@@ -73,6 +75,20 @@ export function routePath(target: RouteTarget): string {
     return "/";
   }
 
+  if (target.id === "materials") {
+    if (Object.keys(target).some((key) => key !== "id")) {
+      return fail("ROUTE_TARGET_INVALID");
+    }
+    return "/materials/";
+  }
+
+  if (target.id === "method") {
+    if (Object.keys(target).some((key) => key !== "id")) {
+      return fail("ROUTE_TARGET_INVALID");
+    }
+    return "/method/";
+  }
+
   if (target.id === "material") {
     if (Object.keys(target).some((key) => key !== "id" && key !== "slug")) {
       return fail("ROUTE_TARGET_INVALID");
@@ -106,4 +122,13 @@ export function fragmentHref(id: string): string {
     return fail("FRAGMENT_ID_INVALID");
   }
   return `#${id}`;
+}
+
+/** Compose one closed internal route and one validated fragment exactly once. */
+export function internalFragmentHref(
+  base: string | undefined,
+  target: RouteTarget,
+  fragment: string,
+): string {
+  return `${internalHref(base, target)}${fragmentHref(fragment)}`;
 }
