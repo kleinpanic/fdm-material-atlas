@@ -435,6 +435,24 @@ test('unsafe source maps and generated metadata are rejected in tracked and arti
   );
 });
 
+test('inline and external source-map directives are rejected on every stored-code surface', async () => {
+  const { loadPublicationPolicy, scanPublication } = await loadInterfaces();
+  const root = createRepository();
+  const inline = ['//# sourceMapping', 'URL=', 'data:application/json;base64,', 'e30='].join('');
+  write(root, 'bundle.js', inline);
+  commit(root, ['bundle.js']);
+  const policy = await loadPublicationPolicy({ root, env: {} });
+  for (const mode of ['tracked', 'history']) {
+    const report = await scanPublication({ root, mode, policy });
+    assert.ok(report.findings.some(({ ruleId }) => ruleId === 'unsafe-source-map'), mode);
+  }
+
+  const artifact = mkdtempSync(join(tmpdir(), 'publication-artifact-'));
+  write(artifact, 'styles.css', ['/*# sourceMapping', 'URL=styles.css.map */'].join(''));
+  const built = await scanPublication({ root, mode: 'artifact', artifactPath: artifact, policy });
+  assert.ok(built.findings.some(({ ruleId }) => ruleId === 'unsafe-source-map'));
+});
+
 test('history finds content removed from the current tree and scans reachable side refs', async () => {
   const { loadPublicationPolicy, scanPublication } = await loadInterfaces();
   const root = createRepository();

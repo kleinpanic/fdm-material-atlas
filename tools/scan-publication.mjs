@@ -106,15 +106,27 @@ export function scanPath(pathBytes, { policy, surface, objectType } = {}) {
 
 function scanGeneratedMetadata(pathBytes, bytes, context) {
   const normalized = locationBuffer(pathBytes).toString('latin1').replaceAll('\\', '/');
-  if (!/\.json$/i.test(normalized)) return [];
   const text = bytes.toString('latin1');
-  if (!/(?:sourcesContent|sourceRoot|file:\/\/|(?:^|["'])\/(?:home|Users|workspace)\/)/i.test(text)) return [];
-  return [formatFinding({
-    ruleId: 'unsafe-generated-metadata',
+  const findings = [];
+  const add = (ruleId) => findings.push(formatFinding({
+    ruleId,
     surface: context.surface,
     location: locationBuffer(pathBytes),
     objectType: context.objectType,
-  })];
+  }));
+  if (/\.(?:[cm]?js|css)$/i.test(normalized)) {
+    if (/\bsourceMappingURL\s*=\s*(?:data:|[^\s*]+)/i.test(text)) add('unsafe-source-map');
+    if (/\bsourceURL\s*=\s*(?:file:\/\/|\/(?:home|Users|workspace)\/)/i.test(text)) {
+      add('unsafe-generated-metadata');
+    }
+  }
+  if (
+    /\.json$/i.test(normalized) &&
+    /(?:sourcesContent|sourceRoot|file:\/\/|(?:^|["'])\/(?:home|Users|workspace)\/)/i.test(text)
+  ) {
+    add('unsafe-generated-metadata');
+  }
+  return uniqueFindings(findings);
 }
 
 async function inspectFile(path, pathBytes, context) {
