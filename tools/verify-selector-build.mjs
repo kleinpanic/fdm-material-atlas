@@ -234,7 +234,13 @@ function routeRecords(routes) {
   function visit(value) {
     if (Array.isArray(value)) return value.forEach(visit);
     if (typeof value !== "object" || value === null) return;
-    if (value.kind === "available" || value.kind === "unavailable") records.push(value);
+    if (Object.hasOwn(value, "kind")) {
+      if (value.kind !== "link" && value.kind !== "unavailable") {
+        fail("SELECTOR_ROUTE_ACTION_KIND_INVALID");
+      }
+      records.push(value);
+      return;
+    }
     for (const child of Object.values(value)) visit(child);
   }
   visit(routes);
@@ -250,13 +256,13 @@ async function validateRoutes(props, base, files) {
       if (Object.hasOwn(record, "href")) fail("SELECTOR_UNAVAILABLE_HREF_FORBIDDEN");
       continue;
     }
-    if (typeof record.href !== "string" || record.href === "") fail("SELECTOR_AVAILABLE_HREF_MISSING");
-    const { candidate, fragment } = fileForPublicUrl(record.href, base, files, "SELECTOR_AVAILABLE_HREF_INVALID");
+    if (typeof record.href !== "string" || record.href === "") fail("SELECTOR_LINK_HREF_MISSING");
+    const { candidate, fragment } = fileForPublicUrl(record.href, base, files, "SELECTOR_LINK_HREF_INVALID");
     if (fragment !== "") {
-      const html = await readFile(files.get(candidate).path, "utf8").catch(() => fail("SELECTOR_AVAILABLE_HREF_INVALID"));
+      const html = await readFile(files.get(candidate).path, "utf8").catch(() => fail("SELECTOR_LINK_HREF_INVALID"));
       const escaped = fragment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const count = [...html.matchAll(new RegExp(`\\bid=(?:"${escaped}"|'${escaped}')`, "g"))].length;
-      if (count !== 1) fail("SELECTOR_AVAILABLE_HREF_INVALID");
+      if (count !== 1) fail("SELECTOR_LINK_HREF_INVALID");
     }
     availableHrefCount += 1;
   }

@@ -4,6 +4,11 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { SelectorBuildError, verifySelectorBuild } from "../../tools/verify-selector-build.mjs";
+import type { MaterialId } from "../../src/data/schema/ids.ts";
+import {
+  buildSelectorRouteAvailability,
+  type PublicRouteRegistry,
+} from "../../src/lib/public-route-registry.ts";
 
 const roots: string[] = [];
 
@@ -24,6 +29,34 @@ function pageProps(route: Record<string, unknown> = { kind: "unavailable", label
         decisionMapFallback: { kind: "unavailable", label: "Map is unavailable" },
         methodEvidence: { kind: "unavailable", label: "Method is unavailable" },
       },
+    },
+  });
+}
+
+function pagePropsWithCompiledRoutes(base: string) {
+  const materialId = "material-pla" as MaterialId;
+  const registry: PublicRouteRegistry = Object.freeze({
+    materialDetails: Object.freeze([Object.freeze({
+      materialId,
+      target: Object.freeze({ id: "material" as const, slug: "pla" }),
+    })]),
+    startingProfiles: Object.freeze([]),
+    decisionMaps: Object.freeze([]),
+  });
+  const routes = buildSelectorRouteAvailability(base, registry, {
+    materials: Object.freeze([Object.freeze({ id: materialId, slug: "pla" })]),
+    laneIds: Object.freeze([]),
+  });
+  return JSON.stringify({
+    pageModel: {
+      projection: {
+        kind: "selector-projection",
+        criteria: [{ id: "selector-primary-goal", defaultOptionId: "option-goal-easy" }],
+        materials: [{ id: materialId }],
+      },
+      defaults: { "selector-primary-goal": "option-goal-easy" },
+      display: { materials: [{ id: materialId, label: "PLA", familyOrFill: { state: "known", label: "PLA" } }] },
+      routes,
     },
   });
 }
@@ -133,20 +166,27 @@ describe("selector production build verifier", () => {
   });
 
   it.each([
-    ["SELECTOR_AVAILABLE_HREF_MISSING", pageProps({ kind: "available", label: "Details" })],
-    ["SELECTOR_AVAILABLE_HREF_INVALID", pageProps({ kind: "available", label: "Details", href: "https://outside.example/" })],
-    ["SELECTOR_AVAILABLE_HREF_INVALID", pageProps({ kind: "available", label: "Details", href: "/atlas-preview/atlas-preview/materials/pla/" })],
-    ["SELECTOR_AVAILABLE_HREF_INVALID", pageProps({ kind: "available", label: "Details", href: "/atlas-preview/missing/" })],
-    ["SELECTOR_AVAILABLE_HREF_INVALID", pageProps({ kind: "available", label: "Details", href: "/atlas-preview/materials/pla/#missing" })],
+    ["SELECTOR_LINK_HREF_MISSING", pageProps({ kind: "link", label: "Details" })],
+    ["SELECTOR_LINK_HREF_INVALID", pageProps({ kind: "link", label: "Details", href: "https://outside.example/" })],
+    ["SELECTOR_LINK_HREF_INVALID", pageProps({ kind: "link", label: "Details", href: "/atlas-preview/atlas-preview/materials/pla/" })],
+    ["SELECTOR_LINK_HREF_INVALID", pageProps({ kind: "link", label: "Details", href: "/atlas-preview/missing/" })],
+    ["SELECTOR_LINK_HREF_INVALID", pageProps({ kind: "link", label: "Details", href: "/atlas-preview/materials/pla/#missing" })],
     ["SELECTOR_UNAVAILABLE_HREF_FORBIDDEN", pageProps({ kind: "unavailable", label: "Later", href: "/atlas-preview/materials/pla/" })],
+    ["SELECTOR_ROUTE_ACTION_KIND_INVALID", pageProps({ kind: "available", label: "Legacy parallel contract", href: "/atlas-preview/materials/pla/" })],
   ])("blocks invalid route contract with %s", async (expected, props) => {
     const { root, base } = await fixture({ props });
     expect(await codeFor(() => verifySelectorBuild({ outputRoot: root, base }))).toBe(expected);
   });
 
-  it("accepts one valid available route and live fragment", async () => {
-    const props = pageProps({ kind: "available", label: "Details", href: "/atlas-preview/materials/pla/#profile" });
+  it("accepts one valid link and live fragment", async () => {
+    const props = pageProps({ kind: "link", label: "Details", href: "/atlas-preview/materials/pla/#profile" });
     const { root, base } = await fixture({ props });
+    await expect(verifySelectorBuild({ outputRoot: root, base })).resolves.toMatchObject({ availableHrefCount: 1 });
+  });
+
+  it("validates a real link emitted by buildSelectorRouteAvailability", async () => {
+    const base = "/atlas-preview/";
+    const { root } = await fixture({ base, props: pagePropsWithCompiledRoutes(base) });
     await expect(verifySelectorBuild({ outputRoot: root, base })).resolves.toMatchObject({ availableHrefCount: 1 });
   });
 
