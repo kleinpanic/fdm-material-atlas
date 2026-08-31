@@ -1,162 +1,58 @@
 ---
+import { SelectorIsland } from "../components/selector/SelectorIsland.tsx";
+import { buildSelectorPageModel } from "../features/selector/page-model.ts";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { loadPublicAtlas } from "../lib/public-atlas.ts";
+import { PUBLIC_ROUTE_REGISTRY } from "../lib/public-route-registry.ts";
 import { internalHref } from "../lib/routes.ts";
-import { buildTracerViewModel } from "../lib/tracer-view-model.ts";
 
 const base = import.meta.env.BASE_URL;
-const tracer = buildTracerViewModel(loadPublicAtlas());
+const atlas = loadPublicAtlas();
+const pageModel = buildSelectorPageModel(atlas, base, PUBLIC_ROUTE_REGISTRY);
 const homeHref = internalHref(base, { id: "home" });
-const tracerHref = internalHref(base, {
-  id: "material",
-  slug: tracer.material.slug,
-});
 
 const navigation = [
-  { label: "Atlas home", href: homeHref, current: true },
-  { label: "Material tracer", href: tracerHref, current: false },
+  { label: "Material selector", href: homeHref, current: true },
 ] as const;
 
 const footerLinks = [
-  { label: "Atlas home", href: homeHref },
-  { label: "Material tracer", href: tracerHref },
+  { label: "Material selector", href: homeHref },
 ] as const;
 ---
 
 <BaseLayout
-  title="FDM Material Atlas"
-  description="Orient material selection around part requirements, process limits, and evidence."
+  title="Material selector | FDM Material Atlas"
+  description="Select FDM and FFF material families by application goal and printer process constraints."
   canonicalPath={homeHref}
   homeHref={homeHref}
   navigation={navigation}
   footerLinks={footerLinks}
 >
-  <section class="home-introduction reading-measure" aria-labelledby="home-title">
-    <p class="technical-eyebrow">Material selection orientation</p>
-    <h1 id="home-title">Choose a material by what the part must do</h1>
-    <p class="home-lede">
-      Start with the application need. Then check process capability, material
-      behavior, and the evidence behind each claim before you shortlist a
-      filament family.
+  <header class="selector-orientation">
+    <p class="technical-eyebrow">Material selector</p>
+    <h1>Choose a material that fits your process</h1>
+    <p class="selector-task-description">
+      Set an application goal and the process constraints your printer can meet.
+      Results explain alignment points and every hard constraint that removes a material.
     </p>
-    <a class="primary-action interactive-target" href={tracerHref}>
-      Open material tracer
-    </a>
-  </section>
+    <aside class="selector-alignment-notice" aria-labelledby="selector-alignment-heading">
+      <span aria-hidden="true">i</span>
+      <div>
+        <h2 id="selector-alignment-heading">What the score means</h2>
+        <p>
+          Alignment scores reflect only the criteria you selected. They do not rank
+          universal material quality, strength, safety, or engineering suitability.
+        </p>
+      </div>
+    </aside>
+  </header>
 
-  <section class="technical-band orientation-band" aria-labelledby="orientation-title">
-    <div class="reading-measure">
-      <h2 id="orientation-title">Read the atlas as a decision sequence</h2>
-      <dl class="orientation-sequence">
-        <div>
-          <dt><span class="technical-label">01</span> Define the need</dt>
-          <dd>State the load, environment, temperature, fit, and service goal.</dd>
-        </div>
-        <div>
-          <dt><span class="technical-label">02</span> Apply process gates</dt>
-          <dd>Remove choices that need equipment or controls you do not have.</dd>
-        </div>
-        <div>
-          <dt><span class="technical-label">03</span> Verify the evidence</dt>
-          <dd>Keep unlike thermal tests separate and check each claim's scope.</dd>
-        </div>
-      </dl>
-    </div>
-  </section>
-
-  <section class="system-proof reading-measure" aria-labelledby="proof-title">
-    <p class="technical-eyebrow">Current foundation proof</p>
-    <h2 id="proof-title">One generated route, not a recommendation engine</h2>
-    <p>
-      The tracer is a build-time system specimen. It proves that validated
-      public data can produce a stable static material page under either site
-      base. Selection, comparison, and the complete material atlas follow in
-      later product surfaces.
-    </p>
+  <section class="selector-experience" aria-label="Material selection worksheet">
+    <noscript>
+      <p class="selector-noscript">
+        Interactive filtering needs JavaScript. The published default results remain available below.
+      </p>
+    </noscript>
+    <SelectorIsland pageModel={pageModel} client:load />
   </section>
 </BaseLayout>
-
-<style>
-  .home-introduction {
-    padding-block: var(--spacing-12);
-  }
-
-  .home-introduction .technical-eyebrow,
-  .system-proof .technical-eyebrow {
-    margin-block-end: var(--spacing-2);
-  }
-
-  .home-lede {
-    max-inline-size: 65ch;
-    font-size: var(--text-heading);
-    line-height: var(--text-heading--line-height);
-  }
-
-  .primary-action {
-    display: inline-flex;
-    align-items: center;
-    margin-block-start: var(--spacing-4);
-    padding: var(--spacing-2) var(--spacing-4);
-    border: var(--size-rule-strong) solid var(--color-accent);
-    color: var(--color-surface);
-    background: var(--color-accent);
-    font-weight: var(--font-weight-semibold);
-    text-decoration: none;
-  }
-
-  .primary-action:hover {
-    color: var(--color-ink-strong);
-  }
-
-  .orientation-band {
-    margin-inline: calc(-1 * var(--spacing-gutter-compact));
-    padding-inline: var(--spacing-gutter-compact);
-  }
-
-  .orientation-sequence {
-    display: grid;
-    gap: var(--spacing-6);
-    margin: 0;
-  }
-
-  .orientation-sequence div {
-    padding-block-start: var(--spacing-2);
-    border-block-start: var(--size-rule) solid var(--color-rule);
-  }
-
-  .orientation-sequence dt {
-    color: var(--color-ink-strong);
-    font-weight: var(--font-weight-semibold);
-  }
-
-  .orientation-sequence dd {
-    margin: var(--spacing-2) 0 0;
-  }
-
-  .orientation-sequence .technical-label {
-    margin-inline-end: var(--spacing-2);
-    color: var(--color-ink-muted);
-  }
-
-  .system-proof {
-    padding-block: var(--spacing-12);
-  }
-
-  @media (min-width: 40rem) {
-    .orientation-band {
-      margin-inline: calc(-1 * var(--spacing-gutter-medium));
-      padding-inline: var(--spacing-gutter-medium);
-    }
-
-    .orientation-sequence {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-  }
-
-  @media (min-width: 64rem) {
-    .orientation-band {
-      margin-inline: calc(-1 * var(--spacing-gutter-wide));
-      padding-inline: var(--spacing-gutter-wide);
-    }
-  }
-</style>
