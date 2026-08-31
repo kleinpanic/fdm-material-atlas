@@ -16,6 +16,8 @@ GEMINI.md
 .github/instructions/
 .github/prompts/
 .github/agents/
+.github/chatmodes/
+.github/skills/
 .github/copilot-instructions.md
 .clinerules
 .cursorrules
@@ -30,6 +32,18 @@ transcript*.md
 prompt*.md
 *.transcript
 *.prompt
+*-PLAN.md
+*-CONTEXT.md
+*-SUMMARY.md
+*-VERIFICATION.md
+*-REVIEW.md
+*-REVIEW-FIX.md
+*-RESEARCH.md
+*-VALIDATION.md
+*-SECURITY.md
+*-UI-SPEC.md
+*-SPEC.md
+conversation-export*.json
 .publication-audit/
 publication-audit/
 .publication-sensitive-patterns

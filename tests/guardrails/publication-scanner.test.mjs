@@ -227,7 +227,7 @@ test('the public environment example is path-allowed but remains content-scanned
 });
 
 test('canonical model-operation path classes are ignored and rejected on every public surface', async () => {
-  const [{ PROHIBITED_PATH_CLASSES }, { loadPublicationPolicy, scanPublication }] = await Promise.all([
+  const [{ PROHIBITED_PATH_CLASSES }, { loadPublicationPolicy, scanPath, scanPublication }] = await Promise.all([
     import(PROHIBITED_PATHS_URL),
     loadInterfaces(),
   ]);
@@ -245,6 +245,23 @@ test('canonical model-operation path classes are ignored and rejected on every p
   for (const mode of ['tracked', 'history']) {
     const report = await scanPublication({ root, mode, policy });
     assert.ok(report.findings.filter(({ ruleId }) => ruleId === 'operational-path').length >= PROHIBITED_PATH_CLASSES.length, mode);
+  }
+
+  const artifact = mkdtempSync(join(tmpdir(), 'publication-operational-artifact-'));
+  for (const { fixture } of PROHIBITED_PATH_CLASSES) write(artifact, fixture, 'synthetic operating fixture\n');
+  const artifactReport = await scanPublication({ root, mode: 'artifact', artifactPath: artifact, policy });
+  assert.ok(
+    artifactReport.findings.filter(({ ruleId }) => ruleId === 'operational-path').length >=
+      PROHIBITED_PATH_CLASSES.length,
+  );
+
+  for (const { fixture } of PROHIBITED_PATH_CLASSES) {
+    const refFindings = scanPath(Buffer.from(`refs/custom/${fixture}`), {
+      policy,
+      surface: 'history',
+      objectType: 'ref',
+    });
+    assert.ok(refFindings.some(({ ruleId }) => ruleId === 'operational-path'), fixture);
   }
 
   write(root, 'safe.txt', 'safe\n');
