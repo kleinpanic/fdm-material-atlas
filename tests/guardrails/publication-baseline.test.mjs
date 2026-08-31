@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
   mkdirSync,
-  mkdtempSync,
+  mkdtempSync as fsMkdtempSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -10,14 +10,24 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import test from 'node:test';
+import test, { after } from 'node:test';
 
 const BASELINE_URL = new URL('../../tools/check-publication.mjs', import.meta.url);
-const EMPTY_GIT_CONFIG = join(mkdtempSync(join(tmpdir(), 'publication-git-config-')), 'config');
+const TEMP_ROOTS = new Set();
+function makeTemp(prefix) {
+  const root = fsMkdtempSync(prefix);
+  TEMP_ROOTS.add(root);
+  return root;
+}
+after(() => {
+  for (const root of TEMP_ROOTS) rmSync(root, { recursive: true, force: true, maxRetries: 3 });
+});
+
+const EMPTY_GIT_CONFIG = join(makeTemp(join(tmpdir(), 'publication-git-config-')), 'config');
 writeFileSync(EMPTY_GIT_CONFIG, '');
 const MAINTAINER_NAME = 'Casey Maintainer';
 const MAINTAINER_EMAIL = 'casey@example.test';
-const FIXTURE_HOME = mkdtempSync(join(tmpdir(), 'publication-baseline-home-'));
+const FIXTURE_HOME = makeTemp(join(tmpdir(), 'publication-baseline-home-'));
 writeFileSync(join(FIXTURE_HOME, '.gitconfig'), `[user]\n\tname = ${MAINTAINER_NAME}\n\temail = ${MAINTAINER_EMAIL}\n`);
 process.env.HOME = FIXTURE_HOME;
 
@@ -53,7 +63,7 @@ function initRepository(path, { identity = true } = {}) {
 }
 
 function createNestedRepositories(options = {}) {
-  const fixture = mkdtempSync(join(tmpdir(), 'publication-baseline-'));
+  const fixture = makeTemp(join(tmpdir(), 'publication-baseline-'));
   const parent = join(fixture, 'parent');
   const child = join(parent, 'child');
   initRepository(parent);
@@ -300,7 +310,7 @@ test('parser and aggregate failures never reproduce caller-controlled sensitive 
 
 test('aggregate CLI runs through absolute, relative, and symlink entrypoints', () => {
   const toolsDirectory = dirname(BASELINE_URL.pathname);
-  const linkRoot = mkdtempSync(join(tmpdir(), 'publication-baseline-link-'));
+  const linkRoot = makeTemp(join(tmpdir(), 'publication-baseline-link-'));
   const link = join(linkRoot, 'baseline-link.mjs');
   symlinkSync(BASELINE_URL.pathname, link, 'file');
   for (const invocation of [

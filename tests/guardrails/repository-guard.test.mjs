@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, renameSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdtempSync as fsMkdtempSync, mkdirSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import test from 'node:test';
+import test, { after } from 'node:test';
 
 import {
   RepositoryGuardError,
@@ -13,10 +13,19 @@ import {
 
 const MAINTAINER_NAME = 'Casey Maintainer';
 const MAINTAINER_EMAIL = 'casey@example.test';
-const FIXTURE_HOME = mkdtempSync(join(tmpdir(), 'repository-home-'));
+const TEMP_ROOTS = new Set();
+function makeTemp(prefix) {
+  const root = fsMkdtempSync(prefix);
+  TEMP_ROOTS.add(root);
+  return root;
+}
+after(() => {
+  for (const root of TEMP_ROOTS) rmSync(root, { recursive: true, force: true, maxRetries: 3 });
+});
+const FIXTURE_HOME = makeTemp(join(tmpdir(), 'repository-home-'));
 writeFileSync(join(FIXTURE_HOME, '.gitconfig'), `[user]\n\tname = ${MAINTAINER_NAME}\n\temail = ${MAINTAINER_EMAIL}\n`);
 process.env.HOME = FIXTURE_HOME;
-const EMPTY_GIT_CONFIG = join(mkdtempSync(join(tmpdir(), 'repository-git-config-')), 'config');
+const EMPTY_GIT_CONFIG = join(makeTemp(join(tmpdir(), 'repository-git-config-')), 'config');
 writeFileSync(EMPTY_GIT_CONFIG, '');
 
 function git(cwd, args, options = {}) {
@@ -44,7 +53,7 @@ function configureIdentity(path, name = MAINTAINER_NAME, email = MAINTAINER_EMAI
 }
 
 function createNestedRepositories({ identity = true } = {}) {
-  const fixtureRoot = mkdtempSync(join(tmpdir(), 'repository-guard-'));
+  const fixtureRoot = makeTemp(join(tmpdir(), 'repository-guard-'));
   const parent = join(fixtureRoot, 'parent');
   const child = join(parent, 'child');
   initRepository(parent);
@@ -123,7 +132,7 @@ test('invalid remote policy errors contain only redacted context', async () => {
 });
 
 test('rejects a cwd that resolves to an ancestor repository', async () => {
-  const fixtureRoot = mkdtempSync(join(tmpdir(), 'repository-guard-'));
+  const fixtureRoot = makeTemp(join(tmpdir(), 'repository-guard-'));
   const parent = join(fixtureRoot, 'parent');
   const nested = join(parent, 'not-a-repository');
   initRepository(parent);
@@ -204,7 +213,7 @@ test('rejects shared clones and symlinked object databases', async () => {
 });
 
 test('rejects an ordinary parent index entry below the child path', async () => {
-  const fixtureRoot = mkdtempSync(join(tmpdir(), 'repository-guard-'));
+  const fixtureRoot = makeTemp(join(tmpdir(), 'repository-guard-'));
   const parent = join(fixtureRoot, 'parent');
   const child = join(parent, 'child');
   initRepository(parent);

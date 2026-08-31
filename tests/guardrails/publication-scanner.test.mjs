@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
   mkdirSync,
-  mkdtempSync,
+  mkdtempSync as fsMkdtempSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -10,18 +10,27 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import test from 'node:test';
+import test, { after } from 'node:test';
 
 const SCANNER_URL = new URL('../../tools/scan-publication.mjs', import.meta.url);
 const POLICY_URL = new URL('../../tools/lib/publication-policy.mjs', import.meta.url);
 const PROHIBITED_PATHS_URL = new URL('../../tools/lib/prohibited-paths.mjs', import.meta.url);
 const SAFE_GIT_URL = new URL('../../tools/lib/safe-git.mjs', import.meta.url);
 const SAFE_FILE_URL = new URL('../../tools/lib/safe-file.mjs', import.meta.url);
-const EMPTY_GIT_CONFIG = join(mkdtempSync(join(tmpdir(), 'publication-git-config-')), 'config');
+const TEMP_ROOTS = new Set();
+function makeTemp(prefix) {
+  const root = fsMkdtempSync(prefix);
+  TEMP_ROOTS.add(root);
+  return root;
+}
+after(() => {
+  for (const root of TEMP_ROOTS) rmSync(root, { recursive: true, force: true, maxRetries: 3 });
+});
+const EMPTY_GIT_CONFIG = join(makeTemp(join(tmpdir(), 'publication-git-config-')), 'config');
 writeFileSync(EMPTY_GIT_CONFIG, '');
 const MAINTAINER_NAME = 'Casey Maintainer';
 const MAINTAINER_EMAIL = 'casey@example.test';
-const FIXTURE_HOME = mkdtempSync(join(tmpdir(), 'publication-scanner-home-'));
+const FIXTURE_HOME = makeTemp(join(tmpdir(), 'publication-scanner-home-'));
 writeFileSync(join(FIXTURE_HOME, '.gitconfig'), `[user]\n\tname = ${MAINTAINER_NAME}\n\temail = ${MAINTAINER_EMAIL}\n`);
 process.env.HOME = FIXTURE_HOME;
 
@@ -45,7 +54,7 @@ function git(cwd, args, options = {}) {
 }
 
 function createRepository() {
-  const root = mkdtempSync(join(tmpdir(), 'publication-scanner-'));
+  const root = makeTemp(join(tmpdir(), 'publication-scanner-'));
   git(root, ['init', '-b', 'main']);
   git(root, ['config', 'user.name', MAINTAINER_NAME]);
   git(root, ['config', 'user.email', MAINTAINER_EMAIL]);
@@ -253,7 +262,7 @@ test('canonical model-operation path classes are ignored and rejected on every p
     assert.ok(report.findings.filter(({ ruleId }) => ruleId === 'operational-path').length >= PROHIBITED_PATH_CLASSES.length, mode);
   }
 
-  const artifact = mkdtempSync(join(tmpdir(), 'publication-operational-artifact-'));
+  const artifact = makeTemp(join(tmpdir(), 'publication-operational-artifact-'));
   for (const { fixture } of PROHIBITED_PATH_CLASSES) write(artifact, fixture, 'synthetic operating fixture\n');
   const artifactReport = await scanPublication({ root, mode: 'artifact', artifactPath: artifact, policy });
   assert.ok(
@@ -302,7 +311,7 @@ test('environment exact patterns are detected and redacted across every mode', a
     assertRedacted(report, [marker, credentialShape('P')]);
   }
 
-  const artifactRoot = mkdtempSync(join(tmpdir(), 'publication-artifact-'));
+  const artifactRoot = makeTemp(join(tmpdir(), 'publication-artifact-'));
   write(artifactRoot, nested, marker);
   const artifact = await scanPublication({ root, mode: 'artifact', artifactPath: artifactRoot, policy });
   assert.ok(artifact.findings.some(({ ruleId }) => ruleId === 'private-source-pattern'));
@@ -313,7 +322,7 @@ test('sensitive files obey the outside-root or ignored, unstaged, untracked inva
   const { loadExactPatterns } = await loadInterfaces();
   const root = createRepository();
   const marker = privateMarker('FILE');
-  const outside = write(dirname(root), `${marker}-outside.json`, JSON.stringify([marker]));
+  const outside = write(makeTemp(join(tmpdir(), 'publication-outside-')), 'patterns.json', JSON.stringify([marker]));
   const ignored = write(root, '.publication-sensitive-patterns', JSON.stringify([marker]));
   write(root, '.gitignore', '.publication-sensitive-patterns\n');
 
@@ -348,7 +357,7 @@ test('default sensitive input is optional only when absent and rejects unusable 
     if (kind === 'directory') {
       mkdirSync(selected);
     } else {
-      const outside = write(dirname(root), `${privateMarker('DEFAULT-LINK')}.json`, JSON.stringify(['safe']));
+      const outside = write(makeTemp(join(tmpdir(), 'publication-link-target-')), 'patterns.json', JSON.stringify(['safe']));
       symlinkSync(outside, selected, 'file');
     }
     await assert.rejects(
@@ -421,7 +430,7 @@ test('ignored-file exact patterns are detected in every surface', async () => {
     if (mode !== 'history') rmSync(join(root, fixture));
   }
 
-  const artifact = mkdtempSync(join(tmpdir(), 'publication-artifact-'));
+  const artifact = makeTemp(join(tmpdir(), 'publication-artifact-'));
   write(artifact, 'bundle.bin', Buffer.from(marker));
   const report = await scanPublication({ root, mode: 'artifact', artifactPath: artifact, policy });
   assert.ok(report.findings.some(({ ruleId }) => ruleId === 'private-source-pattern'));
@@ -470,7 +479,7 @@ test('OAuth bearer, Google client-secret, and DSA key shapes fail stored publica
   const history = await scanPublication({ root, mode: 'history', policy });
   assert.ok(history.findings.some(({ ruleId }) => ruleId === 'credential-signature'));
 
-  const artifact = mkdtempSync(join(tmpdir(), 'publication-credential-artifact-'));
+  const artifact = makeTemp(join(tmpdir(), 'publication-credential-artifact-'));
   write(artifact, 'index.html', values.join('\n'));
   const built = await scanPublication({ root, mode: 'artifact', artifactPath: artifact, policy });
   assert.ok(built.findings.some(({ ruleId }) => ruleId === 'credential-signature'));
@@ -487,7 +496,7 @@ test('unsafe source maps and generated metadata are rejected in tracked and arti
   const tracked = await scanPublication({ root, mode: 'tracked', policy });
   assert.ok(tracked.findings.some(({ ruleId }) => ruleId === 'unsafe-source-map'));
 
-  const artifact = mkdtempSync(join(tmpdir(), 'publication-artifact-'));
+  const artifact = makeTemp(join(tmpdir(), 'publication-artifact-'));
   write(artifact, 'meta/build.json', JSON.stringify({ sourceRoot: '/synthetic/build/root' }));
   write(artifact, 'manifest.json', JSON.stringify({ sourcesContent: ['synthetic embedded source'] }));
   write(artifact, '_astro/stats.json', JSON.stringify({ output: 'file:///synthetic/workspace/app.js' }));
@@ -510,7 +519,7 @@ test('inline and external source-map directives are rejected on every stored-cod
     assert.ok(report.findings.some(({ ruleId }) => ruleId === 'unsafe-source-map'), mode);
   }
 
-  const artifact = mkdtempSync(join(tmpdir(), 'publication-artifact-'));
+  const artifact = makeTemp(join(tmpdir(), 'publication-artifact-'));
   write(artifact, 'styles.css', ['/*# sourceMapping', 'URL=styles.css.map */'].join(''));
   const built = await scanPublication({ root, mode: 'artifact', artifactPath: artifact, policy });
   assert.ok(built.findings.some(({ ruleId }) => ruleId === 'unsafe-source-map'));
@@ -529,7 +538,7 @@ test('source-map directives in HTML and SVG containers are rejected on all store
     assert.equal(report.findings.filter(({ ruleId }) => ruleId === 'unsafe-source-map').length, 2, mode);
   }
 
-  const artifact = mkdtempSync(join(tmpdir(), 'publication-html-map-artifact-'));
+  const artifact = makeTemp(join(tmpdir(), 'publication-html-map-artifact-'));
   const styleDirective = ['/*# sourceMapping', 'URL=data:application/json;base64,e30= */'].join('');
   write(artifact, 'index.html', `<style>${styleDirective}</style>`);
   write(artifact, 'diagram.svg', `<svg><script>${directive}</script></svg>`);
@@ -645,8 +654,8 @@ test('malformed input and missing, unreadable, or escaping surfaces fail closed 
     },
   );
 
-  const artifact = mkdtempSync(join(tmpdir(), 'publication-artifact-'));
-  const outside = write(dirname(artifact), `${marker}-outside.txt`, 'safe');
+  const artifact = makeTemp(join(tmpdir(), 'publication-artifact-'));
+  const outside = write(makeTemp(join(tmpdir(), 'publication-outside-')), 'outside.txt', 'safe');
   const link = join(artifact, 'escape-link');
   symlinkSync(outside, link, 'file');
   const symlinkReport = await scanPublication({ root, mode: 'artifact', artifactPath: artifact, policy });
@@ -659,14 +668,14 @@ test('artifact scans reject a symlink root and return a deterministic content di
   const { loadPublicationPolicy, scanPublication } = await loadInterfaces();
   const root = createRepository();
   const policy = await loadPublicationPolicy({ root, env: {} });
-  const artifact = mkdtempSync(join(tmpdir(), 'publication-artifact-'));
+  const artifact = makeTemp(join(tmpdir(), 'publication-artifact-'));
   write(artifact, 'index.html', '<main>safe</main>');
   const first = await scanPublication({ root, mode: 'artifact', artifactPath: artifact, policy });
   const second = await scanPublication({ root, mode: 'artifact', artifactPath: artifact, policy });
   assert.match(first.artifactDigest, /^sha256:[a-f0-9]{64}$/);
   assert.equal(first.artifactDigest, second.artifactDigest);
 
-  const linkRoot = mkdtempSync(join(tmpdir(), 'publication-artifact-link-'));
+  const linkRoot = makeTemp(join(tmpdir(), 'publication-artifact-link-'));
   const link = join(linkRoot, 'dist');
   symlinkSync(artifact, link, 'dir');
   await assert.rejects(
@@ -679,8 +688,8 @@ test('artifact digests use collision-free framing and byte-stable path ordering'
   const { loadPublicationPolicy, scanPublication } = await loadInterfaces();
   const root = createRepository();
   const policy = await loadPublicationPolicy({ root, env: {} });
-  const treeA = mkdtempSync(join(tmpdir(), 'publication-digest-a-'));
-  const treeB = mkdtempSync(join(tmpdir(), 'publication-digest-b-'));
+  const treeA = makeTemp(join(tmpdir(), 'publication-digest-a-'));
+  const treeB = makeTemp(join(tmpdir(), 'publication-digest-b-'));
   write(treeA, 'a', Buffer.from('x\0b'));
   write(treeA, 'c', Buffer.from('y'));
   write(treeB, 'a', Buffer.from('x'));
@@ -689,8 +698,8 @@ test('artifact digests use collision-free framing and byte-stable path ordering'
   const digestB = await scanPublication({ root, mode: 'artifact', artifactPath: treeB, policy });
   assert.notEqual(digestA.artifactDigest, digestB.artifactDigest);
 
-  const orderA = mkdtempSync(join(tmpdir(), 'publication-order-a-'));
-  const orderB = mkdtempSync(join(tmpdir(), 'publication-order-b-'));
+  const orderA = makeTemp(join(tmpdir(), 'publication-order-a-'));
+  const orderB = makeTemp(join(tmpdir(), 'publication-order-b-'));
   for (const name of ['z.txt', 'ä.txt', 'é.txt']) write(orderA, name, name);
   for (const name of ['é.txt', 'ä.txt', 'z.txt']) write(orderB, name, name);
   const orderedA = await scanPublication({ root, mode: 'artifact', artifactPath: orderA, policy });
@@ -793,7 +802,7 @@ test('CLI returns nonzero with redacted stdout and stderr', async () => {
 
 test('scanner CLI runs through absolute, relative, and symlink entrypoints', () => {
   const toolsDirectory = dirname(SCANNER_URL.pathname);
-  const linkRoot = mkdtempSync(join(tmpdir(), 'publication-scanner-link-'));
+  const linkRoot = makeTemp(join(tmpdir(), 'publication-scanner-link-'));
   const link = join(linkRoot, 'scanner-link.mjs');
   symlinkSync(SCANNER_URL.pathname, link, 'file');
   for (const invocation of [
