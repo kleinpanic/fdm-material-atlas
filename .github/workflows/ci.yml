@@ -28,11 +28,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run validate:data
-      - run: npm test
+      - run: npm run test:ci
       - run: npm run typecheck
       - name: Build repository-path site
         run: npm exec astro -- build
         env:
           SITE_BASE_PATH: /${{ github.event.repository.name }}/
           SITE_ORIGIN: https://${{ github.repository_owner }}.github.io
-

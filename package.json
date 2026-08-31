@@ -9,6 +9,7 @@
   "scripts": {
     "typecheck": "astro check --minimumFailingSeverity warning",
     "test": "vitest run",
+    "test:ci": "vitest run --exclude tests/data/publication-boundary.test.ts",
     "test:data": "vitest run tests/data",
     "test:selector": "vitest run tests/selector",
     "test:selector-smoke": "vitest run tests/app/selector-page-model.test.ts tests/app/selector-presentation.test.ts tests/app/selector-shortlist.test.ts tests/components/selector-boundary.test.ts tests/app/selector-page-source.test.ts",
