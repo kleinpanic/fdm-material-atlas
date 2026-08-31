@@ -82,6 +82,9 @@ function additionalCredentialShapes() {
     ['session', '_token=', 'E'.repeat(20)].join(''),
     ['cookie', ':', 'F'.repeat(20)].join(''),
     ['-----BEGIN ', 'ENCRYPTED PRIVATE KEY', '-----'].join(''),
+    ['GOC', 'SPX-', 'G'.repeat(28)].join(''),
+    ['Authorization', ': Bearer ', 'H'.repeat(32)].join(''),
+    ['-----BEGIN ', 'DSA PRIVATE KEY', '-----'].join(''),
   ];
 }
 
@@ -449,6 +452,26 @@ test('current GitHub, Google, session, and encrypted-key credential shapes are d
     assert.ok(findings.some(({ ruleId }) => ruleId === 'credential-signature'), value.slice(0, 8));
     assertRedacted({ findings }, [value]);
   }
+});
+
+test('OAuth bearer, Google client-secret, and DSA key shapes fail stored publication surfaces', async () => {
+  const { loadPublicationPolicy, scanPublication } = await loadInterfaces();
+  const root = createRepository();
+  const values = additionalCredentialShapes().slice(-3);
+  write(root, 'credential-fixture.txt', values.join('\n'));
+  const policy = await loadPublicationPolicy({ root, env: {} });
+
+  const working = await scanPublication({ root, mode: 'working', policy });
+  assert.ok(working.findings.some(({ ruleId }) => ruleId === 'credential-signature'));
+  commit(root, ['credential-fixture.txt']);
+  const history = await scanPublication({ root, mode: 'history', policy });
+  assert.ok(history.findings.some(({ ruleId }) => ruleId === 'credential-signature'));
+
+  const artifact = mkdtempSync(join(tmpdir(), 'publication-credential-artifact-'));
+  write(artifact, 'index.html', values.join('\n'));
+  const built = await scanPublication({ root, mode: 'artifact', artifactPath: artifact, policy });
+  assert.ok(built.findings.some(({ ruleId }) => ruleId === 'credential-signature'));
+  for (const report of [working, history, built]) assertRedacted(report, values);
 });
 
 test('unsafe source maps and generated metadata are rejected in tracked and artifact modes', async () => {
