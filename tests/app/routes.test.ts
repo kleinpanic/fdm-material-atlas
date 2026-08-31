@@ -30,16 +30,16 @@ describe("routePath", () => {
     "alpha#unsafe",
     "UPPERCASE",
   ])("rejects unsafe material slug %s", (slug) => {
-    expect(() => routePath({ id: "material", slug })).toThrowError(
+    expect(() => routePath({ id: "material", slug })).toThrow(
       "ROUTE_SLUG_INVALID",
     );
   });
 
   it("rejects targets outside the closed route variants", () => {
-    expect(() => routePath({ id: "external", url: "https://example.com" } as never)).toThrowError(
+    expect(() => routePath({ id: "external", url: "https://example.com" } as never)).toThrow(
       "ROUTE_TARGET_INVALID",
     );
-    expect(() => routePath("/materials/synthetic-alpha/" as never)).toThrowError(
+    expect(() => routePath("/materials/synthetic-alpha/" as never)).toThrow(
       "ROUTE_TARGET_INVALID",
     );
   });
@@ -83,7 +83,7 @@ describe("internalHref", () => {
     "https://example.com/atlas-preview/",
     "data:text/html,unsafe",
   ])("rejects unsafe deployment base %s", (base) => {
-    expect(() => internalHref(base, HOME)).toThrowError("ROUTE_BASE_INVALID");
+    expect(() => internalHref(base, HOME)).toThrow("ROUTE_BASE_INVALID");
   });
 });
 
@@ -102,6 +102,6 @@ describe("fragmentHref", () => {
     "9-main",
     "https://example.com",
   ])("rejects unsafe fragment identifier %s", (id) => {
-    expect(() => fragmentHref(id)).toThrowError("FRAGMENT_ID_INVALID");
+    expect(() => fragmentHref(id)).toThrow("FRAGMENT_ID_INVALID");
   });
 });
