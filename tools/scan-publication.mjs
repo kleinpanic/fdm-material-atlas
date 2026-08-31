@@ -226,10 +226,12 @@ async function scanHistory(root, policy) {
   const refNames = refs.stdout.length === 0
     ? []
     : refs.stdout.toString('utf8').trimEnd().split('\n').map((name) => Buffer.from(name));
-  if (refNames.length === 0) return { scannedCount: 0, findings: [] };
-  const commitList = await runGit(root, ['rev-list', '--all']);
+  const head = await runGit(root, ['rev-parse', '--verify', 'HEAD'], { allowFailure: true });
+  const revisionRoots = ['--all', ...(head.ok ? ['HEAD'] : [])];
+  const commitList = await runGit(root, ['rev-list', ...revisionRoots]);
   const commits = commitList.stdout.toString('ascii').trim().split('\n').filter(Boolean);
-  const objectList = await runGit(root, ['rev-list', '--objects', '--all', '--no-object-names']);
+  if (commits.length === 0 && refNames.length === 0) return { scannedCount: 0, findings: [] };
+  const objectList = await runGit(root, ['rev-list', '--objects', ...revisionRoots, '--no-object-names']);
   const objectIds = [...new Set(objectList.stdout.toString('ascii').trim().split('\n').filter(Boolean))];
   const findings = [];
   let scannedCount = refNames.length;

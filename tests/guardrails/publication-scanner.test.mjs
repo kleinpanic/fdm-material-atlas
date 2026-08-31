@@ -495,6 +495,25 @@ test('history finds content removed from the current tree and scans reachable si
   assertRedacted(history, [marker]);
 });
 
+test('history scans a detached HEAD even when no named refs remain', async () => {
+  const { loadPublicationPolicy, scanPublication } = await loadInterfaces();
+  const root = createRepository();
+  const marker = privateMarker('DETACHED');
+  write(root, 'detached.txt', marker);
+  commit(root, ['detached.txt'], `Detached ${marker}`);
+  git(root, ['checkout', '--detach']);
+  git(root, ['branch', '-D', 'main']);
+  const policy = await loadPublicationPolicy({
+    root,
+    env: { PUBLICATION_SENSITIVE_PATTERNS_JSON: JSON.stringify([marker]) },
+  });
+
+  const report = await scanPublication({ root, mode: 'history', policy });
+  assert.ok(report.scannedCount > 0);
+  assert.ok(report.findings.some(({ ruleId }) => ruleId === 'private-source-pattern'));
+  assertRedacted(report, [marker]);
+});
+
 test('history scans branch, tag, note, and unusual ref names without disclosure', async () => {
   const { loadPublicationPolicy, scanPublication } = await loadInterfaces();
   const root = createRepository();
