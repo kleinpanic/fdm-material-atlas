@@ -34,3 +34,8 @@ export const OPERATIONAL_PATH_PATTERNS = Object.freeze([
   /(?:^|\/)\.env(?:\.[^/]*)?$/i,
   /(?:^|\/)(?:\.publication-audit|publication-audit)(?:\/|$)/i,
 ]);
+
+/** Narrow public placeholders that remain subject to content scanning. */
+export const OPERATIONAL_PATH_EXCEPTIONS = Object.freeze([
+  /(?:^|\/)\.env\.example$/i,
+]);

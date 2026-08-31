@@ -206,6 +206,26 @@ test('working and tracked modes reject operational paths with NUL-safe names', a
   assertRedacted(tracked, ['AGENTS.md', oddPath]);
 });
 
+test('the public environment example is path-allowed but remains content-scanned', async () => {
+  const { loadPublicationPolicy, scanBytes, scanPath } = await loadInterfaces();
+  const root = createRepository();
+  const policy = await loadPublicationPolicy({ root, env: {} });
+  assert.equal(
+    scanPath('.env.example', { policy, surface: 'working', objectType: 'file' })
+      .some(({ ruleId }) => ruleId === 'operational-path'),
+    false,
+  );
+  const synthetic = ['api', '_key=', 'X'.repeat(24)].join('');
+  const findings = scanBytes(synthetic, {
+    policy,
+    surface: 'working',
+    location: Buffer.from('.env.example'),
+    objectType: 'file',
+  });
+  assert.ok(findings.some(({ ruleId }) => ruleId === 'credential-signature'));
+  assertRedacted({ findings }, [synthetic]);
+});
+
 test('canonical model-operation path classes are ignored and rejected on every public surface', async () => {
   const [{ PROHIBITED_PATH_CLASSES }, { loadPublicationPolicy, scanPublication }] = await Promise.all([
     import(PROHIBITED_PATHS_URL),

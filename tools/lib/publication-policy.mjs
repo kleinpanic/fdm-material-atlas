@@ -3,7 +3,7 @@ import { lstat, realpath } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
-import { OPERATIONAL_PATH_PATTERNS } from './prohibited-paths.mjs';
+import { OPERATIONAL_PATH_EXCEPTIONS, OPERATIONAL_PATH_PATTERNS } from './prohibited-paths.mjs';
 import { buildGitEnvironment } from './safe-git.mjs';
 import { readStableFile, SafeFileError } from './safe-file.mjs';
 
@@ -165,6 +165,7 @@ export async function loadPublicationPolicy(options = {}) {
   return Object.freeze({
     exactPatterns,
     operationalPathPatterns: OPERATIONAL_PATH_PATTERNS,
+    operationalPathExceptions: OPERATIONAL_PATH_EXCEPTIONS,
     credentialPatterns: Object.freeze([
       /gh[pousr]_[A-Za-z0-9]{30,}/g,
       /github_pat_[A-Za-z0-9_]{50,}/g,

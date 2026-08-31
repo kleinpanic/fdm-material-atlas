@@ -96,7 +96,8 @@ export function scanPath(pathBytes, { policy, surface, objectType } = {}) {
   const location = locationBuffer(pathBytes);
   const normalized = location.toString('latin1').replaceAll('\\', '/');
   const findings = scanBytes(location, { policy, surface, location, objectType });
-  if (policy.operationalPathPatterns.some((pattern) => pattern.test(normalized))) {
+  const operationalException = policy.operationalPathExceptions?.some((pattern) => pattern.test(normalized));
+  if (!operationalException && policy.operationalPathPatterns.some((pattern) => pattern.test(normalized))) {
     findings.push(formatFinding({ ruleId: 'operational-path', surface, location, objectType }));
   }
   if (/\.map$/i.test(normalized)) {
