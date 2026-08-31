@@ -69,15 +69,6 @@ function parsePatternDocument(bytes) {
   return value.map((item) => ({ ruleId: 'private-source-pattern', bytes: Buffer.from(item) }));
 }
 
-async function fileExists(path) {
-  try {
-    const info = await lstat(path);
-    return info.isFile() && !info.isSymbolicLink();
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Load exact values into memory without exposing their origin or content.
  */
@@ -95,11 +86,16 @@ export async function loadExactPatterns({ root, env = process.env, sensitiveFile
   }
 
   const selected = resolve(physicalRoot, sensitiveFile ?? DEFAULT_SENSITIVE_FILE);
-  if (!(await fileExists(selected))) {
-    if (sensitiveFile) throw new PublicationPolicyError('sensitive-input-inspection-failed');
-    return patterns;
+  let selectedInfo;
+  try {
+    selectedInfo = await lstat(selected);
+  } catch (error) {
+    if (error?.code === 'ENOENT' && !sensitiveFile) return patterns;
+    throw new PublicationPolicyError('sensitive-input-inspection-failed');
   }
-
+  if (!selectedInfo.isFile() || selectedInfo.isSymbolicLink()) {
+    throw new PublicationPolicyError('sensitive-input-inspection-failed');
+  }
   let physicalFile;
   try {
     physicalFile = await realpath(selected);
@@ -118,7 +114,9 @@ export async function loadExactPatterns({ root, env = process.env, sensitiveFile
   }
 
   try {
-    const { bytes } = await readStableFile(physicalFile, { maximumBytes: MAX_PATTERN_DOCUMENT_BYTES });
+    // Read the literal path with O_NOFOLLOW. This binds inspection to the
+    // same entry that was classified above and fails closed if it is replaced.
+    const { bytes } = await readStableFile(selected, { maximumBytes: MAX_PATTERN_DOCUMENT_BYTES });
     patterns.push(...parsePatternDocument(bytes));
     const seen = new Set();
     const deduplicated = patterns.filter(({ bytes }) => {

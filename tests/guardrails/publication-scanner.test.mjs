@@ -273,6 +273,28 @@ test('sensitive files obey the outside-root or ignored, unstaged, untracked inva
   }
 });
 
+test('default sensitive input is optional only when absent and rejects unusable entries', async () => {
+  const { loadExactPatterns } = await loadInterfaces();
+  const absentRoot = createRepository();
+  assert.deepEqual(await loadExactPatterns({ root: absentRoot, env: {} }), []);
+
+  for (const kind of ['directory', 'symlink']) {
+    const root = createRepository();
+    const selected = join(root, '.publication-sensitive-patterns');
+    if (kind === 'directory') {
+      mkdirSync(selected);
+    } else {
+      const outside = write(dirname(root), `${privateMarker('DEFAULT-LINK')}.json`, JSON.stringify(['safe']));
+      symlinkSync(outside, selected, 'file');
+    }
+    await assert.rejects(
+      loadExactPatterns({ root, env: {} }),
+      (error) => error.ruleId === 'sensitive-input-inspection-failed',
+      kind,
+    );
+  }
+});
+
 test('environment and explicit sensitive files merge without ambient precedence', async () => {
   const { loadPublicationPolicy, scanPublication } = await loadInterfaces();
   const root = createRepository();
