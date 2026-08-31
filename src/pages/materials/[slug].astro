@@ -1,0 +1,362 @@
+---
+import type { GetStaticPaths } from "astro";
+
+import FactStateValue from "../../components/data/FactStateValue.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { loadPublicAtlas } from "../../lib/public-atlas.ts";
+import { internalHref } from "../../lib/routes.ts";
+import {
+  buildTracerViewModel,
+  type DisplayFact,
+  type TracerViewModel,
+} from "../../lib/tracer-view-model.ts";
+import type { TemperatureMeasurement } from "../../data/schema/measurements.ts";
+import type { ThermalMethod } from "../../data/schema/material.ts";
+
+interface Props {
+  tracer: TracerViewModel;
+}
+
+export const getStaticPaths = (() => {
+  const tracer = buildTracerViewModel(loadPublicAtlas());
+  return [
+    {
+      params: { slug: tracer.material.slug },
+      props: { tracer },
+    },
+  ];
+}) satisfies GetStaticPaths;
+
+function measurementText(measurement: TemperatureMeasurement): string {
+  if (measurement.shape === "exact") return String(measurement.value);
+  return `${measurement.min}–${measurement.max}`;
+}
+
+function measurementUnit(measurement: TemperatureMeasurement): string {
+  return measurement.unit === "degC" ? "°C" : measurement.unit;
+}
+
+function methodDetails(method: ThermalMethod | undefined): readonly string[] {
+  if (method === undefined) return [];
+  return [
+    method.standard === undefined ? undefined : `Standard: ${method.standard}`,
+    method.loadMpa === undefined ? undefined : `Load: ${method.loadMpa} MPa`,
+    method.annealed === undefined ? undefined : `Annealed: ${method.annealed ? "Yes" : "No"}`,
+    method.conditioning === undefined ? undefined : `Conditioning: ${method.conditioning}`,
+    method.otherConditions === undefined ? undefined : `Other conditions: ${method.otherConditions}`,
+  ].filter((detail): detail is string => detail !== undefined);
+}
+
+function factDetail(fact: DisplayFact<TemperatureMeasurement>): string | undefined {
+  if (fact.state === "unknown" || fact.state === "missing") return fact.reason;
+  if (fact.state === "conditional") return fact.condition;
+  if (fact.state === "not-applicable") return fact.reason;
+  return undefined;
+}
+
+const { tracer } = Astro.props;
+const base = import.meta.env.BASE_URL;
+const homeHref = internalHref(base, { id: "home" });
+const tracerHref = internalHref(base, {
+  id: "material",
+  slug: tracer.material.slug,
+});
+const navigation = [
+  { label: "Atlas home", href: homeHref, current: false },
+  { label: "Material tracer", href: tracerHref, current: true },
+] as const;
+const breadcrumbs = [
+  { label: "Home", href: homeHref },
+  { label: "Material tracer", current: true },
+] as const;
+const footerLinks = [
+  { label: "Atlas home", href: homeHref },
+  { label: "Material tracer", href: tracerHref },
+] as const;
+const thermalMethodDetails =
+  tracer.thermal.state === "observation"
+    ? methodDetails(tracer.thermal.method)
+    : [];
+---
+
+<BaseLayout
+  title={`${tracer.material.name} material tracer | FDM Material Atlas`}
+  description={`Generated static material tracer for ${tracer.material.name}.`}
+  canonicalPath={tracerHref}
+  homeHref={homeHref}
+  navigation={navigation}
+  breadcrumbs={breadcrumbs}
+  footerLinks={footerLinks}
+>
+  <article class="tracer-page">
+    <section class="tracer-identity" aria-labelledby="tracer-title">
+      <p class="technical-eyebrow">Generated material route</p>
+      <h1 id="tracer-title">{tracer.material.name}</h1>
+      <p class="reading-measure">
+        This route proves that validated public material data can generate a
+        base-safe static page.
+      </p>
+      <dl class="identity-strip">
+        <div>
+          <dt>Family or filler</dt>
+          <dd>
+            {tracer.familyOrFill.state === "known" ? (
+              <span class="family-fill-value">
+                <span class="family-fill-marker" aria-hidden="true"></span>
+                <span>{tracer.familyOrFill.value}</span>
+              </span>
+            ) : (
+              <FactStateValue fact={tracer.familyOrFill} />
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>Public material ID</dt>
+          <dd class="technical-label wrap-technical">{tracer.material.id}</dd>
+        </div>
+      </dl>
+    </section>
+
+    <div class="tracer-grid tracer-specimens">
+      <section class="specimen" aria-labelledby="thermal-heading">
+        <p class="technical-eyebrow">Named thermal observation</p>
+        <h2 id="thermal-heading">Thermal metric</h2>
+        {tracer.thermal.state === "observation" ? (
+          <dl class="technical-definition-list">
+            <div>
+              <dt>Metric</dt>
+              <dd>{tracer.thermal.metricLabel}</dd>
+            </div>
+            <div>
+              <dt>Value and unit</dt>
+              <dd>
+                {tracer.thermal.measurement.state === "known" ? (
+                  <span class="measurement">
+                    {measurementText(tracer.thermal.measurement.value)}{" "}
+                    {measurementUnit(tracer.thermal.measurement.value)}
+                  </span>
+                ) : (
+                  <span data-state={tracer.thermal.measurement.state}>
+                    {tracer.thermal.measurement.label}
+                  </span>
+                )}
+                {factDetail(tracer.thermal.measurement) !== undefined && (
+                  <span class="definition-detail">
+                    {factDetail(tracer.thermal.measurement)}
+                  </span>
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt>Applicability and evidence scope</dt>
+              <dd>{tracer.evidenceScope.label}</dd>
+            </div>
+            <div>
+              <dt>Qualification</dt>
+              <dd>{tracer.thermal.qualification}</dd>
+            </div>
+            {thermalMethodDetails.map((detail) => (
+              <div>
+                <dt>Method condition</dt>
+                <dd>{detail}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p data-state="missing">{tracer.thermal.label}</p>
+        )}
+        <p class="comparison-caution">
+          Unlike thermal metrics are not directly interchangeable. Compare
+          values only when the named metric and method conditions match.
+        </p>
+      </section>
+
+      <section class="specimen" aria-labelledby="process-heading">
+        <p class="technical-eyebrow">Process capability specimen</p>
+        <h2 id="process-heading">{tracer.processGate.label}</h2>
+        <p class="process-marker">
+          <span
+            class="process-marker__shape"
+            data-marker-shape={tracer.processGate.marker}
+            aria-hidden="true">◆</span
+          >
+          <span>{tracer.processGate.markerLabel}: Verify capability</span>
+        </p>
+        <dl class="technical-definition-list">
+          <div>
+            <dt>Capability</dt>
+            <dd class="technical-label wrap-technical">
+              {tracer.processGate.capability}
+            </dd>
+          </div>
+          <div>
+            <dt>Requirement</dt>
+            <dd>{tracer.processGate.requirement}</dd>
+          </div>
+          <div>
+            <dt>Verification</dt>
+            <dd>{tracer.processGate.verification}</dd>
+          </div>
+        </dl>
+      </section>
+    </div>
+
+    <section class="evidence-strip" aria-labelledby="evidence-heading">
+      <p class="technical-eyebrow">Evidence applicability specimen</p>
+      <h2 id="evidence-heading">{tracer.evidenceScope.label}</h2>
+      <dl class="evidence-reference">
+        <div>
+          <dt>Scope</dt>
+          <dd>{tracer.evidenceScope.label}</dd>
+        </div>
+        <div>
+          <dt>Public reference type</dt>
+          <dd>{tracer.evidenceScope.referenceKind}</dd>
+        </div>
+        <div>
+          <dt>Public reference ID</dt>
+          <dd class="technical-label wrap-technical">
+            {tracer.evidenceScope.referenceId}
+          </dd>
+        </div>
+      </dl>
+    </section>
+
+    <a class="return-action interactive-target" href={homeHref}>
+      Return to atlas home
+    </a>
+  </article>
+</BaseLayout>
+
+<style>
+  .tracer-page {
+    padding-block: var(--spacing-8) var(--spacing-12);
+  }
+
+  .tracer-identity {
+    padding-block-end: var(--spacing-8);
+  }
+
+  .tracer-identity .technical-eyebrow,
+  .specimen .technical-eyebrow,
+  .evidence-strip .technical-eyebrow {
+    margin-block-end: var(--spacing-2);
+  }
+
+  .identity-strip,
+  .technical-definition-list,
+  .evidence-reference {
+    display: grid;
+    gap: var(--spacing-4);
+    margin: 0;
+  }
+
+  .identity-strip {
+    margin-block-start: var(--spacing-8);
+  }
+
+  .identity-strip > div,
+  .technical-definition-list > div,
+  .evidence-reference > div {
+    min-inline-size: 0;
+    padding-block-start: var(--spacing-2);
+    border-block-start: var(--size-rule) solid var(--color-rule);
+  }
+
+  dt {
+    color: var(--color-ink-muted);
+    font-size: var(--text-label);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  dd {
+    margin: var(--spacing-1) 0 0;
+    color: var(--color-ink-strong);
+  }
+
+  .family-fill-value {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    min-block-size: var(--size-target-min);
+  }
+
+  .tracer-specimens {
+    padding-block: var(--spacing-8);
+    border-block: var(--size-rule-strong) solid var(--color-ink-strong);
+  }
+
+  .specimen {
+    min-inline-size: 0;
+    padding: var(--spacing-6);
+    border: var(--size-rule) solid var(--color-rule);
+    background: var(--color-surface);
+  }
+
+  .specimen h2,
+  .evidence-strip h2 {
+    margin-block-start: 0;
+  }
+
+  .definition-detail {
+    display: block;
+    margin-block-start: var(--spacing-2);
+    color: var(--color-ink);
+  }
+
+  .comparison-caution {
+    margin-block: var(--spacing-6) 0;
+    padding: var(--spacing-4);
+    border-inline-start: var(--size-rule-strong) solid var(--color-caution-verify);
+    background: var(--color-page);
+  }
+
+  .process-marker {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    min-block-size: var(--size-target-min);
+    color: var(--color-ink-strong);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .process-marker__shape {
+    display: inline-grid;
+    flex: 0 0 1.5rem;
+    inline-size: 1.5rem;
+    block-size: 1.5rem;
+    place-items: center;
+    color: var(--color-gate-verify);
+    font-family: var(--font-mono);
+  }
+
+  .evidence-strip {
+    padding-block: var(--spacing-8);
+  }
+
+  .return-action {
+    display: inline-flex;
+    align-items: center;
+    padding-inline: var(--spacing-2);
+    border: var(--size-rule) solid var(--color-ink-strong);
+    color: var(--color-ink-strong);
+    background: var(--color-surface);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  @media (min-width: 40rem) {
+    .identity-strip,
+    .evidence-reference {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (forced-colors: active) {
+    .process-marker__shape,
+    .comparison-caution {
+      color: CanvasText;
+      border-color: CanvasText;
+      forced-color-adjust: auto;
+    }
+  }
+</style>
