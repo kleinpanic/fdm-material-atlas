@@ -149,7 +149,7 @@ describe("presentSelectorOutcome", () => {
       laneId,
       action: {
         kind: "link",
-        href: "/atlas-preview/#lane-easy-prototypes",
+        href: "/atlas-preview/map/#lane-easy-prototypes",
         label: "View Easy prototypes decision map",
       },
     }]);

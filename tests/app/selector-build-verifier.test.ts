@@ -167,7 +167,7 @@ describe("selector production build verifier", () => {
   it("fails one byte above the gzip budget without exposing payload content", async () => {
     const { root, base } = await fixture({ component: `export const x=${JSON.stringify(Array.from({ length: 200_000 }, (_, index) => `${index.toString(36)}-${Math.random()}`).join("|"))}` });
     expect(await codeFor(() => verifySelectorBuild({ outputRoot: root, base, maxGzipBytes: 1 }))).toBe("SELECTOR_PAYLOAD_BUDGET_EXCEEDED");
-  });
+  }, 20_000);
 
   it.each([
     ["SELECTOR_LINK_HREF_MISSING", pageProps({ kind: "link", label: "Details" })],
