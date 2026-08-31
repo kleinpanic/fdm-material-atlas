@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import type { JSX } from "preact";
 import { useEffect, useMemo, useState } from "preact/hooks";
 
 import { filterAtlas, type AtlasFilterState } from "./filter.ts";
@@ -61,19 +62,19 @@ export function AtlasIsland({ pageModel }: Props) {
 
   return (
     <div class="atlas-island">
-      <form class="atlas-filters bounded-panel" aria-label="Filter material atlas" onSubmit={(event) => event.preventDefault()}>
+      <form class="atlas-filters bounded-panel" aria-label="Filter material atlas" onSubmit={(event: JSX.TargetedSubmitEvent<HTMLFormElement>) => event.preventDefault()}>
         <label for="atlas-search">Search material or family</label>
-        <input id="atlas-search" type="search" value={filterState.search} disabled={!hydrated} onInput={(event) => setFilterState((current) => ({ ...current, search: (event.currentTarget as HTMLInputElement).value }))} />
+        <input id="atlas-search" type="search" value={filterState.search} disabled={!hydrated} onInput={(event: JSX.TargetedEvent<HTMLInputElement>) => setFilterState((current) => ({ ...current, search: event.currentTarget.value }))} />
         <fieldset>
           <legend>Process and equipment</legend>
           {pageModel.filters.slice(0, 6).map((filter) => (
-            <label>{filter.label}<select value={filterState.selections[filter.id] ?? ""} disabled={!hydrated} onChange={(event) => changeSelection(filter.id, (event.currentTarget as HTMLSelectElement).value)}><option value="">Any {filter.label.toLowerCase()}</option>{filter.options.map((option) => <option value={option.id}>{option.label}</option>)}</select></label>
+            <label>{filter.label}<select value={filterState.selections[filter.id] ?? ""} disabled={!hydrated} onChange={(event: JSX.TargetedEvent<HTMLSelectElement>) => changeSelection(filter.id, event.currentTarget.value)}><option value="">Any {filter.label.toLowerCase()}</option>{filter.options.map((option) => <option value={option.id}>{option.label}</option>)}</select></label>
           ))}
         </fieldset>
         <fieldset>
           <legend>Behavior and properties</legend>
           {pageModel.filters.slice(6).map((filter) => (
-            <label>{filter.label}<select value={filterState.selections[filter.id] ?? ""} disabled={!hydrated} onChange={(event) => changeSelection(filter.id, (event.currentTarget as HTMLSelectElement).value)}><option value="">Any {filter.label.toLowerCase()}</option>{filter.options.map((option) => <option value={option.id}>{option.label}</option>)}</select></label>
+            <label>{filter.label}<select value={filterState.selections[filter.id] ?? ""} disabled={!hydrated} onChange={(event: JSX.TargetedEvent<HTMLSelectElement>) => changeSelection(filter.id, event.currentTarget.value)}><option value="">Any {filter.label.toLowerCase()}</option>{filter.options.map((option) => <option value={option.id}>{option.label}</option>)}</select></label>
           ))}
         </fieldset>
         <button type="button" disabled={!hydrated} onClick={clear}>Clear filters</button>

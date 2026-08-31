@@ -49,7 +49,7 @@ function deepFreeze<T>(value: T): T {
 
 /** Derive all lane candidates through the sole bounded predicate implementation. */
 export function deriveDecisionLaneMembership(atlas: AtlasV1): readonly DecisionLaneMembership[] {
-  const laneIds = new Set(atlas.decisionLanes.map(({ id }) => id));
+  const laneIds = new Set<DecisionLaneId>(atlas.decisionLanes.map(({ id }) => id));
   if (laneIds.size !== atlas.decisionLanes.length) fail("RELATIONSHIP_LANE_DUPLICATE");
   const gates = new Map(atlas.processGates.map((gate) => [gate.id, gate]));
 

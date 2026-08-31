@@ -64,7 +64,7 @@ describe("material claim registry", () => {
   });
 
   it("supports held-out materials with zero or many thermal observations without array-order identity", () => {
-    const zero = { ...createMinimalMaterial(), thermalObservations: [] } as Material;
+    const zero = { ...createMinimalMaterial(), thermalObservations: [] } as unknown as Material;
     const first = createMinimalMaterial().thermalObservations[0]!;
     const second = {
       ...structuredClone(first),

@@ -132,9 +132,9 @@ export const PUBLIC_ROUTE_REGISTRY: PublicRouteRegistry = Object.freeze({
   allMaterialDetails: true,
   allStartingProfiles: true,
   allDecisionMaps: true,
-  compare: Object.freeze({ target: { id: "compare" }, fragment: "comparison-matrix", verifiedFragments: Object.freeze(["comparison-matrix"]) }),
-  decisionMapOverview: Object.freeze({ id: "map" }),
-  methodEvidence: Object.freeze({ target: { id: "method" }, fragment: "selector-scoring", verifiedFragments: Object.freeze(["selector-scoring"]) }),
+  compare: Object.freeze({ target: { id: "compare" as const }, fragment: "comparison-matrix", verifiedFragments: Object.freeze(["comparison-matrix"]) }),
+  decisionMapOverview: Object.freeze({ id: "map" as const }),
+  methodEvidence: Object.freeze({ target: { id: "method" as const }, fragment: "selector-scoring", verifiedFragments: Object.freeze(["selector-scoring"]) }),
 });
 
 /** Compile a registry into browser-safe actions without guessing a path. */

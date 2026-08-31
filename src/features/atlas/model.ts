@@ -109,7 +109,9 @@ export function buildAtlasPageModel(atlas: AtlasV1, base: string | undefined): A
     if (slugs.has(material.slug)) fail("ATLAS_PAGE_SLUG_DUPLICATE");
     ids.add(material.id); slugs.add(material.slug);
   }
-  const vocabularyById = new Map(atlas.vocabularies.map((vocabulary) => [vocabulary.id, vocabulary]));
+  const vocabularyById = new Map<string, AtlasV1["vocabularies"][number]>(
+    atlas.vocabularies.map((vocabulary) => [vocabulary.id, vocabulary]),
+  );
   const definitions = FILTERS.map(([id, label, vocabularyId]) => {
     const vocabulary = vocabularyById.get(vocabularyId);
     if (!vocabulary) fail("ATLAS_PAGE_VOCABULARY_INVALID");
