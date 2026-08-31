@@ -146,7 +146,6 @@ describe("compileSelectorProjection", () => {
       "visualizationReferences",
       "vocabularies",
       "slug",
-      "displayOrder",
       "qualification",
       "verification",
       "authentication",

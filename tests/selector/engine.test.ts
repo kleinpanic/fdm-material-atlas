@@ -283,8 +283,8 @@ describe("selectProjectedMaterials", () => {
     });
     expect(result.kind).toBe("ranked");
     const projectedFields = new Set(spy.mock.calls.map(([, field]) => field));
-    expect(projectedFields.has("properties.outdoorUv.order")).toBe(true);
-    expect(projectedFields.has("process.enclosure.order")).toBe(true);
+    expect(projectedFields.has("properties.outdoorUv")).toBe(true);
+    expect(projectedFields.has("process.enclosure")).toBe(true);
     spy.mockRestore();
 
     const source = readFileSync(
