@@ -44,12 +44,14 @@ describe("evaluateSelectorSafely", () => {
 
 describe("selector component boundary", () => {
   const controls = readFileSync(new URL("../../src/components/selector/SelectorControls.tsx", import.meta.url), "utf8");
+  const results = readFileSync(new URL("../../src/components/selector/SelectorResults.tsx", import.meta.url), "utf8");
   const island = readFileSync(new URL("../../src/components/selector/SelectorIsland.tsx", import.meta.url), "utf8");
-  const allSource = `${controls}\n${island}`;
+  const componentSource = `${controls}\n${results}`;
+  const allSource = `${componentSource}\n${island}`;
 
   it("keeps exactly one island and one engine invocation owner", () => {
     expect(island).toContain("evaluateSelectorSafely");
-    expect(controls).not.toMatch(/selectProjectedMaterials|evaluateSelectorSafely/);
+    expect(componentSource).not.toMatch(/selectProjectedMaterials|evaluateSelectorSafely/);
     expect(allSource.match(/from ["']preact\/hooks["']/g)).toHaveLength(1);
   });
 
@@ -62,6 +64,25 @@ describe("selector component boundary", () => {
     expect(controls).toMatch(/<summary\b/);
     expect(controls).toMatch(/<select\b/);
     expect(controls).toMatch(/<dl\b/);
+  });
+
+  it("renders transparent compatible and eliminated records without alternate logic", () => {
+    expect(results).toMatch(/<ol\b/);
+    expect(results).toMatch(/<article\b/);
+    expect(results).toMatch(/<details\b/);
+    expect(results).toMatch(/<a\b/);
+    expect(results).toContain("scoreLabel");
+    expect(results).toContain("contributions.map");
+    expect(results).toContain("reasons.map");
+    expect(results).not.toMatch(/\.sort\s*\(|\.reduce\s*\(|awardedPoints\s*[+*-]|internalHref|fragmentHref/);
+  });
+
+  it("renders shortlist, reveal, no-match, and controlled recovery states", () => {
+    expect(results).toContain("Show all");
+    expect(results).toContain("Now eliminated by current constraints");
+    expect(results).toContain("role=\"alert\"");
+    expect(island).toContain("reduceShortlist");
+    expect(island).toContain("presentShortlist");
   });
 
   it("prohibits network, persistence, routing, raw HTML, and browser logging", () => {
