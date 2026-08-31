@@ -418,6 +418,27 @@ test('history scans branch, tag, note, and unusual ref names without disclosure'
   assertRedacted(report, [marker]);
 });
 
+test('tracked and history scans preserve symlink and gitlink modes', async () => {
+  const { loadPublicationPolicy, scanPublication } = await loadInterfaces();
+  const root = createRepository();
+  write(root, 'seed.txt', 'safe\n');
+  commit(root, ['seed.txt']);
+  symlinkSync('../outside-target', join(root, 'relative-link'));
+  symlinkSync('/synthetic/absolute-target', join(root, 'absolute-link'));
+  git(root, ['add', '--', 'relative-link', 'absolute-link']);
+  const head = git(root, ['rev-parse', 'HEAD']).trim();
+  git(root, ['update-index', '--add', '--cacheinfo', `160000,${head},synthetic-submodule`]);
+  git(root, ['commit', '-m', 'Add link fixtures']);
+  const policy = await loadPublicationPolicy({ root, env: {} });
+
+  for (const mode of ['tracked', 'history']) {
+    const report = await scanPublication({ root, mode, policy });
+    assert.ok(report.findings.some(({ ruleId }) => ruleId === 'unsafe-symlink'), mode);
+    assert.ok(report.findings.some(({ ruleId }) => ruleId === 'unsafe-gitlink'), mode);
+    assertRedacted(report, ['outside-target', 'absolute-target', 'synthetic-submodule']);
+  }
+});
+
 test('malformed input and missing, unreadable, or escaping surfaces fail closed and redact errors', async () => {
   const { loadExactPatterns, loadPublicationPolicy, scanPublication } = await loadInterfaces();
   const root = createRepository();

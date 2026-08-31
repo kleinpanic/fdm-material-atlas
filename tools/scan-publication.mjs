@@ -162,17 +162,33 @@ async function scanWorking(root, policy) {
 }
 
 async function scanTracked(root, policy) {
-  const listing = await runGit(root, ['ls-files', '-z']);
-  const paths = splitNul(listing.stdout);
+  const listing = await runGit(root, ['ls-files', '--stage', '-z']);
+  const records = splitNul(listing.stdout).map(parseIndexRecord);
   const findings = [];
-  for (const pathBytes of paths) {
-    const indexObject = await runGit(root, ['show', `:${pathBytes.toString()}`]);
-    const context = { policy, surface: 'tracked', objectType: 'blob', location: pathBytes };
-    findings.push(...scanPath(pathBytes, context));
+  for (const record of records) {
+    const context = { policy, surface: 'tracked', objectType: record.type, location: record.path };
+    findings.push(...scanPath(record.path, context));
+    if (record.mode === '160000') {
+      findings.push(formatFinding({ ruleId: 'unsafe-gitlink', surface: 'tracked', location: record.path, objectType: 'gitlink' }));
+      continue;
+    }
+    const indexObject = await runGit(root, ['cat-file', 'blob', record.oid]);
+    if (record.mode === '120000') {
+      findings.push(formatFinding({ ruleId: 'unsafe-symlink', surface: 'tracked', location: record.path, objectType: 'symlink' }));
+    }
     findings.push(...scanBytes(indexObject.stdout, context));
-    findings.push(...scanGeneratedMetadata(pathBytes, indexObject.stdout, context));
+    findings.push(...scanGeneratedMetadata(record.path, indexObject.stdout, context));
   }
-  return { scannedCount: paths.length, findings: uniqueFindings(findings) };
+  return { scannedCount: records.length, findings: uniqueFindings(findings) };
+}
+
+function parseIndexRecord(record) {
+  const tab = record.indexOf(9);
+  if (tab < 0) throw new PublicationScanError('surface-inspection-failed');
+  const header = record.subarray(0, tab).toString('ascii').split(' ');
+  if (header.length !== 3) throw new PublicationScanError('surface-inspection-failed');
+  const mode = header[0];
+  return { mode, type: mode === '160000' ? 'gitlink' : mode === '120000' ? 'symlink' : 'blob', oid: header[1], path: record.subarray(tab + 1) };
 }
 
 function parseTreeRecord(record) {
@@ -180,7 +196,7 @@ function parseTreeRecord(record) {
   if (tab < 0) throw new PublicationScanError('surface-inspection-failed');
   const header = record.subarray(0, tab).toString('ascii').split(' ');
   if (header.length !== 3) throw new PublicationScanError('surface-inspection-failed');
-  return { type: header[1], oid: header[2], path: record.subarray(tab + 1) };
+  return { mode: header[0], type: header[1], oid: header[2], path: record.subarray(tab + 1) };
 }
 
 async function scanHistory(root, policy) {
@@ -213,8 +229,14 @@ async function scanHistory(root, policy) {
       scannedCount += 1;
       const context = { policy, surface: 'history', objectType: record.type, location: record.path };
       findings.push(...scanPath(record.path, context));
+      if (record.mode === '160000') {
+        findings.push(formatFinding({ ruleId: 'unsafe-gitlink', surface: 'history', location: record.path, objectType: 'gitlink' }));
+      }
       if (record.type === 'blob') {
         const bytes = await runGit(root, ['cat-file', 'blob', record.oid]);
+        if (record.mode === '120000') {
+          findings.push(formatFinding({ ruleId: 'unsafe-symlink', surface: 'history', location: record.path, objectType: 'symlink' }));
+        }
         findings.push(...scanBytes(bytes.stdout, context));
         findings.push(...scanGeneratedMetadata(record.path, bytes.stdout, context));
       }
