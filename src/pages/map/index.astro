@@ -34,7 +34,7 @@ const navigation = [
     </header>
     <div class="lane-grid">
       {lanes.map((lane) => (
-        <section class="lane-card" aria-labelledby={`${lane.id}-heading`}>
+        <section id={lane.id} class="lane-card" aria-labelledby={`${lane.id}-heading`}>
           <p class="technical-eyebrow">Need → check → candidates → verify</p>
           <h2 id={`${lane.id}-heading`}>{lane.label}</h2>
           <p>{lane.need}</p>
