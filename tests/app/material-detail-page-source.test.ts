@@ -27,7 +27,7 @@ describe("material detail route source", () => {
     expect(css).toContain("@media (max-width: 63.999rem)");
     expect(css).toContain("@media (forced-colors: active)");
     expect(css).toContain("@media (prefers-reduced-motion: reduce)");
-    expect(css).not.toContain("order:");
+    expect(css).not.toMatch(/(?:^|[;{])\s*order\s*:/mu);
     expect(css).not.toContain("position: sticky");
   });
 });
