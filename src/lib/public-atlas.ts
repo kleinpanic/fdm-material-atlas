@@ -5,11 +5,12 @@ import {
   openSync,
   readFileSync,
 } from "node:fs";
+import { resolve } from "node:path";
 
 import type { AtlasV1 } from "../data/schema/atlas.ts";
 import { parseAtlas } from "../data/schema/parse-atlas.ts";
 
-const PUBLIC_ATLAS_URL = new URL("../data/public/atlas.v1.json", import.meta.url);
+const PUBLIC_ATLAS_RELATIVE_PATH = "src/data/public/atlas.v1.json";
 const MAX_PUBLIC_ATLAS_BYTES = 8 * 1024 * 1024;
 
 type PublicAtlasErrorCode =
@@ -32,7 +33,7 @@ export function loadPublicAtlas(): AtlasV1 {
 
   try {
     descriptor = openSync(
-      PUBLIC_ATLAS_URL,
+      resolve(process.cwd(), PUBLIC_ATLAS_RELATIVE_PATH),
       constants.O_RDONLY | constants.O_NOFOLLOW,
     );
     const stat = fstatSync(descriptor);
