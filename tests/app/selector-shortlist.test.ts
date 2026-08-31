@@ -65,6 +65,17 @@ describe("reduceShortlist", () => {
     expect(result.focusIntent).toEqual({ kind: "shortlist-heading" });
   });
 
+  it("focuses the results heading when removal unmounts the final shortlist", () => {
+    const result = reduceShortlist([A], {
+      type: "remove",
+      materialId: A,
+      currentResultIds: [],
+    });
+
+    expect(result.ids).toEqual([]);
+    expect(result.focusIntent).toEqual({ kind: "results" });
+  });
+
   it("clears only after an explicit clear action", () => {
     const result = reduceShortlist([A, B], { type: "clear" });
     expect(result.ids).toEqual([]);
@@ -118,4 +129,3 @@ describe("presentShortlist", () => {
     expect(compatible).toEqual([B]);
   });
 });
-

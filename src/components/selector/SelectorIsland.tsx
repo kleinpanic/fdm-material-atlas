@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import type { SelectorPageModel } from "../../features/selector/page-model.ts";
 import type { MaterialId } from "../../data/schema/ids.ts";
@@ -10,6 +10,7 @@ import {
   presentShortlist,
   reduceShortlist,
   type ShortlistAction,
+  type ShortlistFocusIntent,
   type ShortlistState,
 } from "../../features/selector/shortlist.ts";
 import { SelectorControls } from "./SelectorControls.tsx";
@@ -25,12 +26,14 @@ export function SelectorIsland({ pageModel }: Props) {
   const [shortlistIds, setShortlistIds] = useState<ShortlistState>([]);
   const [showAll, setShowAll] = useState(false);
   const [eliminationsOpen, setEliminationsOpen] = useState(false);
+  const [focusRevision, setFocusRevision] = useState(0);
   const resultsHeadingRef = useRef<HTMLHeadingElement>(null);
   const shortlistHeadingRef = useRef<HTMLHeadingElement>(null);
   const primaryFirstRef = useRef<HTMLInputElement>(null);
   const secondaryDetailsRef = useRef<HTMLDetailsElement>(null);
   const secondarySummaryRef = useRef<HTMLElement>(null);
   const resultControlRefs = useRef(new Map<MaterialId, HTMLButtonElement>());
+  const pendingFocusIntentRef = useRef<ShortlistFocusIntent | null>(null);
 
   const evaluation = useMemo(
     () => evaluateSelectorSafely(pageModel.projection, evaluationInput),
@@ -46,6 +49,19 @@ export function SelectorIsland({ pageModel }: Props) {
     ? presentation.compatible.map(({ materialId }) => materialId)
     : [];
   const shortlist = presentShortlist(shortlistIds, compatibleIds);
+
+  useLayoutEffect(() => {
+    const intent = pendingFocusIntentRef.current;
+    if (!intent || intent.kind === "preserve-trigger") return;
+    pendingFocusIntentRef.current = null;
+    if (intent.kind === "result-shortlist-control") {
+      (resultControlRefs.current.get(intent.materialId) ?? resultsHeadingRef.current)?.focus();
+    } else if (intent.kind === "shortlist-heading") {
+      (shortlistHeadingRef.current ?? resultsHeadingRef.current)?.focus();
+    } else {
+      resultsHeadingRef.current?.focus();
+    }
+  }, [focusRevision, shortlistIds]);
 
   useEffect(() => setHydrated(true), []);
   useEffect(() => {
@@ -71,14 +87,11 @@ export function SelectorIsland({ pageModel }: Props) {
 
   const applyShortlist = (action: ShortlistAction) => {
     const transition = reduceShortlist(shortlistIds, action);
+    pendingFocusIntentRef.current = transition.focusIntent;
     setShortlistIds(transition.ids);
     if (transition.announcement) setAnnouncement(transition.announcement);
-    if (transition.focusIntent.kind === "result-shortlist-control") {
-      resultControlRefs.current.get(transition.focusIntent.materialId)?.focus();
-    } else if (transition.focusIntent.kind === "shortlist-heading") {
-      shortlistHeadingRef.current?.focus();
-    } else if (transition.focusIntent.kind === "results") {
-      resultsHeadingRef.current?.focus();
+    if (transition.focusIntent.kind !== "preserve-trigger") {
+      setFocusRevision((revision) => revision + 1);
     }
   };
 

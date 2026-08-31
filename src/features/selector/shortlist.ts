@@ -89,10 +89,13 @@ export function reduceShortlist(
         }),
       );
 
+      const remainingIds = ids.filter((id) => id !== materialId);
       return {
-        ids: ids.filter((id) => id !== materialId),
+        ids: remainingIds,
         announcement: "Material removed from shortlist.",
-        focusIntent: currentResultIds.has(materialId)
+        focusIntent: remainingIds.length === 0
+          ? { kind: "results" }
+          : currentResultIds.has(materialId)
           ? { kind: "result-shortlist-control", materialId }
           : { kind: "shortlist-heading" },
       };
@@ -129,4 +132,3 @@ export function presentShortlist(
     status: compatible.has(materialId) ? "compatible" : "now-eliminated",
   }));
 }
-

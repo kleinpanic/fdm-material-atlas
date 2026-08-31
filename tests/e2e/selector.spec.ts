@@ -201,6 +201,24 @@ test("shortlist is ordered, bounded, retained across exclusions, and returns foc
   await expect(page.getByRole("heading", { name: "Compatible materials" })).toBeFocused();
 });
 
+test("removing the final retained eliminated item focuses the mounted results heading", async ({ page }) => {
+  await waitForSelector(page);
+  await page.locator("details.selector-secondary > summary").click();
+  await selectRelaxedHardware(page);
+  await page.getByRole("button", { name: "Show all 23 compatible materials" }).click();
+
+  const add = page.getByRole("button", { name: /^Add .+ to shortlist$/u }).first();
+  await add.click();
+  await page.getByRole("button", { name: "Reset criteria" }).click();
+
+  const shortlist = page.locator(".selector-shortlist");
+  await expect(shortlist.getByText("Now eliminated by current constraints")).toBeVisible();
+  await shortlist.locator("button").filter({ hasText: "Remove" }).click();
+  await expect(shortlist).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Compatible materials" })).toBeFocused();
+  await expect(page.locator("body")).not.toBeFocused();
+});
+
 test("show-all preserves order and every browser resource maps to the built deployment base", async ({ page }) => {
   const badResources: string[] = [];
   page.on("response", (response: { url(): string; ok(): boolean }) => {
