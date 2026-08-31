@@ -1,3 +1,5 @@
+import { readFile, readdir } from "node:fs/promises";
+
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { beforeAll, describe, expect, it } from "vitest";
 
@@ -5,6 +7,7 @@ import FactStateValue from "../../src/components/data/FactStateValue.astro";
 import MeaningfulFigure from "../../src/components/data/MeaningfulFigure.astro";
 import StateMarker from "../../src/components/data/StateMarker.astro";
 import TechnicalTable from "../../src/components/data/TechnicalTable.astro";
+import AccessibilitySpecimens from "../fixtures/accessibility-specimens.astro";
 
 let container: AstroContainer;
 
@@ -154,5 +157,57 @@ describe("meaningful figure accessibility contract", () => {
     expect(html).toContain("Glass transition");
     expect(html).toContain('aria-label="Thermal observations as text"');
     expect(html).toContain("<dl>");
+  });
+});
+
+describe("non-routed accessibility specimens", () => {
+  it("keeps required popover information in an inline fallback", async () => {
+    const html = await container.renderToString(AccessibilitySpecimens);
+
+    expect(html).toContain(
+      '<button type="button" aria-expanded="false" aria-controls="verification-popover"',
+    );
+    expect(html).toContain(">Explain verification status</button>");
+    expect(html).toContain('id="verification-popover"');
+    expect(html).toContain("popover");
+    expect(html).toContain('data-static-fallback="verification-popover"');
+    expect(html).toContain(
+      "Verify the manufacturer data sheet before a safety-critical selection.",
+    );
+  });
+
+  it("demonstrates a named native dialog with the safe action first", async () => {
+    const html = await container.renderToString(AccessibilitySpecimens);
+
+    expect(html).toContain('<dialog aria-labelledby="comparison-dialog-title"');
+    expect(html).toContain('id="comparison-dialog-title"');
+    const safeAction = html.indexOf(">Keep editing</button>");
+    const continueAction = html.indexOf(">Continue to comparison</button>");
+    expect(safeAction).toBeGreaterThan(-1);
+    expect(continueAction).toBeGreaterThan(safeAction);
+    expect(html).not.toMatch(/delete|remove|discard/iu);
+  });
+
+  it("composes the production primitives while remaining static and outside routes", async () => {
+    const html = await container.renderToString(AccessibilitySpecimens);
+    const fixtureUrl = new URL("../fixtures/accessibility-specimens.astro", import.meta.url);
+    const source = await readFile(fixtureUrl, "utf8");
+    const pageFiles = await readdir(new URL("../../src/pages/", import.meta.url), {
+      recursive: true,
+    }).catch((error: unknown) => {
+      if (error instanceof Error && "code" in error && error.code === "ENOENT") return [];
+      throw error;
+    });
+
+    expect(html).toContain('data-marker-variant="verify"');
+    expect(html).toContain('data-fact-state="missing"');
+    expect(html).toContain("<table");
+    expect(html).toContain('class="meaningful-figure"');
+    expect(source).not.toMatch(/client:/u);
+    expect(source).not.toMatch(/<script\b/iu);
+    expect(source).not.toMatch(/theme\s*toggle|global\s*store/iu);
+    expect(fixtureUrl.pathname).toContain("/tests/fixtures/");
+    expect(fixtureUrl.pathname).not.toContain("/src/pages/");
+    expect(pageFiles).not.toContain("accessibility-specimens.astro");
   });
 });
