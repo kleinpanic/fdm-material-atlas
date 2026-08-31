@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
-  chmodSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -17,6 +16,9 @@ const SCANNER_URL = new URL('../../tools/scan-publication.mjs', import.meta.url)
 const POLICY_URL = new URL('../../tools/lib/publication-policy.mjs', import.meta.url);
 const PROHIBITED_PATHS_URL = new URL('../../tools/lib/prohibited-paths.mjs', import.meta.url);
 const SAFE_GIT_URL = new URL('../../tools/lib/safe-git.mjs', import.meta.url);
+const SAFE_FILE_URL = new URL('../../tools/lib/safe-file.mjs', import.meta.url);
+const EMPTY_GIT_CONFIG = join(mkdtempSync(join(tmpdir(), 'publication-git-config-')), 'config');
+writeFileSync(EMPTY_GIT_CONFIG, '');
 const MAINTAINER_NAME = 'Casey Maintainer';
 const MAINTAINER_EMAIL = 'casey@example.test';
 
@@ -24,7 +26,7 @@ function git(cwd, args, options = {}) {
   const environment = {
     ...process.env,
     GIT_CONFIG_NOSYSTEM: '1',
-    GIT_CONFIG_GLOBAL: '/dev/null',
+    GIT_CONFIG_GLOBAL: EMPTY_GIT_CONFIG,
     ...options.env,
   };
   delete environment.GIT_AUTHOR_NAME;
@@ -466,20 +468,27 @@ test('malformed input and missing, unreadable, or escaping surfaces fail closed 
   const artifact = mkdtempSync(join(tmpdir(), 'publication-artifact-'));
   const outside = write(dirname(artifact), `${marker}-outside.txt`, 'safe');
   const link = join(artifact, 'escape-link');
-  try {
-    execFileSync('ln', ['-s', outside, link]);
-  } catch {
-    return;
-  }
+  symlinkSync(outside, link, 'file');
   const symlinkReport = await scanPublication({ root, mode: 'artifact', artifactPath: artifact, policy });
   assert.ok(symlinkReport.findings.some(({ ruleId }) => ruleId === 'unsafe-symlink'));
   assertRedacted(symlinkReport, [marker]);
 
-  const unreadable = write(artifact, 'unreadable.txt', 'safe');
-  chmodSync(unreadable, 0o000);
-  if (process.getuid?.() !== 0) {
-    await assert.rejects(scanPublication({ root, mode: 'artifact', artifactPath: artifact, policy }));
-  }
+});
+
+test('stable file reader exposes a controlled failure seam without privilege assumptions', async () => {
+  const { readStableFile, SafeFileError } = await import(SAFE_FILE_URL);
+  const marker = privateMarker('OPEN-FAILURE');
+  await assert.rejects(
+    readStableFile(marker, {
+      openFile: async () => { throw new Error(`uncontrolled ${marker}`); },
+    }),
+    (error) => {
+      assert.ok(error instanceof SafeFileError);
+      assert.equal(error.ruleId, 'file-inspection-failed');
+      assertRedacted(String(error), [marker]);
+      return true;
+    },
+  );
 });
 
 test('CLI returns nonzero with redacted stdout and stderr', async () => {
@@ -492,7 +501,7 @@ test('CLI returns nonzero with redacted stdout and stderr', async () => {
       ...process.env,
       PUBLICATION_SENSITIVE_PATTERNS_JSON: JSON.stringify([marker]),
       GIT_CONFIG_NOSYSTEM: '1',
-      GIT_CONFIG_GLOBAL: '/dev/null',
+      GIT_CONFIG_GLOBAL: EMPTY_GIT_CONFIG,
     },
   });
   assert.notEqual(result.status, 0);

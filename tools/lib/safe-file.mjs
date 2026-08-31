@@ -10,11 +10,11 @@ export class SafeFileError extends Error {
 }
 
 /** Bind validation and reading to one no-follow descriptor. */
-export async function readStableFile(path, { maximumBytes } = {}) {
+export async function readStableFile(path, { maximumBytes, openFile = open } = {}) {
   let handle;
   try {
     const flags = constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0);
-    handle = await open(path, flags);
+    handle = await openFile(path, flags);
     const before = await handle.stat();
     if (!before.isFile()) throw new SafeFileError('not-regular-file');
     if (maximumBytes !== undefined && before.size > maximumBytes) {

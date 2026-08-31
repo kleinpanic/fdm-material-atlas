@@ -13,6 +13,8 @@ import {
 
 const MAINTAINER_NAME = 'Casey Maintainer';
 const MAINTAINER_EMAIL = 'casey@example.test';
+const EMPTY_GIT_CONFIG = join(mkdtempSync(join(tmpdir(), 'repository-git-config-')), 'config');
+writeFileSync(EMPTY_GIT_CONFIG, '');
 
 function git(cwd, args, options = {}) {
   return execFileSync('git', args, {
@@ -21,7 +23,7 @@ function git(cwd, args, options = {}) {
     env: {
       ...process.env,
       GIT_CONFIG_NOSYSTEM: '1',
-      GIT_CONFIG_GLOBAL: '/dev/null',
+      GIT_CONFIG_GLOBAL: EMPTY_GIT_CONFIG,
       ...options.env,
     },
     stdio: options.stdio ?? ['ignore', 'pipe', 'pipe'],

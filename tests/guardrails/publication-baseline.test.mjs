@@ -13,6 +13,8 @@ import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 
 const BASELINE_URL = new URL('../../tools/check-publication.mjs', import.meta.url);
+const EMPTY_GIT_CONFIG = join(mkdtempSync(join(tmpdir(), 'publication-git-config-')), 'config');
+writeFileSync(EMPTY_GIT_CONFIG, '');
 const MAINTAINER_NAME = 'Casey Maintainer';
 const MAINTAINER_EMAIL = 'casey@example.test';
 
@@ -20,7 +22,7 @@ function cleanEnvironment(overrides = {}) {
   const environment = {
     ...process.env,
     GIT_CONFIG_NOSYSTEM: '1',
-    GIT_CONFIG_GLOBAL: '/dev/null',
+    GIT_CONFIG_GLOBAL: EMPTY_GIT_CONFIG,
   };
   delete environment.GIT_AUTHOR_NAME;
   delete environment.GIT_AUTHOR_EMAIL;
