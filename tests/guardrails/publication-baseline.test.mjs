@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -284,6 +285,26 @@ test('parser and aggregate failures never reproduce caller-controlled sensitive 
     PUBLICATION_SENSITIVE_PATTERNS_JSON: JSON.stringify([marker]),
   });
   assertFailedWith(result, 'arguments-invalid', [marker]);
+});
+
+test('aggregate CLI runs through absolute, relative, and symlink entrypoints', () => {
+  const toolsDirectory = dirname(BASELINE_URL.pathname);
+  const linkRoot = mkdtempSync(join(tmpdir(), 'publication-baseline-link-'));
+  const link = join(linkRoot, 'baseline-link.mjs');
+  symlinkSync(BASELINE_URL.pathname, link, 'file');
+  for (const invocation of [
+    { cwd: toolsDirectory, entry: 'check-publication.mjs' },
+    { cwd: toolsDirectory, entry: BASELINE_URL.pathname },
+    { cwd: linkRoot, entry: link },
+  ]) {
+    const result = spawnSync(process.execPath, [invocation.entry, '--unknown', 'synthetic'], {
+      cwd: invocation.cwd,
+      encoding: 'utf8',
+      env: cleanEnvironment(),
+    });
+    assert.notEqual(result.status, 0);
+    assert.notEqual(`${result.stdout}${result.stderr}`.length, 0);
+  }
 });
 
 test('the committed baseline test contains no contiguous runtime credential fixture', () => {

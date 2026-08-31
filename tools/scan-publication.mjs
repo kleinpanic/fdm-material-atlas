@@ -2,7 +2,6 @@
 import { execFile } from 'node:child_process';
 import { lstat, opendir, readFile, realpath, stat } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
 import { assertRepository } from './lib/repository-guard.mjs';
@@ -11,6 +10,7 @@ import {
   loadPublicationPolicy,
   PublicationPolicyError,
 } from './lib/publication-policy.mjs';
+import { isMainModule } from './lib/main-module.mjs';
 
 const execFileAsync = promisify(execFile);
 const MODES = new Set(['working', 'tracked', 'history', 'artifact']);
@@ -359,6 +359,6 @@ async function main() {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+if (await isMainModule(import.meta.url)) {
   await main();
 }

@@ -2,11 +2,11 @@
 
 import { realpath } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 
 import { assertRepository } from './lib/repository-guard.mjs';
 import { loadPublicationPolicy } from './lib/publication-policy.mjs';
 import { scanPublication } from './scan-publication.mjs';
+import { isMainModule } from './lib/main-module.mjs';
 
 const REMOTE_POLICIES = new Set(['absent', 'any']);
 const DEFAULT_MODES = Object.freeze(['working', 'tracked', 'history']);
@@ -171,6 +171,6 @@ async function main() {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+if (await isMainModule(import.meta.url)) {
   await main();
 }

@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -372,6 +373,26 @@ test('CLI returns nonzero with redacted stdout and stderr', async () => {
   });
   assert.notEqual(result.status, 0);
   assertRedacted(`${result.stdout}${result.stderr}`, [marker]);
+});
+
+test('scanner CLI runs through absolute, relative, and symlink entrypoints', () => {
+  const toolsDirectory = dirname(SCANNER_URL.pathname);
+  const linkRoot = mkdtempSync(join(tmpdir(), 'publication-scanner-link-'));
+  const link = join(linkRoot, 'scanner-link.mjs');
+  symlinkSync(SCANNER_URL.pathname, link, 'file');
+  for (const invocation of [
+    { cwd: toolsDirectory, entry: 'scan-publication.mjs' },
+    { cwd: toolsDirectory, entry: SCANNER_URL.pathname },
+    { cwd: linkRoot, entry: link },
+  ]) {
+    const result = spawnSync(process.execPath, [invocation.entry, '--invalid', 'synthetic'], {
+      cwd: invocation.cwd,
+      encoding: 'utf8',
+      env: process.env,
+    });
+    assert.notEqual(result.status, 0);
+    assert.notEqual(`${result.stdout}${result.stderr}`.length, 0);
+  }
 });
 
 test('the committed test source contains no contiguous runtime credential fixture', () => {
