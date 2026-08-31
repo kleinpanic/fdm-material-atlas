@@ -16,7 +16,7 @@ describe("buildAtlasPageModel", () => {
     );
     expect(model.rows.every(({ href }) => href.startsWith("/atlas-preview/materials/") && href.endsWith("/"))).toBe(true);
     expect(Object.keys(model.rows[0]!).sort()).toEqual([
-      "displayOrder", "evidence", "family", "facts", "href", "id", "name", "serviceTemperature", "slug", "thermalObservations", "uses",
+      "displayOrder", "evidence", "facts", "family", "href", "id", "name", "serviceTemperature", "slug", "thermalObservations", "uses",
     ]);
     expect(model.filters.map(({ id }) => id)).toEqual([
       "print-difficulty", "enclosure", "hardened-nozzle", "drying-priority", "ventilation", "cost-tier",
