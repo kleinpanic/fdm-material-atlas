@@ -5,6 +5,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import { loadPublicAtlas } from "../lib/public-atlas.ts";
 import { PUBLIC_ROUTE_REGISTRY } from "../lib/public-route-registry.ts";
 import { internalHref } from "../lib/routes.ts";
+import "../styles/selector.css";
 
 const base = import.meta.env.BASE_URL;
 const atlas = loadPublicAtlas();
