@@ -1,0 +1,309 @@
+#!/usr/bin/env node
+
+import { gzipSync } from "node:zlib";
+import { lstat, opendir, readFile, realpath } from "node:fs/promises";
+import { dirname, join, posix, relative, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const DEFAULT_MAX_GZIP_BYTES = 100 * 1024;
+const MAX_FILES = 20_000;
+const MAX_FILE_BYTES = 64 * 1024 * 1024;
+const PROHIBITED_PROP_KEYS = new Set([
+  "atlas",
+  "evidence",
+  "evidenceLedger",
+  "sources",
+  "sourceLedger",
+  "methods",
+  "profiles",
+  "startingProfiles",
+  "decisionLanes",
+  "visualizations",
+  "sourceMetadata",
+  "operationalMetadata",
+  "workbook",
+  "spreadsheet",
+]);
+const PROHIBITED_CLIENT_TEXT = [
+  /(?:^|["'`/])(?:cytoscape|plotly|echarts|vis-network|three|deck\.gl)(?:["'`/]|$)/i,
+  /(?:^|["'`/])d3(?:-[a-z]+)?(?:["'`/]|$)/i,
+  /(?:source-adapter|sheet-adapter|gog-cli|googleapis)/i,
+];
+const FETCH_PATTERN = /\b(?:fetch|XMLHttpRequest|EventSource|WebSocket)\s*\(/;
+
+export class SelectorBuildError extends Error {
+  constructor(code, details = {}) {
+    super(code);
+    this.name = "SelectorBuildError";
+    this.code = code;
+    this.details = Object.freeze({ ...details });
+  }
+
+  toJSON() {
+    return { code: this.code, ...this.details };
+  }
+}
+
+function fail(code, details) {
+  throw new SelectorBuildError(code, details);
+}
+
+function decodeHtmlAttribute(value) {
+  return value
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#34;", '"')
+    .replaceAll("&#x22;", '"')
+    .replaceAll("&#39;", "'")
+    .replaceAll("&#x27;", "'")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&amp;", "&");
+}
+
+function attributes(tag) {
+  const result = new Map();
+  for (const match of tag.matchAll(/\b([a-z][\w-]*)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) {
+    result.set(match[1].toLowerCase(), decodeHtmlAttribute(match[2] ?? match[3] ?? ""));
+  }
+  return result;
+}
+
+function reviveAstro(value) {
+  const handlers = {
+    0: (item) => reviveObject(item),
+    1: (item) => item.map(reviveTuple),
+    2: (item) => new RegExp(item),
+    3: (item) => new Date(item),
+    4: (item) => new Map(item.map(reviveTuple)),
+    5: (item) => new Set(item.map(reviveTuple)),
+    6: (item) => BigInt(item),
+    7: (item) => new URL(item),
+    8: (item) => new Uint8Array(item),
+    9: (item) => new Uint16Array(item),
+    10: (item) => new Uint32Array(item),
+    11: (item) => Number.POSITIVE_INFINITY * item,
+  };
+  function reviveTuple(tuple) {
+    if (!Array.isArray(tuple) || tuple.length !== 2 || !(tuple[0] in handlers)) return tuple;
+    return handlers[tuple[0]](tuple[1]);
+  }
+  function reviveObject(item) {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) return item;
+    return Object.fromEntries(Object.entries(item).map(([key, entry]) => [key, reviveTuple(entry)]));
+  }
+  return reviveObject(value);
+}
+
+function parseProps(serialized) {
+  try {
+    const parsed = JSON.parse(serialized);
+    const looksEncoded = Object.values(parsed).some((value) => Array.isArray(value) && value.length === 2 && Number.isInteger(value[0]));
+    return looksEncoded ? reviveAstro(parsed) : parsed;
+  } catch {
+    fail("SELECTOR_PROPS_INVALID");
+  }
+}
+
+function inspectPropBoundary(value, exactPatterns, seen = new Set()) {
+  if (typeof value === "string") {
+    if (exactPatterns.some((pattern) => pattern !== "" && value.includes(pattern))) fail("SELECTOR_PRIVATE_PATTERN_FORBIDDEN");
+    return;
+  }
+  if (typeof value !== "object" || value === null || seen.has(value)) return;
+  seen.add(value);
+  if (Array.isArray(value) || value instanceof Set) {
+    for (const item of value) inspectPropBoundary(item, exactPatterns, seen);
+    return;
+  }
+  if (value instanceof Map) {
+    for (const [key, item] of value) {
+      inspectPropBoundary(key, exactPatterns, seen);
+      inspectPropBoundary(item, exactPatterns, seen);
+    }
+    return;
+  }
+  for (const [key, item] of Object.entries(value)) {
+    if (PROHIBITED_PROP_KEYS.has(key)) fail("SELECTOR_PROPS_BOUNDARY_VIOLATION");
+    inspectPropBoundary(item, exactPatterns, seen);
+  }
+}
+
+async function collectFiles(root) {
+  const literal = await lstat(root).catch(() => fail("SELECTOR_OUTPUT_MISSING"));
+  if (!literal.isDirectory() || literal.isSymbolicLink()) fail("SELECTOR_OUTPUT_INVALID");
+  if (await realpath(root).catch(() => "") !== root) fail("SELECTOR_OUTPUT_INVALID");
+  const files = new Map();
+  async function walk(directory) {
+    const stream = await opendir(directory).catch(() => fail("SELECTOR_OUTPUT_INVALID"));
+    for await (const entry of stream) {
+      const path = join(directory, entry.name);
+      const info = await lstat(path).catch(() => fail("SELECTOR_OUTPUT_INVALID"));
+      if (info.isSymbolicLink()) fail("SELECTOR_OUTPUT_SYMLINK_FORBIDDEN");
+      if (info.isDirectory()) await walk(path);
+      else if (info.isFile()) {
+        if (info.size > MAX_FILE_BYTES || files.size >= MAX_FILES) fail("SELECTOR_OUTPUT_LIMIT_EXCEEDED");
+        files.set(relative(root, path).split(sep).join("/"), { path, size: info.size });
+      } else fail("SELECTOR_OUTPUT_INVALID");
+    }
+  }
+  await walk(root);
+  return files;
+}
+
+function fileForPublicUrl(raw, base, files, code = "SELECTOR_CLIENT_REFERENCE_INVALID") {
+  let url;
+  try {
+    url = new URL(raw, "https://atlas.example/");
+  } catch {
+    fail(code);
+  }
+  if (url.origin !== "https://atlas.example" || url.search !== "") fail(code);
+  if (!url.pathname.startsWith(base) || (base !== "/" && url.pathname.startsWith(`${base}${base.slice(1)}`))) fail(code);
+  let logical;
+  try {
+    logical = decodeURIComponent(url.pathname.slice(base.length));
+  } catch {
+    fail(code);
+  }
+  if (logical.includes("\\") || logical.split("/").some((part) => part === "." || part === "..")) fail(code);
+  const candidate = logical === "" || logical.endsWith("/") ? `${logical}index.html` : logical;
+  if (!files.has(candidate)) fail(code);
+  return { candidate, fragment: url.hash.slice(1) };
+}
+
+function importedSpecifiers(source) {
+  const values = [];
+  const patterns = [
+    /\b(?:import|export)\s+(?:[^"']*?\s+from\s*)?["']([^"']+)["']/g,
+    /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,
+  ];
+  for (const pattern of patterns) for (const match of source.matchAll(pattern)) values.push(match[1]);
+  return values;
+}
+
+function resolveImport(specifier, importer, files) {
+  if (!specifier.startsWith(".")) fail("SELECTOR_CLIENT_IMPORT_FORBIDDEN");
+  const candidate = posix.normalize(posix.join(posix.dirname(importer), specifier));
+  if (candidate.startsWith("../") || candidate === ".." || !files.has(candidate)) fail("SELECTOR_CLIENT_REFERENCE_INVALID");
+  return candidate;
+}
+
+function routeRecords(routes) {
+  const records = [];
+  function visit(value) {
+    if (Array.isArray(value)) return value.forEach(visit);
+    if (typeof value !== "object" || value === null) return;
+    if (value.kind === "available" || value.kind === "unavailable") records.push(value);
+    for (const child of Object.values(value)) visit(child);
+  }
+  visit(routes);
+  return records;
+}
+
+async function validateRoutes(props, base, files) {
+  const pageModel = props?.pageModel ?? props;
+  const records = routeRecords(pageModel?.routes ?? props?.routes ?? {});
+  let availableHrefCount = 0;
+  for (const record of records) {
+    if (record.kind === "unavailable") {
+      if (Object.hasOwn(record, "href")) fail("SELECTOR_UNAVAILABLE_HREF_FORBIDDEN");
+      continue;
+    }
+    if (typeof record.href !== "string" || record.href === "") fail("SELECTOR_AVAILABLE_HREF_MISSING");
+    const { candidate, fragment } = fileForPublicUrl(record.href, base, files, "SELECTOR_AVAILABLE_HREF_INVALID");
+    if (fragment !== "") {
+      const html = await readFile(files.get(candidate).path, "utf8").catch(() => fail("SELECTOR_AVAILABLE_HREF_INVALID"));
+      const escaped = fragment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const count = [...html.matchAll(new RegExp(`\\bid=(?:"${escaped}"|'${escaped}')`, "g"))].length;
+      if (count !== 1) fail("SELECTOR_AVAILABLE_HREF_INVALID");
+    }
+    availableHrefCount += 1;
+  }
+  return availableHrefCount;
+}
+
+export async function verifySelectorBuild({
+  outputRoot,
+  base,
+  maxGzipBytes = DEFAULT_MAX_GZIP_BYTES,
+  prohibitedExactPatterns = [],
+}) {
+  if (typeof outputRoot !== "string" || !/^\/(?:[a-z0-9-]+\/)*$/.test(base) || !Number.isInteger(maxGzipBytes) || maxGzipBytes < 1) {
+    fail("SELECTOR_ARGUMENTS_INVALID");
+  }
+  const root = await realpath(resolve(outputRoot)).catch(() => fail("SELECTOR_OUTPUT_MISSING"));
+  const files = await collectFiles(root);
+  if ([...files.keys()].some((name) => name.endsWith(".map"))) fail("SELECTOR_SOURCE_MAP_FORBIDDEN");
+
+  const htmlNames = [...files.keys()].filter((name) => name.endsWith(".html")).sort();
+  const islands = [];
+  for (const name of htmlNames) {
+    const html = await readFile(files.get(name).path, "utf8").catch(() => fail("SELECTOR_OUTPUT_INVALID"));
+    for (const match of html.matchAll(/<astro-island\b[^>]*>/gi)) islands.push({ name, attributes: attributes(match[0]) });
+  }
+  if (islands.length !== 1 || islands[0].name !== "index.html") fail("SELECTOR_ISLAND_COUNT_INVALID", { islandCount: islands.length });
+  const island = islands[0];
+  const serializedProps = island.attributes.get("props");
+  if (typeof serializedProps !== "string") fail("SELECTOR_PROPS_INVALID");
+  const props = parseProps(serializedProps);
+  inspectPropBoundary(props, prohibitedExactPatterns);
+
+  const entries = [island.attributes.get("component-url"), island.attributes.get("renderer-url")];
+  if (entries.some((entry) => typeof entry !== "string" || entry === "")) fail("SELECTOR_CLIENT_REFERENCE_INVALID");
+  const pending = entries.map((entry) => fileForPublicUrl(entry, base, files).candidate);
+  const visited = new Set();
+  let javascriptGzipBytes = 0;
+  while (pending.length > 0) {
+    const name = pending.pop();
+    if (visited.has(name)) continue;
+    visited.add(name);
+    if (!name.endsWith(".js") && !name.endsWith(".mjs")) fail("SELECTOR_CLIENT_REFERENCE_INVALID");
+    const bytes = await readFile(files.get(name).path).catch(() => fail("SELECTOR_CLIENT_REFERENCE_INVALID"));
+    const source = bytes.toString("utf8");
+    if (PROHIBITED_CLIENT_TEXT.some((pattern) => pattern.test(source))) fail("SELECTOR_CLIENT_IMPORT_FORBIDDEN");
+    if (FETCH_PATTERN.test(source)) fail("SELECTOR_RUNTIME_FETCH_FORBIDDEN");
+    if (prohibitedExactPatterns.some((pattern) => pattern !== "" && source.includes(pattern))) fail("SELECTOR_PRIVATE_PATTERN_FORBIDDEN");
+    javascriptGzipBytes += gzipSync(bytes, { level: 9, mtime: 0 }).byteLength;
+    for (const specifier of importedSpecifiers(source)) pending.push(resolveImport(specifier, name, files));
+  }
+  const propsGzipBytes = gzipSync(Buffer.from(serializedProps), { level: 9, mtime: 0 }).byteLength;
+  const totalGzipBytes = javascriptGzipBytes + propsGzipBytes;
+  if (totalGzipBytes > maxGzipBytes) fail("SELECTOR_PAYLOAD_BUDGET_EXCEEDED", { totalGzipBytes, maxGzipBytes });
+  const availableHrefCount = await validateRoutes(props, base, files);
+  return Object.freeze({
+    islandCount: 1,
+    reachableJavaScriptCount: visited.size,
+    availableHrefCount,
+    javascriptGzipBytes,
+    propsGzipBytes,
+    totalGzipBytes,
+    maxGzipBytes,
+  });
+}
+
+function parseArguments(argv) {
+  const values = {};
+  for (let index = 0; index < argv.length; index += 2) {
+    const flag = argv[index];
+    const value = argv[index + 1];
+    if (!value || !["--output", "--base"].includes(flag) || Object.hasOwn(values, flag)) fail("SELECTOR_ARGUMENTS_INVALID");
+    values[flag] = value;
+  }
+  if (Object.keys(values).length !== 2) fail("SELECTOR_ARGUMENTS_INVALID");
+  return values;
+}
+
+async function main() {
+  const args = parseArguments(process.argv.slice(2));
+  const report = await verifySelectorBuild({ outputRoot: resolve(PROJECT_ROOT, args["--output"]), base: args["--base"] });
+  process.stdout.write(`${JSON.stringify({ ok: true, ...report })}\n`);
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    const safe = error instanceof SelectorBuildError ? error.toJSON() : { code: "SELECTOR_VERIFICATION_FAILED" };
+    process.stderr.write(`${JSON.stringify({ ok: false, ...safe })}\n`);
+    process.exitCode = 1;
+  });
+}
