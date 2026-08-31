@@ -97,6 +97,22 @@ test('accepts an unborn independent nested repository without exposing identity'
   assert.equal(inspection.commitCount, 0);
   assert.equal(inspection.historyIdentityMatches, true);
   assert.doesNotMatch(JSON.stringify(inspection), /Casey Maintainer|casey@example\.test/i);
+  assert.equal(inspection.repositoryPresent, true);
+  assert.equal(inspection.parentRepositoryPresent, true);
+  assert.equal('repositoryRoot' in inspection, false);
+  assert.equal('expectedRoot' in inspection, false);
+  assert.equal('gitCommonDirectory' in inspection, false);
+  assert.equal('parentRepositoryRoot' in inspection, false);
+  assert.equal(JSON.stringify(inspection).includes(child), false);
+});
+
+test('invalid remote policy errors contain only redacted context', async () => {
+  const { child } = createNestedRepositories();
+  await expectRule(
+    inspectRepository({ cwd: child, expectedRoot: child, remotePolicy: 'synthetic-invalid' }),
+    'remote-policy-invalid',
+    [child],
+  );
 });
 
 test('rejects a cwd that resolves to an ancestor repository', async () => {

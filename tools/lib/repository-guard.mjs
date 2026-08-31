@@ -30,10 +30,8 @@ export class RepositoryGuardError extends Error {
 
 /**
  * @typedef {object} RepositoryInspection
- * @property {string | null} repositoryRoot
- * @property {string} expectedRoot
- * @property {string | null} gitCommonDirectory
- * @property {string | null} parentRepositoryRoot
+ * @property {boolean} repositoryPresent
+ * @property {boolean} parentRepositoryPresent
  * @property {boolean} repositoryRootMatches
  * @property {boolean} commonDirectoryOwned
  * @property {boolean} identityConfigured
@@ -93,9 +91,9 @@ function splitLines(value) {
 
 function safeContext(inspection) {
   return {
-    repositoryRoot: inspection.repositoryRoot ? 'repository' : null,
+    repositoryRoot: inspection.repositoryPresent ? 'repository' : null,
     expectedRoot: 'expected-root',
-    parentRepositoryRoot: inspection.parentRepositoryRoot ? 'parent-repository' : null,
+    parentRepositoryRoot: inspection.parentRepositoryPresent ? 'parent-repository' : null,
   };
 }
 
@@ -175,11 +173,7 @@ async function inspectRepositoryUnsafe(options = {}) {
   const expectedRoot = await physicalPath(options.expectedRoot ?? cwd);
   const remotePolicy = options.remotePolicy ?? 'absent';
   if (!['absent', 'any'].includes(remotePolicy)) {
-    throw new RepositoryGuardError('remote-policy-invalid', {
-      repositoryRoot: null,
-      expectedRoot,
-      parentRepositoryRoot: null,
-    });
+    throw new RepositoryGuardError('remote-policy-invalid', failureContext());
   }
 
   const rootResult = await runGit(cwd, ['rev-parse', '--show-toplevel'], { allowFailure: true });
@@ -251,7 +245,19 @@ async function inspectRepositoryUnsafe(options = {}) {
 
 export async function inspectRepository(options = {}) {
   try {
-    return await inspectRepositoryUnsafe(options);
+    const inspection = await inspectRepositoryUnsafe(options);
+    const {
+      repositoryRoot,
+      expectedRoot: _expectedRoot,
+      gitCommonDirectory: _gitCommonDirectory,
+      parentRepositoryRoot,
+      ...publicInspection
+    } = inspection;
+    return Object.freeze({
+      ...publicInspection,
+      repositoryPresent: repositoryRoot !== null,
+      parentRepositoryPresent: parentRepositoryRoot !== null,
+    });
   } catch (error) {
     if (error instanceof RepositoryGuardError) throw error;
     throw new RepositoryGuardError('repository-inspection-failed', failureContext());
