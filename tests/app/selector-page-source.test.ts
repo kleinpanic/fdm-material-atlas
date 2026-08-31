@@ -6,6 +6,8 @@ import { describe, expect, it } from "vitest";
 const ROOT = resolve(import.meta.dirname, "../..");
 const PAGE = resolve(ROOT, "src/pages/index.astro");
 const STYLES = resolve(ROOT, "src/styles/selector.css");
+const CONTROLS = resolve(ROOT, "src/components/selector/SelectorControls.tsx");
+const FOOTER = resolve(ROOT, "src/components/shell/SiteFooter.astro");
 
 describe("selector landing page source contract", () => {
   it("keeps the orientation static and exposes one compact hydrated boundary", async () => {
@@ -56,5 +58,17 @@ describe("selector landing page source contract", () => {
     expect(styles).not.toMatch(/#[\da-f]{3,8}\b|(?:linear|radial|conic)-gradient|backdrop-filter/iu);
     expect(styles).not.toMatch(/position:\s*sticky|overflow(?:-y)?:\s*(?:auto|scroll)|text-overflow:\s*ellipsis/iu);
     expect(styles).not.toMatch(/(?:^|[;{]\s*)order\s*:/mu);
+  });
+
+  it("ships the process controls open and production-ready footer guidance", async () => {
+    const [controls, footer] = await Promise.all([
+      readFile(CONTROLS, "utf8"),
+      readFile(FOOTER, "utf8"),
+    ]);
+
+    expect(controls).toContain('class="selector-secondary" open');
+    expect(footer).toContain("Material guidance is comparative.");
+    expect(footer).not.toContain("foundation route");
+    expect(footer).not.toContain("not a complete recommendation");
   });
 });

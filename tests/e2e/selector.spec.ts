@@ -137,8 +137,6 @@ test("hydration preserves SSR ranking and controls drive transparent engine reco
   expect(renderedContributions).toEqual(firstExpected.contributions.map((record) =>
     `${record.criterionLabel}: ${record.optionLabel}\n${record.explanation}`));
 
-  const secondary = page.locator("details.selector-secondary > summary");
-  await secondary.click();
   await expect(page.locator("details.selector-secondary")).toHaveAttribute("open", "");
   const enclosure = page.getByLabel("Enclosure capability");
   await enclosure.focus();
@@ -174,7 +172,6 @@ test("hydration preserves SSR ranking and controls drive transparent engine reco
 
 test("shortlist is ordered, bounded, retained across exclusions, and returns focus deterministically", async ({ page }) => {
   await waitForSelector(page);
-  await page.locator("details.selector-secondary > summary").click();
   await selectRelaxedHardware(page);
   await page.getByRole("button", { name: "Show all 23 compatible materials" }).click();
 
@@ -218,7 +215,6 @@ test("show-all preserves order and every browser resource maps to the built depl
     if (!existsSync(resolve(outputRoot, relativeFile))) badResources.push("inventory-miss");
   });
   await waitForSelector(page);
-  await page.locator("details.selector-secondary > summary").click();
   await selectRelaxedHardware(page);
   await page.getByRole("button", { name: "Show all 23 compatible materials" }).click();
   await expect(compatibleItems(page)).toHaveCount(23);

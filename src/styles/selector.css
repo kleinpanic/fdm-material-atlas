@@ -10,8 +10,8 @@
 
   .selector-task-description {
     max-inline-size: 45rem;
-    font-size: var(--text-heading);
-    line-height: var(--text-heading--line-height);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
   }
 
   .selector-alignment-notice {
@@ -93,9 +93,11 @@
   .selector-goal {
     position: relative;
     display: grid;
-    grid-template-columns: var(--size-target-min) minmax(0, 1fr);
+    grid-template-columns: 1rem minmax(0, 1fr);
     align-items: center;
+    gap: var(--spacing-2);
     min-block-size: var(--size-target-min);
+    padding: var(--spacing-2) var(--spacing-4);
     border: var(--size-rule) solid var(--color-rule);
     background: var(--color-page);
     cursor: pointer;
@@ -114,6 +116,10 @@
   }
 
   .selector-goal input {
+    inline-size: 1rem;
+    block-size: 1rem;
+    min-inline-size: 1rem;
+    min-block-size: 1rem;
     margin: 0;
     accent-color: var(--color-accent);
   }
@@ -390,6 +396,21 @@
     .selector-island {
       grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
       align-items: start;
+    }
+
+    .selector-controls {
+      grid-column: 1;
+      grid-row: 1 / span 2;
+    }
+
+    .selector-island > [role="status"] {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    .selector-results {
+      grid-column: 2;
+      grid-row: 2;
     }
   }
 

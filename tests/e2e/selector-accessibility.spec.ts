@@ -124,8 +124,8 @@ test("selector keyboard flow preserves focus and uses one aggregate polite statu
   await expect(outdoor).toBeFocused();
 
   const secondarySummary = page.locator("details.selector-secondary > summary");
+  await expect(page.locator("details.selector-secondary")).toHaveAttribute("open", "");
   await secondarySummary.focus();
-  await page.keyboard.press("Enter");
   const select = page.getByLabel("Maximum print difficulty");
   await select.focus();
   await select.selectOption("option-difficulty-advanced");
@@ -156,7 +156,6 @@ test("selector reflows at 320px and 200 percent zoom with 44px actions in DOM or
     await page.setViewportSize({ width: state.width, height: 900 });
     await waitForSelector(page);
     await page.evaluate((zoom: string) => { document.documentElement.style.zoom = zoom; }, state.zoom);
-    await page.locator("details.selector-secondary > summary").click();
     const layout = await page.evaluate(() => ({
       overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       orderValues: [...document.querySelectorAll<HTMLElement>(".selector-island form, .selector-island [role=status], .selector-island .selector-results")]
@@ -181,10 +180,40 @@ test("selector reflows at 320px and 200 percent zoom with 44px actions in DOM or
   }
 });
 
+test("wide layout keeps controls narrow, results broad, and native radio glyphs compact", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await waitForSelector(page);
+
+  const geometry = await page.evaluate(() => {
+    const rect = (selector: string) => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) throw new Error(`MISSING_LAYOUT_ELEMENT:${selector}`);
+      const box = element.getBoundingClientRect();
+      return { left: box.left, top: box.top, width: box.width, height: box.height };
+    };
+    return {
+      controls: rect(".selector-controls"),
+      status: rect('.selector-island > [role="status"]'),
+      results: rect(".selector-results"),
+      goal: rect(".selector-goal"),
+      radio: rect('.selector-goal input[type="radio"]'),
+    };
+  });
+
+  expect(geometry.controls.width).toBeLessThanOrEqual(400);
+  expect(geometry.results.left).toBeGreaterThan(geometry.controls.left + geometry.controls.width);
+  expect(Math.abs(geometry.results.left - geometry.status.left)).toBeLessThanOrEqual(1);
+  expect(Math.abs(geometry.results.width - geometry.status.width)).toBeLessThanOrEqual(1);
+  expect(geometry.results.width).toBeGreaterThan(geometry.controls.width);
+  expect(geometry.results.top).toBeGreaterThanOrEqual(geometry.status.top + geometry.status.height);
+  expect(geometry.goal.height).toBeGreaterThanOrEqual(44);
+  expect(geometry.radio.width).toBeLessThanOrEqual(24);
+  expect(geometry.radio.height).toBeLessThanOrEqual(24);
+});
+
 test("reduced motion and forced colors retain text, borders, shapes, and focus meaning", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce", forcedColors: "active" });
   await waitForSelector(page);
-  await page.locator("details.selector-secondary > summary").click();
   await page.locator("details.selector-eliminated > summary").click();
   await page.getByRole("button", { name: /^Add .+ to shortlist$/u }).first().click();
   await expect(page.getByRole("heading", { name: "Shortlist" })).toBeVisible();

@@ -68,7 +68,7 @@ export function SelectorControls({
         </div>
       </fieldset>
 
-      <details ref={secondaryDetailsRef} class="selector-secondary">
+      <details ref={secondaryDetailsRef} class="selector-secondary" open>
         <summary ref={secondarySummaryRef}>
           <span>{SELECTOR_COPY.secondaryDisclosure}</span>
           <span class="selector-secondary-values">{secondary.map(selectedLabel).join(" · ")}</span>
