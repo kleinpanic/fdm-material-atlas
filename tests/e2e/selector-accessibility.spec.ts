@@ -215,9 +215,15 @@ test("reduced motion and forced colors retain text, borders, shapes, and focus m
   await page.emulateMedia({ reducedMotion: "reduce", forcedColors: "active" });
   await waitForSelector(page);
   await page.locator("details.selector-eliminated > summary").click();
-  await page.getByRole("button", { name: /^Add .+ to shortlist$/u }).first().click();
+  const addButton = page.getByRole("button", { name: /^Add .+ to shortlist$/u }).first();
+  const addName = (await addButton.textContent())!.trim();
+  const materialName = addName.replace(/^Add /u, "").replace(/ to shortlist$/u, "");
+  await addButton.click();
   await expect(page.getByRole("heading", { name: "Shortlist" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /^Remove .+ from shortlist$/u }).first()).toBeVisible();
+  await expect(page.locator(".selector-shortlist").getByRole("button", {
+    name: `Remove ${materialName} from shortlist`,
+    exact: true,
+  })).toBeVisible();
   await expect(page.getByText("Compatible with selected constraints", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Blocked by selected constraint", { exact: true }).first()).toBeVisible();
   const indeterminate = page.getByText("Cannot verify — treated as incompatible", { exact: true });

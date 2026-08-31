@@ -101,8 +101,11 @@ export function SelectorResults({
                 {item.status === "now-eliminated" && (
                   <a href={`#eliminated-${item.materialId}`}>Review exclusion</a>
                 )}
-                <button type="button" onClick={() => onToggleShortlist(item.materialId)}>
-                  <span class="visually-hidden">{shortlistRemoveLabel(labelFor(item.materialId))}</span>
+                <button
+                  type="button"
+                  aria-label={shortlistRemoveLabel(labelFor(item.materialId))}
+                  onClick={() => onToggleShortlist(item.materialId)}
+                >
                   Remove
                 </button>
               </li>
