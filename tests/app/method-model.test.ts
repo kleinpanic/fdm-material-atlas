@@ -20,9 +20,9 @@ describe("method copy", () => {
 
   it("states exact selector scoring and ordering semantics", () => {
     const atlas = loadPublicAtlas();
-    expect(METHOD_COPY.selectorScoring.primaryWeight).toBe(atlas.selector.scoring.primaryWeight);
-    expect(METHOD_COPY.selectorScoring.secondaryWeight).toBe(atlas.selector.scoring.secondaryWeight);
-    expect(METHOD_COPY.selectorScoring.stableOrder).toBe(atlas.selector.scoring.stableOrder);
+    expect(METHOD_COPY.selectorScoring.primaryWeight).toBe(atlas.selector.primaryWeight);
+    expect(METHOD_COPY.selectorScoring.secondaryWeight).toBe(atlas.selector.secondaryWeight);
+    expect(METHOD_COPY.selectorScoring.stableOrder).toBe(atlas.selector.stableOrder);
     expect(METHOD_COPY.selectorScoring.explanation).toMatch(/hard constraints remove/i);
     expect(METHOD_COPY.selectorScoring.explanation).toMatch(/alignment/i);
     expect(METHOD_COPY.selectorScoring.limitation).toMatch(/not.*quality/i);
