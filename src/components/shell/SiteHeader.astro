@@ -1,0 +1,99 @@
+---
+interface NavigationItem {
+  readonly label: string;
+  readonly href: string;
+  readonly current: boolean;
+}
+
+interface Props {
+  homeHref: string;
+  navigation: readonly NavigationItem[];
+}
+
+const { homeHref, navigation } = Astro.props;
+---
+
+<header class="site-header">
+  <div class="page-shell site-header__inner">
+    <div class="site-identity">
+      <a class="site-identity__name" href={homeHref}>FDM Material Atlas</a>
+      <p class="site-identity__descriptor">
+        Compare material behavior, process needs, and evidence.
+      </p>
+    </div>
+
+    <nav aria-label="Primary navigation">
+      <ul class="compact-navigation site-navigation">
+        {navigation.map((item) => (
+          <li>
+            <a href={item.href} aria-current={item.current ? "page" : undefined}>
+              {item.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    border-block-end: var(--size-rule-strong) solid var(--color-ink-strong);
+    background: var(--color-surface);
+  }
+
+  .site-header__inner {
+    display: grid;
+    gap: var(--spacing-4);
+    padding-block: var(--spacing-4);
+  }
+
+  .site-identity {
+    display: grid;
+    gap: var(--spacing-1);
+  }
+
+  .site-identity__name {
+    inline-size: fit-content;
+    color: var(--color-ink-strong);
+    font-size: var(--text-heading);
+    font-weight: var(--font-weight-semibold);
+    text-decoration: none;
+  }
+
+  .site-identity__descriptor {
+    max-inline-size: var(--width-reading);
+    margin: 0;
+    color: var(--color-ink);
+  }
+
+  .site-navigation {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .site-navigation a {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: var(--size-target-min);
+    padding-inline: var(--spacing-2);
+    color: var(--color-ink-strong);
+    text-decoration: underline;
+    text-underline-offset: 0.22em;
+  }
+
+  @media (min-width: 64rem) {
+    .site-header__inner {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+    }
+
+    .site-navigation {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: var(--spacing-2);
+    }
+  }
+</style>

@@ -1,0 +1,98 @@
+---
+import { Font } from "astro:assets";
+
+import SkipLink from "../components/accessibility/SkipLink.astro";
+import Breadcrumbs from "../components/shell/Breadcrumbs.astro";
+import SiteFooter from "../components/shell/SiteFooter.astro";
+import SiteHeader from "../components/shell/SiteHeader.astro";
+import { fragmentHref } from "../lib/routes.ts";
+import "../styles/global.css";
+
+interface NavigationItem {
+  readonly label: string;
+  readonly href: string;
+  readonly current: boolean;
+}
+
+interface BreadcrumbItem {
+  readonly label: string;
+  readonly href?: string;
+  readonly current?: boolean;
+}
+
+interface FooterLink {
+  readonly label: string;
+  readonly href: string;
+}
+
+interface Props {
+  title: string;
+  description: string;
+  canonicalPath: string;
+  homeHref: string;
+  navigation: readonly NavigationItem[];
+  breadcrumbs?: readonly BreadcrumbItem[];
+  footerLinks: readonly FooterLink[];
+}
+
+const {
+  title,
+  description,
+  canonicalPath,
+  homeHref,
+  navigation,
+  breadcrumbs = [],
+  footerLinks,
+} = Astro.props;
+
+if (Astro.site === undefined) throw new Error("SITE_ORIGIN_REQUIRED");
+const canonicalUrl = new URL(canonicalPath, Astro.site);
+const mainFragment = fragmentHref("main-content");
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl} />
+    <Font cssVariable="--font-plex-sans" preload />
+    <Font cssVariable="--font-plex-mono" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <SkipLink href={mainFragment} />
+    <div class="site-frame">
+      <SiteHeader homeHref={homeHref} navigation={navigation} />
+      <main id="main-content" class="page-shell site-main" tabindex="-1">
+        {breadcrumbs.length > 0 && <Breadcrumbs items={breadcrumbs} />}
+        <slot />
+      </main>
+      {Astro.slots.has("support") && (
+        <aside class="page-shell page-support" aria-label="Page support">
+          <slot name="support" />
+        </aside>
+      )}
+      <SiteFooter links={footerLinks} />
+    </div>
+  </body>
+</html>
+
+<style>
+  .site-frame {
+    display: grid;
+    grid-template-rows: auto 1fr auto auto;
+    min-block-size: 100vh;
+  }
+
+  .site-main {
+    inline-size: 100%;
+    padding-block-end: var(--spacing-12);
+  }
+
+  .page-support {
+    padding-block: var(--spacing-6);
+    border-block-start: var(--size-rule) solid var(--color-rule);
+  }
+</style>

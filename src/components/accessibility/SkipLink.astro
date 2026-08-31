@@ -1,0 +1,11 @@
+---
+interface Props {
+  href: string;
+}
+
+const { href } = Astro.props;
+
+if (href !== "#main-content") throw new Error("SKIP_LINK_TARGET_INVALID");
+---
+
+<a class="skip-link" href={href}>Skip to main content</a>
