@@ -418,7 +418,8 @@ describe("required selector regressions", () => {
     }
 
     if (expected.name === "constraint-eliminates-prior-top") {
-      const baseline = selectProjectedMaterials(compiled, fixture.baselineInput ?? {});
+      const baselineInput = "baselineInput" in fixture ? fixture.baselineInput : undefined;
+      const baseline = selectProjectedMaterials(compiled, baselineInput ?? {});
       expect(baseline.kind).toBe("ranked");
       const priorTop = (baseline as RankedSelectorOutcome).compatible[0]?.materialId;
       expect(priorTop).toBe("material-cpe");
