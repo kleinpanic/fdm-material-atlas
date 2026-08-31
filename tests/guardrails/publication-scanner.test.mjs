@@ -714,6 +714,22 @@ test('stable file reader exposes a controlled failure seam without privilege ass
   );
 });
 
+test('stable file reader fails closed when no no-follow primitive is available', async () => {
+  const { readStableFile, SafeFileError } = await import(SAFE_FILE_URL);
+  let opened = false;
+  await assert.rejects(
+    readStableFile('synthetic-no-follow', {
+      noFollowFlag: null,
+      openFile: async () => {
+        opened = true;
+        throw new Error('must not open');
+      },
+    }),
+    (error) => error instanceof SafeFileError && error.ruleId === 'file-inspection-unsupported',
+  );
+  assert.equal(opened, false);
+});
+
 test('stable file reader bounds growth and detects same-size metadata replacement', async () => {
   const { readStableFile } = await import(SAFE_FILE_URL);
   const regular = {
