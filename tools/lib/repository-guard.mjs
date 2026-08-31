@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { lstat, realpath } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
+import { buildGitEnvironment } from './safe-git.mjs';
 
 const execFileAsync = promisify(execFile);
 const PROHIBITED_ATTRIBUTION = /(?:^|[^a-z])(codex|openai|claude|anthropic|chatgpt|gsd|ai[- ]?agent|bot)(?:[^a-z]|$)/i;
@@ -53,7 +54,7 @@ async function runGit(cwd, args, { allowFailure = false } = {}) {
       cwd,
       encoding: 'utf8',
       maxBuffer: 16 * 1024 * 1024,
-      env: process.env,
+      env: buildGitEnvironment(),
     });
     return { ok: true, stdout: stdout.trimEnd() };
   } catch (error) {

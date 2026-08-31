@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 import { OPERATIONAL_PATH_PATTERNS } from './prohibited-paths.mjs';
+import { buildGitEnvironment } from './safe-git.mjs';
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_SENSITIVE_FILE = '.publication-sensitive-patterns';
@@ -27,7 +28,7 @@ async function gitStatus(root, args) {
       cwd: root,
       encoding: 'buffer',
       maxBuffer: 16 * 1024 * 1024,
-      env: process.env,
+      env: buildGitEnvironment(),
     });
     return { ok: true, stdout };
   } catch {

@@ -11,6 +11,7 @@ import {
   PublicationPolicyError,
 } from './lib/publication-policy.mjs';
 import { isMainModule } from './lib/main-module.mjs';
+import { buildGitEnvironment } from './lib/safe-git.mjs';
 
 const execFileAsync = promisify(execFile);
 const MODES = new Set(['working', 'tracked', 'history', 'artifact']);
@@ -42,7 +43,7 @@ async function runGit(root, args, { allowFailure = false, maxBuffer = 80 * 1024 
       cwd: root,
       encoding: 'buffer',
       maxBuffer,
-      env: process.env,
+      env: buildGitEnvironment(),
     });
     return { ok: true, stdout };
   } catch {

@@ -16,6 +16,7 @@ import test from 'node:test';
 const SCANNER_URL = new URL('../../tools/scan-publication.mjs', import.meta.url);
 const POLICY_URL = new URL('../../tools/lib/publication-policy.mjs', import.meta.url);
 const PROHIBITED_PATHS_URL = new URL('../../tools/lib/prohibited-paths.mjs', import.meta.url);
+const SAFE_GIT_URL = new URL('../../tools/lib/safe-git.mjs', import.meta.url);
 const MAINTAINER_NAME = 'Casey Maintainer';
 const MAINTAINER_EMAIL = 'casey@example.test';
 
@@ -122,6 +123,36 @@ test('scanner contract is available', async () => {
     assert.equal(String(error).includes(marker), false);
     throw error;
   }
+});
+
+test('Git child environment excludes private-source and credential variables', async () => {
+  const { buildGitEnvironment } = await import(SAFE_GIT_URL);
+  const source = {
+    ...process.env,
+    PUBLICATION_SENSITIVE_PATTERNS_JSON: 'synthetic-pattern',
+    GOG_TOKEN: 'synthetic-gog',
+    OAUTH_ACCESS_TOKEN: 'synthetic-oauth',
+    [String.raw`SERVICE_${'COOKIE'}`]: ['synthetic', '-cookie'].join(''),
+    GIT_CONFIG_GLOBAL: '/synthetic/injected-config',
+    GIT_SSH_COMMAND: 'synthetic-helper',
+  };
+  const helper = spawnSync(
+    process.execPath,
+    ['-e', 'process.stdout.write(JSON.stringify(Object.keys(process.env).sort()))'],
+    { encoding: 'utf8', env: buildGitEnvironment(source) },
+  );
+  assert.equal(helper.status, 0);
+  const names = JSON.parse(helper.stdout);
+  for (const name of [
+    'PUBLICATION_SENSITIVE_PATTERNS_JSON',
+    'GOG_TOKEN',
+    'OAUTH_ACCESS_TOKEN',
+    'SERVICE_COOKIE',
+    'GIT_CONFIG_GLOBAL',
+    'GIT_SSH_COMMAND',
+  ]) assert.equal(names.includes(name), false, name);
+  assert.ok(names.includes('GIT_NO_LAZY_FETCH'));
+  assert.ok(names.includes('GIT_CONFIG_COUNT'));
 });
 
 test('all four modes accept clean synthetic surfaces, including unborn history', async () => {
