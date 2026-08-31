@@ -25,6 +25,10 @@ type ThermalEntry = {
   entityId: string;
 };
 
+type ThermalIndicator =
+  | { kind: "service-guidance" }
+  | { kind: "named-observation"; observation: ThermalObservation };
+
 function issue(code: AtlasIssue["code"], pointer: string, entityId?: string): AtlasIssue {
   return { code, pointer, ...(entityId === undefined ? {} : { entityId }) };
 }
@@ -48,9 +52,14 @@ function duplicateIssues<T>(
   return issues;
 }
 
-function materialClaims(atlas: AtlasV1): { claims: ClaimEntry[]; thermal: ThermalEntry[] } {
+function materialClaims(atlas: AtlasV1): {
+  claims: ClaimEntry[];
+  thermal: ThermalEntry[];
+  thermalIndicators: Map<string, ThermalIndicator>;
+} {
   const claims: ClaimEntry[] = [];
   const thermal: ThermalEntry[] = [];
+  const thermalIndicators = new Map<string, ThermalIndicator>();
   const add = (claim: ClaimLike, pointer: string, materialId: string) => {
     claims.push({ claim, pointer, entityId: materialId });
   };
@@ -59,6 +68,7 @@ function materialClaims(atlas: AtlasV1): { claims: ClaimEntry[]; thermal: Therma
     const base = `/materials/${materialIndex}`;
     add(material.familyOrFill, `${base}/familyOrFill`, material.id);
     add(material.serviceTemperature, `${base}/serviceTemperature`, material.id);
+    thermalIndicators.set(material.serviceTemperature.id, { kind: "service-guidance" });
     for (const [name, claim] of Object.entries(material.properties)) {
       add(claim, `${base}/properties/${name}`, material.id);
     }
@@ -78,9 +88,10 @@ function materialClaims(atlas: AtlasV1): { claims: ClaimEntry[]; thermal: Therma
         pointer: `${base}/thermalObservations/${observationIndex}`,
         entityId: material.id,
       });
+      thermalIndicators.set(observation.id, { kind: "named-observation", observation });
     });
   });
-  return { claims, thermal };
+  return { claims, thermal, thermalIndicators };
 }
 
 function validateBasis(
@@ -140,20 +151,41 @@ const SERVICE_THERMAL_LABEL_PATTERN = /\b(service|operating|continuous[- ]use) t
 
 function validateThermalTransformations(
   atlas: AtlasV1,
-  thermalById: ReadonlyMap<string, ThermalObservation>,
+  indicatorsById: ReadonlyMap<string, ThermalIndicator>,
 ): AtlasIssue[] {
   const issues: AtlasIssue[] = [];
   atlas.visualizationReferences.forEach((reference, referenceIndex) => {
-    if (reference.kind !== "thermal-range" || reference.subject.kind !== "claim-id") return;
-    const subject = thermalById.get(reference.subject.claimId);
-    if (!subject) return;
+    if (reference.kind !== "thermal-range") return;
+    const base = `/visualizationReferences/${referenceIndex}`;
+    const subject = reference.subject.kind === "claim-id"
+      ? indicatorsById.get(reference.subject.claimId)
+      : undefined;
+    if (!subject) {
+      issues.push(issue("THERMAL_NOT_COMPARABLE", `${base}/subject`, reference.id));
+    }
+    if (reference.related.length === 0) {
+      issues.push(issue("THERMAL_NOT_COMPARABLE", `${base}/related`, reference.id));
+    }
     reference.related.forEach((target, targetIndex) => {
-      if (target.kind !== "claim-id") return;
-      const related = thermalById.get(target.claimId);
-      if (related && !compareThermalObservations(subject, related).comparable) {
+      const related = target.kind === "claim-id"
+        ? indicatorsById.get(target.claimId)
+        : undefined;
+      if (!related) {
         issues.push(issue(
           "THERMAL_NOT_COMPARABLE",
-          `/visualizationReferences/${referenceIndex}/related/${targetIndex}`,
+          `${base}/related/${targetIndex}`,
+          reference.id,
+        ));
+        return;
+      }
+      if (
+        subject?.kind === "named-observation" &&
+        related.kind === "named-observation" &&
+        !compareThermalObservations(subject.observation, related.observation).comparable
+      ) {
+        issues.push(issue(
+          "THERMAL_NOT_COMPARABLE",
+          `${base}/related/${targetIndex}`,
           reference.id,
         ));
       }
@@ -165,7 +197,7 @@ function validateThermalTransformations(
 /** Validate graph and scientific invariants after strict structural parsing. */
 export function validateAtlasInvariants(atlas: AtlasV1): AtlasIssue[] {
   const issues: AtlasIssue[] = [];
-  const { claims, thermal } = materialClaims(atlas);
+  const { claims, thermal, thermalIndicators } = materialClaims(atlas);
 
   issues.push(
     ...duplicateIssues(atlas.materials, ({ id }) => id, (index) => `/materials/${index}/id`, ({ id }) => id),
@@ -286,8 +318,7 @@ export function validateAtlasInvariants(atlas: AtlasV1): AtlasIssue[] {
     });
   });
 
-  const thermalById = new Map(thermal.map(({ observation }) => [observation.id, observation]));
-  issues.push(...validateThermalTransformations(atlas, thermalById));
+  issues.push(...validateThermalTransformations(atlas, thermalIndicators));
 
   const deduplicated = new Map<string, AtlasIssue>();
   for (const atlasIssue of issues) {
