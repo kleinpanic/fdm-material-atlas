@@ -552,6 +552,26 @@ test('malformed input and missing, unreadable, or escaping surfaces fail closed 
 
 });
 
+test('artifact scans reject a symlink root and return a deterministic content digest', async () => {
+  const { loadPublicationPolicy, scanPublication } = await loadInterfaces();
+  const root = createRepository();
+  const policy = await loadPublicationPolicy({ root, env: {} });
+  const artifact = mkdtempSync(join(tmpdir(), 'publication-artifact-'));
+  write(artifact, 'index.html', '<main>safe</main>');
+  const first = await scanPublication({ root, mode: 'artifact', artifactPath: artifact, policy });
+  const second = await scanPublication({ root, mode: 'artifact', artifactPath: artifact, policy });
+  assert.match(first.artifactDigest, /^sha256:[a-f0-9]{64}$/);
+  assert.equal(first.artifactDigest, second.artifactDigest);
+
+  const linkRoot = mkdtempSync(join(tmpdir(), 'publication-artifact-link-'));
+  const link = join(linkRoot, 'dist');
+  symlinkSync(artifact, link, 'dir');
+  await assert.rejects(
+    scanPublication({ root, mode: 'artifact', artifactPath: link, policy }),
+    (error) => error.ruleId === 'surface-inspection-failed',
+  );
+});
+
 test('stable file reader exposes a controlled failure seam without privilege assumptions', async () => {
   const { readStableFile, SafeFileError } = await import(SAFE_FILE_URL);
   const marker = privateMarker('OPEN-FAILURE');

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { execFile } from 'node:child_process';
-import { lstat, opendir, realpath, stat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { lstat, opendir, realpath } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -129,7 +130,7 @@ function scanGeneratedMetadata(pathBytes, bytes, context) {
   return uniqueFindings(findings);
 }
 
-async function inspectFile(path, pathBytes, context) {
+async function inspectFileRecord(path, pathBytes, context) {
   let stable;
   try {
     stable = await readStableFile(path, { maximumBytes: context.policy.maximumBytes });
@@ -140,23 +141,30 @@ async function inspectFile(path, pathBytes, context) {
     if (error instanceof SafeFileError && error.ruleId === 'file-inspection-failed') {
       try {
         if ((await lstat(path)).isSymbolicLink()) {
-          return [formatFinding({
+          return { bytes: null, findings: [formatFinding({
             ruleId: 'unsafe-symlink',
             surface: context.surface,
             location: locationBuffer(pathBytes),
             objectType: 'symlink',
-          })];
+          })] };
         }
       } catch {}
     }
     throw new PublicationScanError('surface-inspection-failed');
   }
   const { bytes } = stable;
-  return uniqueFindings([
-    ...scanPath(pathBytes, context),
-    ...scanBytes(bytes, { ...context, location: locationBuffer(pathBytes) }),
-    ...scanGeneratedMetadata(pathBytes, bytes, context),
-  ]);
+  return {
+    bytes,
+    findings: uniqueFindings([
+      ...scanPath(pathBytes, context),
+      ...scanBytes(bytes, { ...context, location: locationBuffer(pathBytes) }),
+      ...scanGeneratedMetadata(pathBytes, bytes, context),
+    ]),
+  };
+}
+
+async function inspectFile(path, pathBytes, context) {
+  return (await inspectFileRecord(path, pathBytes, context)).findings;
 }
 
 async function scanWorking(root, policy) {
@@ -272,8 +280,11 @@ async function scanHistory(root, policy) {
 }
 
 async function collectArtifactFiles(root, current = root, output = []) {
+  let before;
   let directory;
   try {
+    before = await lstat(current);
+    if (!before.isDirectory() || before.isSymbolicLink()) throw new Error('not-directory');
     directory = await opendir(current);
   } catch {
     throw new PublicationScanError('surface-inspection-failed');
@@ -296,20 +307,38 @@ async function collectArtifactFiles(root, current = root, output = []) {
       throw new PublicationScanError('surface-inspection-failed');
     }
   }
+  try {
+    const after = await lstat(current);
+    if (
+      !after.isDirectory() || after.isSymbolicLink() ||
+      before.dev !== after.dev || before.ino !== after.ino ||
+      before.mtimeMs !== after.mtimeMs || before.ctimeMs !== after.ctimeMs
+    ) {
+      throw new Error('directory-changed');
+    }
+  } catch {
+    throw new PublicationScanError('surface-inspection-failed');
+  }
   return output;
 }
 
 async function scanArtifact(artifactPath, policy) {
   if (!artifactPath) throw new PublicationScanError('artifact-path-required');
   let artifactRoot;
+  let rootBefore;
   try {
-    artifactRoot = await realpath(resolve(artifactPath));
-    if (!(await stat(artifactRoot)).isDirectory()) throw new Error('not-directory');
+    const literalRoot = resolve(artifactPath);
+    rootBefore = await lstat(literalRoot);
+    if (!rootBefore.isDirectory() || rootBefore.isSymbolicLink()) throw new Error('not-directory');
+    artifactRoot = await realpath(literalRoot);
   } catch {
     throw new PublicationScanError('surface-inspection-failed');
   }
-  const files = await collectArtifactFiles(artifactRoot);
+  const files = (await collectArtifactFiles(artifactRoot)).sort((left, right) => (
+    left.relativePath.localeCompare(right.relativePath)
+  ));
   const findings = [];
+  const digest = createHash('sha256');
   for (const file of files) {
     if (!isInside(artifactRoot, resolve(file.path))) throw new PublicationScanError('surface-inspection-failed');
     const pathBytes = Buffer.from(file.relativePath);
@@ -322,13 +351,31 @@ async function scanArtifact(artifactPath, policy) {
       }));
       continue;
     }
-    findings.push(...await inspectFile(file.path, pathBytes, {
+    const inspected = await inspectFileRecord(file.path, pathBytes, {
       policy,
       surface: 'artifact',
       objectType: 'file',
-    }));
+    });
+    findings.push(...inspected.findings);
+    digest.update(pathBytes).update(Buffer.from([0])).update(inspected.bytes).update(Buffer.from([0]));
   }
-  return { scannedCount: files.length, findings: uniqueFindings(findings) };
+  try {
+    const rootAfter = await lstat(resolve(artifactPath));
+    if (
+      !rootAfter.isDirectory() || rootAfter.isSymbolicLink() ||
+      rootBefore.dev !== rootAfter.dev || rootBefore.ino !== rootAfter.ino ||
+      rootBefore.mtimeMs !== rootAfter.mtimeMs || rootBefore.ctimeMs !== rootAfter.ctimeMs
+    ) {
+      throw new Error('artifact-changed');
+    }
+  } catch {
+    throw new PublicationScanError('surface-inspection-failed');
+  }
+  return {
+    scannedCount: files.length,
+    findings: uniqueFindings(findings),
+    artifactDigest: `sha256:${digest.digest('hex')}`,
+  };
 }
 
 /** Scan one publication surface and return only counts and redacted findings. */
@@ -351,12 +398,14 @@ export async function scanPublication({ root = process.cwd(), mode, artifactPath
       if (mode === 'tracked') result = await scanTracked(physicalRoot, activePolicy);
       if (mode === 'history') result = await scanHistory(physicalRoot, activePolicy);
     }
-    return Object.freeze({
+    const report = {
       mode,
       scannedCount: result.scannedCount,
       findingCount: result.findings.length,
       findings: result.findings,
-    });
+    };
+    if (result.artifactDigest) report.artifactDigest = result.artifactDigest;
+    return Object.freeze(report);
   } catch (error) {
     if (error instanceof PublicationScanError || error instanceof PublicationPolicyError) throw error;
     throw new PublicationScanError('surface-inspection-failed');
