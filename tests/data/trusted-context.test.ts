@@ -1,7 +1,7 @@
 import { chmod, mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -18,7 +18,7 @@ async function temporaryDirectory(): Promise<string> {
 function run(
   mode: "--audit" | "--publication",
   value: string | undefined,
-): ReturnType<typeof spawnSync> {
+): SpawnSyncReturns<string> {
   const env = { ...process.env };
   delete env.FDM_MATERIALS_AUDIT_DIR;
   delete env.FDM_PUBLICATION_SENSITIVE_FILE;

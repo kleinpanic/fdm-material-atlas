@@ -16,7 +16,7 @@ const parseResult = parseAtlas(JSON.parse(artifactBytes.toString("utf8")));
 if (!parseResult.success) throw new Error("Canonical Atlas fixture failed its public parser");
 const atlas: AtlasV1 = parseResult.data;
 
-type ClaimLike = { id: string; value: { state: string }; basis: BasisRef[]; qualification?: string };
+type ClaimLike = { id: string; value: { state: string }; basis: BasisRef[]; qualification?: string | undefined };
 
 function materialClaims(material: Material): ClaimLike[] {
   return [
