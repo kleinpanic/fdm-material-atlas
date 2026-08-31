@@ -10,6 +10,7 @@
     "typecheck": "astro check --minimumFailingSeverity warning",
     "test": "vitest run",
     "test:data": "vitest run tests/data",
+    "test:selector": "vitest run tests/selector",
     "test:app": "vitest run tests/app tests/components",
     "validate:data": "node --experimental-strip-types tools/validate-public-data.ts",
     "build:root": "SITE_BASE_PATH=/ SITE_ORIGIN=https://atlas.example astro build --outDir dist-test/root",
