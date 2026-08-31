@@ -116,11 +116,13 @@ function scanGeneratedMetadata(pathBytes, bytes, context) {
     location: locationBuffer(pathBytes),
     objectType: context.objectType,
   }));
-  if (/\.(?:[cm]?js|css)$/i.test(normalized)) {
-    if (/\bsourceMappingURL\s*=\s*(?:data:|[^\s*]+)/i.test(text)) add('unsafe-source-map');
-    if (/\bsourceURL\s*=\s*(?:file:\/\/|\/(?:home|Users|workspace)\/)/i.test(text)) {
-      add('unsafe-generated-metadata');
-    }
+  if (/(?:\/\/[@#]|\/\*[@#])\s*sourceMappingURL\s*=\s*(?:data:|[^\s*<]+)/i.test(text)) {
+    add('unsafe-source-map');
+  }
+  if (
+    /(?:\/\/[@#]|\/\*[@#])\s*sourceURL\s*=\s*(?:file:\/\/|\/(?:home|Users|workspace)\/)/i.test(text)
+  ) {
+    add('unsafe-generated-metadata');
   }
   if (
     /\.json$/i.test(normalized) &&

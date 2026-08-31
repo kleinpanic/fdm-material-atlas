@@ -513,6 +513,27 @@ test('inline and external source-map directives are rejected on every stored-cod
   assert.ok(built.findings.some(({ ruleId }) => ruleId === 'unsafe-source-map'));
 });
 
+test('source-map directives in HTML and SVG containers are rejected on all stored surfaces', async () => {
+  const { loadPublicationPolicy, scanPublication } = await loadInterfaces();
+  const root = createRepository();
+  const directive = ['//# sourceMapping', 'URL=data:application/json;base64,e30='].join('');
+  write(root, 'index.html', `<script>${directive}</script>`);
+  write(root, 'diagram.svg', `<svg><script>${directive}</script></svg>`);
+  commit(root, ['index.html', 'diagram.svg']);
+  const policy = await loadPublicationPolicy({ root, env: {} });
+  for (const mode of ['tracked', 'history']) {
+    const report = await scanPublication({ root, mode, policy });
+    assert.equal(report.findings.filter(({ ruleId }) => ruleId === 'unsafe-source-map').length, 2, mode);
+  }
+
+  const artifact = mkdtempSync(join(tmpdir(), 'publication-html-map-artifact-'));
+  const styleDirective = ['/*# sourceMapping', 'URL=data:application/json;base64,e30= */'].join('');
+  write(artifact, 'index.html', `<style>${styleDirective}</style>`);
+  write(artifact, 'diagram.svg', `<svg><script>${directive}</script></svg>`);
+  const built = await scanPublication({ root, mode: 'artifact', artifactPath: artifact, policy });
+  assert.equal(built.findings.filter(({ ruleId }) => ruleId === 'unsafe-source-map').length, 2);
+});
+
 test('history finds content removed from the current tree and scans reachable side refs', async () => {
   const { loadPublicationPolicy, scanPublication } = await loadInterfaces();
   const root = createRepository();
