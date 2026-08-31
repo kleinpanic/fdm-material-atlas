@@ -129,6 +129,45 @@ function inspectPropBoundary(value, exactPatterns, seen = new Set()) {
   }
 }
 
+function exactKeys(value, expected) {
+  return typeof value === "object"
+    && value !== null
+    && !Array.isArray(value)
+    && Object.keys(value).sort().join("\0") === [...expected].sort().join("\0");
+}
+
+function validatePageModelShape(props) {
+  if (!exactKeys(props, ["pageModel"]) || !exactKeys(props.pageModel, ["projection", "defaults", "display", "routes"])) {
+    fail("SELECTOR_PROPS_SHAPE_INVALID");
+  }
+  const { projection, defaults, display, routes } = props.pageModel;
+  if (
+    typeof projection !== "object" || projection === null
+    || projection.kind !== "selector-projection"
+    || !Array.isArray(projection.criteria)
+    || !Array.isArray(projection.materials)
+    || typeof defaults !== "object" || defaults === null || Array.isArray(defaults)
+    || !exactKeys(display, ["materials"]) || !Array.isArray(display.materials)
+    || typeof routes !== "object" || routes === null || !Array.isArray(routes.materials)
+  ) fail("SELECTOR_PROPS_SHAPE_INVALID");
+  const criterionIds = projection.criteria.map((criterion) => criterion?.id);
+  const projectionIds = projection.materials.map((material) => material?.id);
+  const displayIds = display.materials.map((material) => material?.id);
+  const routeIds = routes.materials.map((material) => material?.materialId);
+  if (
+    criterionIds.some((id) => typeof id !== "string")
+    || projectionIds.some((id) => typeof id !== "string")
+    || new Set(criterionIds).size !== criterionIds.length
+    || new Set(projectionIds).size !== projectionIds.length
+    || Object.keys(defaults).length !== criterionIds.length
+    || criterionIds.some((id) => defaults[id] !== projection.criteria.find((criterion) => criterion.id === id)?.defaultOptionId)
+    || projectionIds.length !== displayIds.length
+    || projectionIds.length !== routeIds.length
+    || [...projectionIds].sort().join("\0") !== [...displayIds].sort().join("\0")
+    || [...projectionIds].sort().join("\0") !== [...routeIds].sort().join("\0")
+  ) fail("SELECTOR_PROPS_COUNT_INVALID");
+}
+
 async function collectFiles(root) {
   const literal = await lstat(root).catch(() => fail("SELECTOR_OUTPUT_MISSING"));
   if (!literal.isDirectory() || literal.isSymbolicLink()) fail("SELECTOR_OUTPUT_INVALID");
@@ -175,7 +214,8 @@ function fileForPublicUrl(raw, base, files, code = "SELECTOR_CLIENT_REFERENCE_IN
 function importedSpecifiers(source) {
   const values = [];
   const patterns = [
-    /\b(?:import|export)\s+(?:[^"']*?\s+from\s*)?["']([^"']+)["']/g,
+    /\bimport\s*["']([^"']+)["']/g,
+    /\b(?:import|export)\s*[\w*$,\s{}]+\bfrom\s*["']([^"']+)["']/g,
     /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,
   ];
   for (const pattern of patterns) for (const match of source.matchAll(pattern)) values.push(match[1]);
@@ -227,7 +267,7 @@ export async function verifySelectorBuild({
   outputRoot,
   base,
   maxGzipBytes = DEFAULT_MAX_GZIP_BYTES,
-  prohibitedExactPatterns = [],
+  prohibitedExactPatterns = /** @type {string[]} */ ([]),
 }) {
   if (typeof outputRoot !== "string" || !/^\/(?:[a-z0-9-]+\/)*$/.test(base) || !Number.isInteger(maxGzipBytes) || maxGzipBytes < 1) {
     fail("SELECTOR_ARGUMENTS_INVALID");
@@ -248,10 +288,30 @@ export async function verifySelectorBuild({
   if (typeof serializedProps !== "string") fail("SELECTOR_PROPS_INVALID");
   const props = parseProps(serializedProps);
   inspectPropBoundary(props, prohibitedExactPatterns);
+  validatePageModelShape(props);
 
   const entries = [island.attributes.get("component-url"), island.attributes.get("renderer-url")];
   if (entries.some((entry) => typeof entry !== "string" || entry === "")) fail("SELECTOR_CLIENT_REFERENCE_INVALID");
   const pending = entries.map((entry) => fileForPublicUrl(entry, base, files).candidate);
+  const homeHtml = await readFile(files.get("index.html").path, "utf8").catch(() => fail("SELECTOR_OUTPUT_INVALID"));
+  let inlineScriptCount = 0;
+  let inlineScriptGzipBytes = 0;
+  for (const match of homeHtml.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+    const scriptAttributes = attributes(`<script ${match[1]}>`);
+    const source = match[2];
+    const sourceUrl = scriptAttributes.get("src");
+    if (sourceUrl !== undefined) {
+      if (source.trim() !== "") fail("SELECTOR_CLIENT_REFERENCE_INVALID");
+      pending.push(fileForPublicUrl(sourceUrl, base, files).candidate);
+      continue;
+    }
+    inlineScriptCount += 1;
+    if (PROHIBITED_CLIENT_TEXT.some((pattern) => pattern.test(source))) fail("SELECTOR_CLIENT_IMPORT_FORBIDDEN");
+    if (FETCH_PATTERN.test(source)) fail("SELECTOR_RUNTIME_FETCH_FORBIDDEN");
+    if (prohibitedExactPatterns.some((pattern) => pattern !== "" && source.includes(pattern))) fail("SELECTOR_PRIVATE_PATTERN_FORBIDDEN");
+    if (importedSpecifiers(source).length > 0) fail("SELECTOR_CLIENT_REFERENCE_INVALID");
+    inlineScriptGzipBytes += gzipSync(Buffer.from(source), { level: 9, mtime: 0 }).byteLength;
+  }
   const visited = new Set();
   let javascriptGzipBytes = 0;
   while (pending.length > 0) {
@@ -268,14 +328,16 @@ export async function verifySelectorBuild({
     for (const specifier of importedSpecifiers(source)) pending.push(resolveImport(specifier, name, files));
   }
   const propsGzipBytes = gzipSync(Buffer.from(serializedProps), { level: 9, mtime: 0 }).byteLength;
-  const totalGzipBytes = javascriptGzipBytes + propsGzipBytes;
+  const totalGzipBytes = javascriptGzipBytes + inlineScriptGzipBytes + propsGzipBytes;
   if (totalGzipBytes > maxGzipBytes) fail("SELECTOR_PAYLOAD_BUDGET_EXCEEDED", { totalGzipBytes, maxGzipBytes });
   const availableHrefCount = await validateRoutes(props, base, files);
   return Object.freeze({
     islandCount: 1,
+    inlineScriptCount,
     reachableJavaScriptCount: visited.size,
     availableHrefCount,
     javascriptGzipBytes,
+    inlineScriptGzipBytes,
     propsGzipBytes,
     totalGzipBytes,
     maxGzipBytes,

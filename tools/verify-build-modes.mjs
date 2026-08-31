@@ -6,6 +6,9 @@ import { createServer } from "node:http";
 import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { loadExactPatterns } from "./lib/publication-policy.mjs";
+import { SelectorBuildError, verifySelectorBuild } from "./verify-selector-build.mjs";
+
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const MAX_FILES = 20_000;
 const MAX_FILE_BYTES = 64 * 1024 * 1024;
@@ -194,7 +197,8 @@ function attributeValues(html) {
 function inspectHtml(mode, name, html, files) {
   const route = routeForHtml(name);
   const publicPath = posix.join(mode.base, route.slice(1));
-  if (FORBIDDEN_OUTPUT_TEXT.some((pattern) => pattern.test(html))) fail("CLIENT_RUNTIME_FORBIDDEN");
+  const forbidden = route === "/" ? FORBIDDEN_OUTPUT_TEXT.slice(3) : FORBIDDEN_OUTPUT_TEXT;
+  if (forbidden.some((pattern) => pattern.test(html))) fail("CLIENT_RUNTIME_FORBIDDEN");
   const canonicalMatches = [...html.matchAll(/<link\b[^>]*\brel=["']canonical["'][^>]*\bhref=["']([^"']+)["'][^>]*>/gi)];
   if (canonicalMatches.length !== 1) fail("CANONICAL_COUNT_INVALID");
   const expectedCanonical = new URL(publicPath, PUBLIC_ORIGIN).href;
@@ -267,8 +271,32 @@ async function inspectMode(mode, { runPublication = true } = {}) {
     if (FORBIDDEN_OUTPUT_TEXT.slice(3).some((pattern) => pattern.test(text))) fail("OUTPUT_CONTENT_FORBIDDEN");
   }
 
+  const sensitiveFile = process.env.FDM_PUBLICATION_SENSITIVE_FILE;
+  if (typeof sensitiveFile !== "string" || sensitiveFile === "") fail("SENSITIVE_INPUT_REQUIRED");
+  let exactPatterns;
+  try {
+    exactPatterns = await loadExactPatterns({ root: PROJECT_ROOT, sensitiveFile });
+  } catch {
+    fail("SENSITIVE_INPUT_INVALID");
+  }
+  let selector;
+  try {
+    selector = await verifySelectorBuild({
+      outputRoot: mode.output,
+      base: mode.base,
+      prohibitedExactPatterns: exactPatterns.map(({ bytes }) => bytes.toString("utf8")),
+    });
+  } catch (error) {
+    if (error instanceof SelectorBuildError) fail(error.code);
+    fail("SELECTOR_VERIFICATION_FAILED");
+  }
   if (runPublication) await runPublicationScan(mode);
-  return { routes: routes.sort(), fileCount: files.size };
+  return {
+    routes: routes.sort(),
+    fileCount: files.size,
+    selectorGzipBytes: selector.totalGzipBytes,
+    selectorJavaScriptCount: selector.reachableJavaScriptCount,
+  };
 }
 
 async function runPublicationScan(mode) {
@@ -320,6 +348,13 @@ async function runBrowserChecks() {
       env: safeEnvironment(),
     });
   }
+  return reports;
+}
+
+async function inspectExistingBuilds() {
+  const reports = [];
+  for (const mode of MODES) reports.push(await inspectMode(mode));
+  if (JSON.stringify(reports[0].routes) !== JSON.stringify(reports[1].routes)) fail("ROUTE_PARITY_FAILED");
   return reports;
 }
 
@@ -377,9 +412,23 @@ async function main() {
     await serveMode(process.argv[3]);
     return;
   }
-  if (process.argv.length !== 3 || !["build", "browser"].includes(command)) fail("ARGUMENTS_INVALID");
-  const reports = command === "build" ? await buildAndInspect() : await runBrowserChecks();
-  process.stdout.write(`${JSON.stringify({ ok: true, command, modes: reports.map((report, index) => ({ mode: MODES[index].name, routeCount: report.routes.length, fileCount: report.fileCount })) })}\n`);
+  if (process.argv.length !== 3 || !["build", "browser", "selector"].includes(command)) fail("ARGUMENTS_INVALID");
+  const reports = command === "build"
+    ? await buildAndInspect()
+    : command === "browser"
+      ? await runBrowserChecks()
+      : await inspectExistingBuilds();
+  process.stdout.write(`${JSON.stringify({
+    ok: true,
+    command,
+    modes: reports.map((report, index) => ({
+      mode: MODES[index].name,
+      routeCount: report.routes.length,
+      fileCount: report.fileCount,
+      selectorGzipBytes: report.selectorGzipBytes,
+      selectorJavaScriptCount: report.selectorJavaScriptCount,
+    })),
+  })}\n`);
 }
 
 main().catch((error) => {
