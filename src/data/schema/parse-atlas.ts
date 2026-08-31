@@ -2,6 +2,7 @@ import type * as z from "zod";
 
 import { AtlasV1Schema, type AtlasV1 } from "./atlas.ts";
 import { PublicIdSchema } from "./ids.ts";
+import { validateAtlasInvariants } from "./invariants.ts";
 
 export type AtlasIssueCode =
   | "BASELINE_COUNT_CHANGED"
@@ -48,7 +49,12 @@ function structuralIssueCode(issue: z.core.$ZodIssue): AtlasIssueCode {
   if (path.length === 1 && path[0] === "schemaVersion") {
     return "SCHEMA_VERSION_UNSUPPORTED";
   }
-  if (issue.code === "unrecognized_keys") return "SCHEMA_UNKNOWN_KEY";
+  if (issue.code === "unrecognized_keys") {
+    const keys = "keys" in issue && Array.isArray(issue.keys) ? issue.keys : [];
+    return keys.includes("candidateMaterialIds")
+      ? "LANE_CANDIDATE_EMBEDDED"
+      : "SCHEMA_UNKNOWN_KEY";
+  }
 
   const controlledMessageCodes: Readonly<Record<string, AtlasIssueCode>> = {
     URL_UNSAFE: "URL_UNSAFE",
@@ -59,6 +65,8 @@ function structuralIssueCode(issue: z.core.$ZodIssue): AtlasIssueCode {
     NUMBER_NOT_FINITE: "RANGE_INVALID",
     NUMBER_BELOW_BOUND: "RANGE_INVALID",
     NUMBER_ABOVE_BOUND: "RANGE_INVALID",
+    SELECTOR_CRITERIA_SET: "ID_DUPLICATE",
+    DECISION_LANE_SET: "ID_DUPLICATE",
   };
   const mapped = controlledMessageCodes[issue.message];
   if (mapped) return mapped;
@@ -123,6 +131,7 @@ export function parseAtlas(input: unknown): ParseAtlasResult {
   if (!parsed.success) {
     return { success: false, issues: mapStructuralIssues(input, parsed.error.issues) };
   }
+  const issues = validateAtlasInvariants(parsed.data);
+  if (issues.length > 0) return { success: false, issues };
   return { success: true, data: parsed.data, issues: [] };
 }
-

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { AtlasV1Schema } from "../../src/data/schema/atlas.ts";
 import { parseAtlas } from "../../src/data/schema/parse-atlas.ts";
 import { validateAtlasInvariants } from "../../src/data/schema/invariants.ts";
 import { createMinimalAtlas } from "../fixtures/atlas-minimal.valid.ts";
@@ -224,14 +225,15 @@ describe("AtlasV1 cross-record invariants", () => {
   it("returns invariant issues in deterministic safe shape", () => {
     const atlas = createMinimalAtlas();
     atlas.processGates.push(structuredClone(atlas.processGates[0]!));
-    const structural = parseAtlas(atlas);
-    expect(structural.success).toBe(false);
-    if (!structural.success) {
-      expect(structural.issues).toEqual(validateAtlasInvariants(
-        // Structural parsing succeeds; direct parse is only used to obtain the typed value.
-        createMinimalAtlas() as never,
-      ).filter(() => false).concat(structural.issues));
-      for (const issue of structural.issues) {
+    const direct = validateAtlasInvariants(AtlasV1Schema.parse(atlas));
+    const result = parseAtlas(atlas);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.issues).toEqual(direct);
+      expect(result.issues).toEqual([...result.issues].sort((left, right) =>
+        left.pointer.localeCompare(right.pointer) || left.code.localeCompare(right.code),
+      ));
+      for (const issue of result.issues) {
         expect(Object.keys(issue).every((key) => ["code", "pointer", "entityId"].includes(key))).toBe(true);
       }
     }
