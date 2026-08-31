@@ -343,7 +343,7 @@
   }
 
   .selector-compatible-list nav span {
-    color: var(--color-disabled-ink);
+    color: var(--color-ink-muted);
   }
 
   .selector-eliminated {
