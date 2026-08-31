@@ -7,10 +7,19 @@
     "node": ">=22.18.0"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "astro check --minimumFailingSeverity warning",
     "test": "vitest run",
     "test:data": "vitest run tests/data",
-    "validate:data": "node --experimental-strip-types tools/validate-public-data.ts"
+    "test:app": "vitest run tests/app tests/components",
+    "validate:data": "node --experimental-strip-types tools/validate-public-data.ts",
+    "build:root": "SITE_BASE_PATH=/ SITE_ORIGIN=https://atlas.example astro build --outDir dist-test/root",
+    "build:repository": "SITE_BASE_PATH=/atlas-preview/ SITE_ORIGIN=https://atlas.example astro build --outDir dist-test/repository",
+    "build:test-modes": "npm run build:root && npm run build:repository",
+    "preview:root": "SITE_BASE_PATH=/ SITE_ORIGIN=https://atlas.example astro preview --host 127.0.0.1 --port 4321 --outDir dist-test/root",
+    "preview:repository": "SITE_BASE_PATH=/atlas-preview/ SITE_ORIGIN=https://atlas.example astro preview --host 127.0.0.1 --port 4322 --outDir dist-test/repository",
+    "test:e2e:root": "ATLAS_TEST_MODE=root playwright test",
+    "test:e2e:repository": "ATLAS_TEST_MODE=repository playwright test",
+    "test:e2e": "npm run test:e2e:root && npm run test:e2e:repository"
   },
   "dependencies": {
     "@fontsource-variable/ibm-plex-sans": "5.3.0",
