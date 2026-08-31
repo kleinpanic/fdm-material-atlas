@@ -1,0 +1,58 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { compactFact } from "../../lib/compact-fact.ts";
+import { loadPublicAtlas } from "../../lib/public-atlas.ts";
+import { internalHref } from "../../lib/routes.ts";
+import "../../styles/reference-tools.css";
+
+const atlas = loadPublicAtlas();
+const base = import.meta.env.BASE_URL;
+const homeHref = internalHref(base, { id: "home" });
+const materialsHref = internalHref(base, { id: "materials" });
+const methodHref = internalHref(base, { id: "method" });
+const dataHref = `${base}data/`;
+const compareHref = `${base}compare/`;
+const mapHref = `${base}map/`;
+const navigation = [
+  { label: "Selector", href: homeHref, current: false },
+  { label: "Materials", href: materialsHref, current: false },
+  { label: "Compare", href: compareHref, current: false },
+  { label: "Map", href: mapHref, current: false },
+  { label: "Data", href: dataHref, current: true },
+  { label: "Method", href: methodHref, current: false },
+] as const;
+---
+
+<BaseLayout title="Material data | FDM Material Atlas" description="A compact public data table for 23 FDM and FFF material families." canonicalPath={dataHref} homeHref={homeHref} navigation={navigation} footerLinks={navigation.map(({ label, href }) => ({ label, href }))}>
+  <article class="reference-tool">
+    <header class="reference-intro">
+      <p class="technical-eyebrow">Advanced data view</p>
+      <h1>Material data explorer</h1>
+      <p>This table uses the same validated records as the selector and material pages. Unknown and conditional values remain explicit.</p>
+    </header>
+    <div class="table-frame" tabindex="0" role="region" aria-label="Scrollable material data table">
+      <table class="material-matrix">
+        <caption>{atlas.materials.length} material families. Scroll horizontally for all screening fields.</caption>
+        <thead><tr><th scope="col">Material</th><th scope="col">Family or fill</th><th scope="col">Service guidance</th><th scope="col">Print difficulty</th><th scope="col">Enclosure</th><th scope="col">Hardened nozzle</th><th scope="col">Moisture</th><th scope="col">Outdoor / UV</th><th scope="col">Impact</th><th scope="col">Flexibility</th><th scope="col">Cost</th></tr></thead>
+        <tbody>
+          {atlas.materials.map((material) => (
+            <tr>
+              <th scope="row"><a href={internalHref(base, { id: "material", slug: material.slug })}>{material.name}</a></th>
+              <td>{compactFact(material.familyOrFill)}</td>
+              <td>{compactFact(material.serviceTemperature)}</td>
+              <td>{compactFact(material.process.printDifficulty)}</td>
+              <td>{compactFact(material.process.enclosure)}</td>
+              <td>{compactFact(material.process.hardenedNozzle)}</td>
+              <td>{compactFact(material.properties.moistureSensitivity)}</td>
+              <td>{compactFact(material.properties.outdoorUv)}</td>
+              <td>{compactFact(material.properties.impactResistance)}</td>
+              <td>{compactFact(material.properties.flexibility)}</td>
+              <td>{compactFact(material.costTier)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </article>
+</BaseLayout>
+

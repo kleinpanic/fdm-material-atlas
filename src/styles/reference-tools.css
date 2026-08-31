@@ -1,0 +1,120 @@
+.reference-tool {
+  padding-block: var(--spacing-8) var(--spacing-12);
+}
+
+.reference-intro {
+  max-inline-size: 72ch;
+  margin-block-end: var(--spacing-8);
+}
+
+.reference-intro h1 {
+  margin-block: var(--spacing-2) var(--spacing-4);
+}
+
+.reference-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+  margin-block: var(--spacing-6);
+}
+
+.reference-actions a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 2.75rem;
+  padding-inline: var(--spacing-4);
+  border: var(--size-rule) solid var(--color-rule-strong);
+  font-weight: var(--font-weight-semibold);
+}
+
+.table-frame {
+  overflow-x: auto;
+  border-block: var(--size-rule-strong) solid var(--color-rule-strong);
+}
+
+.material-matrix {
+  inline-size: 100%;
+  min-inline-size: 64rem;
+  border-collapse: collapse;
+  font-size: var(--text-label);
+}
+
+.material-matrix caption {
+  padding-block: var(--spacing-3);
+  text-align: start;
+  color: var(--color-ink-muted);
+}
+
+.material-matrix th,
+.material-matrix td {
+  padding: var(--spacing-3);
+  border-block-end: var(--size-rule) solid var(--color-rule);
+  text-align: start;
+  vertical-align: top;
+}
+
+.material-matrix thead th {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  background: var(--color-surface);
+}
+
+.material-matrix tbody th {
+  min-inline-size: 10rem;
+  font-weight: var(--font-weight-semibold);
+}
+
+.material-matrix tbody tr:hover {
+  background: var(--color-surface-subtle);
+}
+
+.material-matrix a {
+  text-decoration-thickness: var(--size-rule-strong);
+}
+
+.comparison-note {
+  margin-block: var(--spacing-6);
+  padding: var(--spacing-4);
+  border-inline-start: var(--size-rule-strong) solid var(--color-caution-verify);
+  background: var(--color-surface-subtle);
+}
+
+.lane-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: var(--spacing-4);
+}
+
+.lane-card {
+  padding: var(--spacing-5);
+  border-block-start: var(--size-rule-strong) solid var(--color-accent);
+  background: var(--color-surface-subtle);
+}
+
+.lane-flow {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--spacing-2) var(--spacing-3);
+  margin: var(--spacing-4) 0 0;
+}
+
+.lane-flow dt {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+}
+
+.lane-flow dd {
+  margin: 0;
+}
+
+@media (forced-colors: active) {
+  .lane-card,
+  .comparison-note,
+  .reference-actions a {
+    border-color: CanvasText;
+  }
+}
+
