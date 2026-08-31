@@ -5,6 +5,7 @@ import type { JSX as PreactJSX } from "preact";
 declare global {
   namespace JSX {
     type Element = PreactJSX.Element;
+    interface IntrinsicAttributes extends PreactJSX.IntrinsicAttributes {}
     interface IntrinsicElements {
       a: PreactJSX.IntrinsicElements["a"];
       article: PreactJSX.IntrinsicElements["article"];
@@ -23,6 +24,7 @@ declare global {
       label: PreactJSX.IntrinsicElements["label"];
       legend: PreactJSX.IntrinsicElements["legend"];
       li: PreactJSX.IntrinsicElements["li"];
+      nav: PreactJSX.IntrinsicElements["nav"];
       ol: PreactJSX.IntrinsicElements["ol"];
       option: PreactJSX.IntrinsicElements["option"];
       p: PreactJSX.IntrinsicElements["p"];

@@ -15,7 +15,7 @@ export const decisionLaneIds = [
   "lane-support-materials",
 ] as const;
 
-export const DecisionLaneIdValueSchema = z.enum(decisionLaneIds);
+export const DecisionLaneIdValueSchema = z.enum(decisionLaneIds).brand<"DecisionLaneId">();
 
 export const DecisionLaneRecordSchema = z.strictObject({
   id: DecisionLaneIdValueSchema,
@@ -31,11 +31,10 @@ export const DecisionLaneRegistrySchema = z
   .array(DecisionLaneRecordSchema)
   .length(8, "DECISION_LANE_COUNT")
   .superRefine((lanes, context) => {
-    const ids = new Set(lanes.map(({ id }) => id));
+    const ids = new Set<string>(lanes.map(({ id }) => id));
     if (ids.size !== decisionLaneIds.length || !decisionLaneIds.every((id) => ids.has(id))) {
       context.addIssue({ code: "custom", message: "DECISION_LANE_SET" });
     }
   });
 
 export type DecisionLaneRecord = z.infer<typeof DecisionLaneRecordSchema>;
-

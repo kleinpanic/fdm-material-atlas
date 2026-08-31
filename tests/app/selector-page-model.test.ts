@@ -32,6 +32,7 @@ describe("buildSelectorPageModel", () => {
       processGates: [...atlas.processGates].reverse(),
       decisionLanes: [...atlas.decisionLanes].reverse(),
       selector: {
+        ...structuredClone(atlas.selector),
         criteria: [...atlas.selector.criteria].reverse().map((criterion) => ({
           ...criterion,
           options: [...criterion.options].reverse(),

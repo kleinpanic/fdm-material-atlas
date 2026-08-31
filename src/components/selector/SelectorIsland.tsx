@@ -2,10 +2,18 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import type { SelectorPageModel } from "../../features/selector/page-model.ts";
+import type { MaterialId } from "../../data/schema/ids.ts";
 import { SELECTOR_COPY } from "../../features/selector/copy.ts";
 import { presentSelectorOutcome } from "../../features/selector/presentation.ts";
 import { evaluateSelectorSafely } from "../../features/selector/safe-engine.ts";
+import {
+  presentShortlist,
+  reduceShortlist,
+  type ShortlistAction,
+  type ShortlistState,
+} from "../../features/selector/shortlist.ts";
 import { SelectorControls } from "./SelectorControls.tsx";
+import { SelectorResults } from "./SelectorResults.tsx";
 
 type Props = Readonly<{ pageModel: SelectorPageModel }>;
 
@@ -14,10 +22,15 @@ export function SelectorIsland({ pageModel }: Props) {
   const [selection, setSelection] = useState<Readonly<Record<string, string>>>(() => pageModel.defaults);
   const [evaluationInput, setEvaluationInput] = useState<Readonly<Record<string, unknown>>>(() => pageModel.defaults);
   const [announcement, setAnnouncement] = useState<string>(SELECTOR_COPY.hydrationStatus);
+  const [shortlistIds, setShortlistIds] = useState<ShortlistState>([]);
+  const [showAll, setShowAll] = useState(false);
+  const [eliminationsOpen, setEliminationsOpen] = useState(false);
   const resultsHeadingRef = useRef<HTMLHeadingElement>(null);
+  const shortlistHeadingRef = useRef<HTMLHeadingElement>(null);
   const primaryFirstRef = useRef<HTMLInputElement>(null);
   const secondaryDetailsRef = useRef<HTMLDetailsElement>(null);
   const secondarySummaryRef = useRef<HTMLElement>(null);
+  const resultControlRefs = useRef(new Map<MaterialId, HTMLButtonElement>());
 
   const evaluation = useMemo(
     () => evaluateSelectorSafely(pageModel.projection, evaluationInput),
@@ -29,6 +42,10 @@ export function SelectorIsland({ pageModel }: Props) {
       : { kind: "error" as const, body: SELECTOR_COPY.errorState, action: SELECTOR_COPY.errorAction },
     [evaluation, pageModel],
   );
+  const compatibleIds = presentation.kind === "ranked"
+    ? presentation.compatible.map(({ materialId }) => materialId)
+    : [];
+  const shortlist = presentShortlist(shortlistIds, compatibleIds);
 
   useEffect(() => setHydrated(true), []);
   useEffect(() => {
@@ -47,6 +64,22 @@ export function SelectorIsland({ pageModel }: Props) {
   const reset = () => {
     setSelection(pageModel.defaults);
     setEvaluationInput(pageModel.defaults);
+    const transition = reduceShortlist(shortlistIds, { type: "criteria-reset" });
+    setShortlistIds(transition.ids);
+    setAnnouncement("Selector reset to published defaults.");
+  };
+
+  const applyShortlist = (action: ShortlistAction) => {
+    const transition = reduceShortlist(shortlistIds, action);
+    setShortlistIds(transition.ids);
+    if (transition.announcement) setAnnouncement(transition.announcement);
+    if (transition.focusIntent.kind === "result-shortlist-control") {
+      resultControlRefs.current.get(transition.focusIntent.materialId)?.focus();
+    } else if (transition.focusIntent.kind === "shortlist-heading") {
+      shortlistHeadingRef.current?.focus();
+    } else if (transition.focusIntent.kind === "results") {
+      resultsHeadingRef.current?.focus();
+    }
   };
 
   return (
@@ -62,27 +95,41 @@ export function SelectorIsland({ pageModel }: Props) {
           const next = { ...selection, [criterionId]: optionId };
           setSelection(next);
           setEvaluationInput(next);
+          setShortlistIds(reduceShortlist(shortlistIds, { type: "criteria-changed" }).ids);
         }}
         onInvalid={(criterionId) => setEvaluationInput({ ...selection, [criterionId]: null })}
         onView={() => resultsHeadingRef.current?.focus()}
         onReset={reset}
       />
       <p role="status" aria-live="polite" aria-atomic="true">{announcement}</p>
-      <section aria-labelledby="selector-results-heading">
-        <h2 id="selector-results-heading" ref={resultsHeadingRef} tabIndex={-1}>
-          {presentation.kind === "error" ? "Selector unavailable" : presentation.heading}
-        </h2>
-        {presentation.kind === "error" ? (
-          <div role="alert">
-            <p>{presentation.body}</p>
-            <button type="button" onClick={reset}>{presentation.action}</button>
-          </div>
-        ) : presentation.kind === "ranked" ? (
-          <p>{presentation.compatible.length} compatible materials; {presentation.eliminated.length} eliminated.</p>
-        ) : (
-          <p>{presentation.body}</p>
-        )}
-      </section>
+      <SelectorResults
+        pageModel={pageModel}
+        presentation={presentation}
+        shortlist={shortlist}
+        showAll={showAll}
+        eliminationsOpen={eliminationsOpen}
+        resultsHeadingRef={resultsHeadingRef}
+        shortlistHeadingRef={shortlistHeadingRef}
+        registerResultControl={(materialId, element) => {
+          if (element) resultControlRefs.current.set(materialId, element);
+          else resultControlRefs.current.delete(materialId);
+        }}
+        onShowAll={() => setShowAll(true)}
+        onEliminationsToggle={setEliminationsOpen}
+        onToggleShortlist={(materialId) => applyShortlist(shortlistIds.includes(materialId)
+          ? { type: "remove", materialId, currentResultIds: compatibleIds }
+          : { type: "add", materialId })}
+        onClearShortlist={() => applyShortlist({ type: "clear" })}
+        onReview={(target) => {
+          if (target === "secondary-summary") {
+            if (secondaryDetailsRef.current) secondaryDetailsRef.current.open = true;
+            secondarySummaryRef.current?.focus();
+          } else {
+            primaryFirstRef.current?.focus();
+          }
+        }}
+        onReset={reset}
+      />
     </div>
   );
 }

@@ -91,7 +91,7 @@ describe("selector component boundary", () => {
 
   it("keeps one polite status owner and a focusable result heading", () => {
     expect(island.match(/role="status"/g)).toHaveLength(1);
-    expect(island).toContain("tabIndex={-1}");
+    expect(allSource).toContain("tabIndex={-1}");
     expect(island).toContain("150");
   });
 });

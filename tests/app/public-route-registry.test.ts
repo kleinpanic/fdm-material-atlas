@@ -18,21 +18,21 @@ const catalog = Object.freeze({
 function completedRegistry(): PublicRouteRegistry {
   return Object.freeze({
     materialDetails: Object.freeze([
-      Object.freeze({ materialId: MATERIAL_ID, target: { id: "material", slug: "synthetic-alpha" } }),
+      Object.freeze({ materialId: MATERIAL_ID, target: { id: "material" as const, slug: "synthetic-alpha" } }),
     ]),
     startingProfiles: Object.freeze([
       Object.freeze({
         materialId: MATERIAL_ID,
-        target: { id: "material", slug: "synthetic-alpha" },
+        target: { id: "material" as const, slug: "synthetic-alpha" },
         fragment: "starting-profile",
         verifiedFragments: Object.freeze(["starting-profile"]),
       }),
     ]),
-    compare: Object.freeze({ target: { id: "home" }, fragment: "compare", verifiedFragments: Object.freeze(["compare"]) }),
+    compare: Object.freeze({ target: { id: "home" as const }, fragment: "compare", verifiedFragments: Object.freeze(["compare"]) }),
     decisionMaps: Object.freeze([
-      Object.freeze({ laneId: LANE_ID, target: { id: "home" }, fragment: "lane-synthetic-alpha", verifiedFragments: Object.freeze(["lane-synthetic-alpha"]) }),
+      Object.freeze({ laneId: LANE_ID, target: { id: "home" as const }, fragment: "lane-synthetic-alpha", verifiedFragments: Object.freeze(["lane-synthetic-alpha"]) }),
     ]),
-    methodEvidence: Object.freeze({ target: { id: "home" }, fragment: "method", verifiedFragments: Object.freeze(["method"]) }),
+    methodEvidence: Object.freeze({ target: { id: "home" as const }, fragment: "method", verifiedFragments: Object.freeze(["method"]) }),
   });
 }
 
