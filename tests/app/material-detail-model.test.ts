@@ -39,6 +39,8 @@ describe("material detail models", () => {
       )).toBe(true);
       expect(model.evidence.records.length).toBeGreaterThan(0);
       expect(model.limitations.join(" ")).toContain("not an engineering safety certification");
+      expect(model.continuity.currentMaterialId).toBe(model.id);
+      expect(model.continuity.relatedMaterials.length).toBeGreaterThan(0);
     }
   });
 
