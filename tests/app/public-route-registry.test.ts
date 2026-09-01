@@ -62,16 +62,16 @@ describe("public selector route registry", () => {
   });
 
   it.each([
-    ["/", "/compare/#comparison-matrix", "/map/#", "/method/#selector-scoring"],
-    ["/atlas-preview/", "/atlas-preview/compare/#comparison-matrix", "/atlas-preview/map/#", "/atlas-preview/method/#selector-scoring"],
-  ])("activates every emitted production target under %s", (base, compareHref, mapPrefix, methodHref) => {
+    ["/", "/compare/#comparison-matrix", "/method/#selector-scoring"],
+    ["/atlas-preview/", "/atlas-preview/compare/#comparison-matrix", "/atlas-preview/method/#selector-scoring"],
+  ])("keeps unproven map actions closed under %s", (base, compareHref, methodHref) => {
     const atlas = loadPublicAtlas();
     const model = decodeSelectorClientModel(buildSelectorPageModel(atlas, base, PUBLIC_ROUTE_REGISTRY));
     expect(model.routes.materials).toHaveLength(23);
     for (const route of model.routes.materials) {
       expect(route.details.kind).toBe("link");
       expect(route.startingProfile.kind).toBe("link");
-      expect(route.decisionMaps.every(({ action }) => action.kind === "link" && action.href.startsWith(mapPrefix))).toBe(true);
+      expect(route.decisionMaps).toEqual([]);
     }
     expect(model.routes.compare).toEqual({
       kind: "link",
@@ -81,7 +81,12 @@ describe("public selector route registry", () => {
       knownMaterialIds: [...model.projection.materials.map(({ id }) => id)].sort(),
     });
     expect(model.routes.methodEvidence).toEqual({ kind: "link", href: methodHref, label: "Read scoring method and evidence" });
-    expect(model.routes.decisionMaps).toHaveLength(8);
+    expect(model.routes.decisionMaps).toEqual([]);
+    expect(model.routes.decisionMapFallback).toEqual({
+      kind: "unavailable",
+      label: "Decision map is not available yet",
+    });
+    expect(JSON.stringify(model.routes)).not.toContain("/map/");
   });
 
   it.each([

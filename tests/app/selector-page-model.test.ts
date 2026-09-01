@@ -31,6 +31,21 @@ describe("buildSelectorPageModel", () => {
     expect(selectProjectedMaterials(model.projection, model.defaults)).toEqual(selectMaterials(atlas, model.defaults));
   });
 
+  it.each(["/", "/atlas-preview/"])(
+    "keeps selector map actions unavailable before emitted proof under %s",
+    (base) => {
+      const model = decodeSelectorClientModel(buildSelectorPageModel(atlas, base, PUBLIC_ROUTE_REGISTRY));
+
+      expect(model.routes.decisionMaps).toEqual([]);
+      expect(model.routes.decisionMapFallback).toEqual({
+        kind: "unavailable",
+        label: "Decision map is not available yet",
+      });
+      expect(model.routes.materials.every(({ decisionMaps }) => decisionMaps.length === 0)).toBe(true);
+      expect(JSON.stringify(model.routes)).not.toContain("/map/");
+    },
+  );
+
   it("is byte deterministic when canonical record arrays are reordered", () => {
     const reordered = {
       ...structuredClone(atlas),
