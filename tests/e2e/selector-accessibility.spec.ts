@@ -182,6 +182,41 @@ test("selector keyboard flow preserves focus and uses one aggregate polite statu
   expect(outline).toBe("3px");
 });
 
+test("compatible cards defer offscreen layout without hiding scroll or keyboard meaning", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await waitForSelector(page);
+  const cards = page.locator(".selector-compatible-list > li");
+  expect(await cards.count()).toBeGreaterThan(1);
+
+  const containment = await cards.evaluateAll((elements: Element[]) =>
+    elements.map((element: Element) => {
+      const style = getComputedStyle(element);
+      return {
+        contentVisibility: style.contentVisibility,
+        containIntrinsicBlockSize: style.containIntrinsicBlockSize,
+      };
+    }),
+  );
+  expect(containment).toEqual(
+    containment.map(() => ({
+      contentVisibility: "auto",
+      containIntrinsicBlockSize: "auto 768px",
+    })),
+  );
+
+  const last = cards.last();
+  const heading = last.getByRole("heading", { level: 3 });
+  const label = await heading.textContent();
+  expect(label?.trim().length).toBeGreaterThan(0);
+  await last.scrollIntoViewIfNeeded();
+  await expect(heading).toBeVisible();
+  const shortlistControl = last.getByRole("button", { name: /shortlist/u });
+  await shortlistControl.focus();
+  await expect(shortlistControl).toBeFocused();
+});
+
 test("selector reflows at 320px and 200 percent zoom with 44px actions in DOM order", async ({
   page,
 }) => {
