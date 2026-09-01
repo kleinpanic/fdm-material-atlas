@@ -39,9 +39,9 @@
 }
 @media screen {
   .material-reference__sections
-    > section:not(:first-child):not(:target):not(:has(~ section:target)):not(
-      :focus-within
-    ):not(:has(~ section:focus-within)) {
+    > section:not(:first-child):not(:target):not(:has(~ section:target)):not(:focus-within):not(
+      :has(~ section:focus-within)
+    ) {
     content-visibility: auto;
     contain-intrinsic-block-size: auto 100rem;
   }

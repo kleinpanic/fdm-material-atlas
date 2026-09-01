@@ -75,9 +75,9 @@ describe("bounded performance runner", () => {
 
   it("computes the exact per-metric median for three recorded runs", async () => {
     const { medianMetrics } = await import("../../tools/run-performance-budget.mjs");
-    expect(medianMetrics([metricSet(0.95, 150), metricSet(0.91, 100), metricSet(0.93, 125)])).toEqual(
-      metricSet(0.93, 125),
-    );
+    expect(
+      medianMetrics([metricSet(0.95, 150), metricSet(0.91, 100), metricSet(0.93, 125)]),
+    ).toEqual(metricSet(0.93, 125));
   }, 15_000);
 
   it("tolerates one valid environmental outlier when the median passes", async () => {
@@ -129,11 +129,7 @@ describe("bounded performance runner", () => {
     });
 
     expect(calls).toBe(4);
-    expect(reports.map((report) => report.id)).toEqual([
-      "recorded-1",
-      "recorded-2",
-      "recorded-3",
-    ]);
+    expect(reports.map((report) => report.id)).toEqual(["recorded-1", "recorded-2", "recorded-3"]);
   }, 15_000);
 
   it("fails closed after two internally invalid captures", async () => {
