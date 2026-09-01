@@ -1,9 +1,12 @@
+import { readFileSync } from "node:fs";
+
 import { h, type ComponentChildren, type VNode } from "preact";
 import render from "preact-render-to-string";
 import { describe, expect, it } from "vitest";
 
 import { ProcessGateMatrix } from "../../src/components/map/ProcessGateMatrix.tsx";
-import type { MapSelectionAction } from "../../src/features/map/contracts.ts";
+import { ImpactFlexMatrix } from "../../src/components/map/ImpactFlexMatrix.tsx";
+import type { MapProjection, MapSelectionAction } from "../../src/features/map/contracts.ts";
 import { compileMapProjection } from "../../src/features/map/projection.ts";
 import {
   buildMapView,
@@ -110,5 +113,102 @@ describe("process gate renderer", () => {
       { type: "select-gate", mode: "process-gates", gateId: gate.id },
     ]);
     expect(cell!.props.tabIndex).toBe(-1);
+  });
+});
+
+function renderImpact(actions: MapSelectionAction[] = [], source: MapProjection = projection): string {
+  const state = actions.reduce(createMapReducer(source), createInitialMapState(source));
+  return render(h(ImpactFlexMatrix, {
+    view: buildMapView(source, state),
+    dispatch: () => undefined,
+    evidenceHref: source.methodHref,
+  }));
+}
+
+describe("impact and flexibility renderer", () => {
+  it("renders every categorical cell, every record, complete controls, and limitation copy", () => {
+    const html = renderImpact();
+
+    expect(count(html, "data-impact-cell=\"true\"")).toBe(20);
+    expect(count(html, "data-impact-row=\"true\"")).toBe(23);
+    expect(count(html, "data-material-control=\"true\"")).toBe(23);
+    expect(html).toContain(projection.impactFlex.limitation);
+    expect(html).toContain("Find a material in the impact-flex view");
+    expect(html).toContain("Maximum print difficulty");
+    expect(html).toContain("Encode print difficulty with mark shape");
+    expect(html).toContain("Clear property-space filters");
+    for (const term of projection.impactFlex.impactAxis) expect(html).toContain(term.label);
+    for (const term of projection.impactFlex.flexibilityAxis) expect(html).toContain(term.label);
+    for (const record of projection.impactFlex.records) {
+      expect(html).toContain(record.material.name);
+      expect(html).toContain(record.material.href);
+    }
+  });
+
+  it("retains filtered and unplottable rows with exact visible diagram states", () => {
+    const selected = projection.impactFlex.records.find(({ printDifficulty }) => printDifficulty === "expert")!;
+    const filteredHtml = renderImpact([
+      { type: "select-material", mode: "impact-flex-space", materialId: selected.material.id },
+      { type: "set-maximum-difficulty", value: "easy" },
+    ]);
+    expect(count(filteredHtml, "data-impact-row=\"true\"")).toBe(23);
+    expect(filteredHtml).toContain("Selected record is outside the current diagram filter.");
+    expect(filteredHtml).toContain("Filtered from the diagram");
+    expect(filteredHtml).toContain("Open material reference");
+
+    const withOmission = structuredClone(projection) as MapProjection;
+    const omitted = withOmission.impactFlex.records[0]!;
+    (withOmission.impactFlex.records as unknown as Array<typeof omitted>)[0] = {
+      ...omitted,
+      impact: undefined,
+      impactFact: { state: "unknown", display: ["Unknown", "Verify impact guidance."], reason: "Verify impact guidance." },
+      disposition: { disposition: "omitted", code: "impact-value-unavailable", reason: "Impact resistance: Verify impact guidance." },
+    };
+    const omittedHtml = renderImpact([], withOmission);
+    expect(count(omittedHtml, "data-impact-row=\"true\"")).toBe(23);
+    expect(omittedHtml).toContain("Not plotted in the impact-flex matrix");
+    expect(omittedHtml).toContain("Not plotted — Impact resistance: Verify impact guidance.");
+  });
+
+  it("uses the same material action for pointer marks and ordered HTML controls", () => {
+    const view = buildMapView(projection, createInitialMapState(projection));
+    const material = projection.impactFlex.records[0]!.material;
+    const controlActions: MapSelectionAction[] = [];
+    const controlTree = ImpactFlexMatrix({
+      view,
+      dispatch: (action) => controlActions.push(action),
+      evidenceHref: projection.methodHref,
+    });
+    const control = findNode(controlTree, (node) =>
+      node.props["data-material-control"] === true && node.props["data-material-id"] === material.id);
+    expect(control).toBeDefined();
+    (control!.props.onClick as () => void)();
+
+    const pointerActions: MapSelectionAction[] = [];
+    const pointerTree = ImpactFlexMatrix({
+      view,
+      dispatch: (action) => pointerActions.push(action),
+      evidenceHref: projection.methodHref,
+    });
+    const mark = findNode(pointerTree, (node) =>
+      node.props["data-material-mark"] === true && node.props["data-material-id"] === material.id);
+    expect(mark).toBeDefined();
+    (mark!.props.onClick as () => void)();
+
+    expect(pointerActions).toEqual(controlActions);
+    expect(pointerActions).toEqual([
+      { type: "select-material", mode: "impact-flex-space", materialId: material.id },
+    ]);
+    expect(mark!.props.tabIndex).toBeUndefined();
+  });
+
+  it("keeps rendering categorical, non-color, source-independent, and route-safe", () => {
+    const source = readFileSync("src/components/map/ImpactFlexMatrix.tsx", "utf8");
+    const selectedSource = readFileSync("src/components/map/SelectedRecord.tsx", "utf8");
+    expect(source).not.toMatch(/fetch\s*\(|XMLHttpRequest|localStorage|sessionStorage|Atlas|nearest|similarity|rank|distance|trend|force|drag/iu);
+    expect(source).not.toMatch(/#[0-9a-f]{3,8}\b/iu);
+    expect(source).not.toMatch(/href\s*=\s*\{?\s*[`'"]\//u);
+    expect(source).not.toMatch(/tabIndex=.*(?:circle|rect|path|polygon|g)/u);
+    expect(selectedSource).toContain("No separate evidence action is available in this view.");
   });
 });
