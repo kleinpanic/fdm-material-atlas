@@ -14,6 +14,7 @@ module.exports = {
       },
     },
     assert: {
+      aggregationMethod: "median",
       assertions: {
         "categories:performance": ["error", { minScore: policy.lighthouse.performanceScore }],
         "first-contentful-paint": [

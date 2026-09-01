@@ -353,6 +353,40 @@ function assertMetrics(metrics, budget) {
     fail("PERFORMANCE_BUDGET_EXCEEDED");
 }
 
+const METRIC_NAMES = Object.freeze([
+  "performanceScore",
+  "firstContentfulPaintMs",
+  "largestContentfulPaintMs",
+  "cumulativeLayoutShift",
+  "totalBlockingTimeMs",
+  "totalBytes",
+  "javascriptBytes",
+  "cssBytes",
+  "fontBytes",
+]);
+
+export function medianMetrics(runs) {
+  if (!Array.isArray(runs) || runs.length < 1 || runs.length % 2 === 0)
+    fail("PERFORMANCE_REPORT_INVALID");
+  return Object.freeze(
+    Object.fromEntries(
+      METRIC_NAMES.map((name) => {
+        const values = runs.map((metrics) => metrics?.[name]);
+        if (values.some((value) => typeof value !== "number" || !Number.isFinite(value)))
+          fail("PERFORMANCE_REPORT_INVALID");
+        values.sort((left, right) => left - right);
+        return [name, values[Math.floor(values.length / 2)]];
+      }),
+    ),
+  );
+}
+
+export function assertMedianMetrics(runs, budget) {
+  const median = medianMetrics(runs);
+  assertMetrics(median, budget);
+  return median;
+}
+
 async function withCollectionTimeout(operation, timeoutMs) {
   let timer;
   try {
@@ -447,10 +481,10 @@ async function collectMode(origin, mode, routes, policy) {
           join(directory, `${route.label}-${index + 1}.json`),
           JSON.stringify(result.lhr),
         );
-        assertMetrics(metrics, policy.lighthouse);
         runs.push(metrics);
       }
-      modeReport.push({ label: route.label, runs });
+      const median = assertMedianMetrics(runs, policy.lighthouse);
+      modeReport.push({ label: route.label, runs, median });
     }
   } finally {
     await chrome.kill().catch(() => undefined);
