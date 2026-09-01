@@ -266,6 +266,19 @@ function validatePermissions(record, jobs, add) {
   }
 }
 
+function permissionEntries(body) {
+  const entries = [];
+  const lines = body.split("\n");
+  const start = lines.findIndex((line) => /^\s{4}permissions:\s*$/u.test(line));
+  if (start < 0) return entries;
+  for (let index = start + 1; index < lines.length; index += 1) {
+    if (/^\s{4}\S/u.test(lines[index]) || /^\s{2}\S/u.test(lines[index])) break;
+    const match = /^\s{6}([a-z-]+):\s*(read|write|none)\s*$/u.exec(lines[index]);
+    if (match) entries.push(`${match[1]}:${match[2]}`);
+  }
+  return entries.sort((left, right) => left.localeCompare(right, "en"));
+}
+
 function validatePages(record, add) {
   const jobs = jobBlocks(record.source);
   validatePermissions(record, jobs, add);
@@ -288,18 +301,32 @@ function validatePages(record, add) {
   if (uploads.length !== 1 || !uploadStep || !/^\s{10}path:\s*dist-pages\s*$/mu.test(uploadStep))
     add("PAGES_ARTIFACT_INVALID", record.file);
   const uploadIndex = build.indexOf("uses: actions/upload-pages-artifact@");
+  const buildCommands = runCommands(build).filter((command) =>
+    /(?:^|\s)(?:astro\s+build|npm\s+run\s+build(?::pages)?)(?:\s|$)/u.test(command),
+  );
   const buildIndex = Math.max(build.indexOf("astro build"), build.indexOf("build:pages"));
   const testIndex = Math.max(
     build.indexOf("verify:exact-artifact"),
     build.indexOf("ATLAS_TEST_MODE=pages"),
   );
-  if (buildIndex < 0 || testIndex < buildIndex || uploadIndex < testIndex)
+  if (
+    buildCommands.length !== 1 ||
+    !/\bdist-pages\b/u.test(buildCommands[0]) ||
+    buildIndex < 0 ||
+    testIndex < buildIndex ||
+    uploadIndex < testIndex ||
+    /(?:astro\s+build|npm\s+run\s+build(?::pages)?)/u.test(build.slice(uploadIndex))
+  )
     add("PAGES_ORDER_INVALID", record.file);
+
+  if (permissionEntries(build).join(",") !== "contents:read,pages:read")
+    add("PERMISSION_FORBIDDEN", record.file);
 
   if (
     !/^\s{4}needs:\s*build\s*$/mu.test(deploy) ||
     !/^\s{6}pages:\s*write\s*$/mu.test(deploy) ||
     !/^\s{6}id-token:\s*write\s*$/mu.test(deploy) ||
+    permissionEntries(deploy).join(",") !== "id-token:write,pages:write" ||
     !/^\s{4}outputs:\s*$/mu.test(deploy) ||
     !/^\s{6}page_url:\s*\$\{\{\s*steps\.deployment\.outputs\.page_url\s*\}\}\s*$/mu.test(deploy) ||
     !/^\s{6}-\s+id:\s*deployment\s*$/mu.test(deploy) ||
@@ -321,7 +348,8 @@ function validatePages(record, add) {
     /\b(?:npm|npx|pnpm|yarn|build|install|generate|download|cache)\b/iu.test(
       probeRuns.join("\n"),
     ) ||
-    /cache:\s*\S+/iu.test(probe)
+    /cache:\s*\S+/iu.test(probe) ||
+    permissionEntries(probe).join(",") !== "contents:read"
   )
     add("PROBE_COMMAND_INVALID", record.file);
   if (
@@ -340,7 +368,8 @@ function validateDependencyReview(record, add) {
     /^\s*(?:push|schedule|workflow_dispatch):/mu.test(source) ||
     (source.match(/uses:\s*actions\/dependency-review-action@/gu) ?? []).length !== 1 ||
     !/fail-on-severity:\s*moderate\b/u.test(source) ||
-    !/comment-summary-in-pr:\s*never\b/u.test(source)
+    !/comment-summary-in-pr:\s*never\b/u.test(source) ||
+    [...jobs.values()].some((body) => permissionEntries(body).join(",") !== "contents:read")
   )
     add("DEPENDENCY_REVIEW_INVALID", record.file);
 }
