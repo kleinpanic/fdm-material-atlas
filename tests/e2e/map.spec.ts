@@ -175,6 +175,15 @@ test("process gates retain all 64 direct relationships and selected context", as
   await expect(page.locator("[data-gate-row]")).toHaveCount(8);
   await expect(page.locator("[data-gate-cell]")).toHaveCount(64);
   await expect(page.locator("[data-stacked-relationship]")).toHaveCount(64);
+  for (const linkedGate of projection.processGates.gates) {
+    const href = linkedGate.href;
+    await page.locator(`a[href="${href}"]`).first().click();
+    await expect(page).toHaveURL(new RegExp(`${href.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, "u"));
+    const target = page.locator(":target");
+    await expect(target).toHaveCount(1);
+    await expect(target).toHaveAttribute("id", linkedGate.id);
+    await expect(target).toContainText(linkedGate.label);
+  }
   await page.getByLabel("Highlight a decision lane").selectOption(lane.id);
   await expect(page.getByText("Selected decision lane", { exact: true }).last()).toBeVisible();
   await page.getByLabel("Highlight a process gate").selectOption(gate.id);

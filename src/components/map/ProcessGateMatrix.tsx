@@ -114,7 +114,7 @@ export function ProcessGateMatrix({ view, dispatch }: Props) {
             <tr>
               <th scope="col">Decision lane and candidates</th>
               {model.gates.map((gate) => (
-                <th scope="col" class={selectedGateId === gate.id ? "is-selected" : undefined} key={gate.id}>
+                <th id={gate.id} scope="col" class={selectedGateId === gate.id ? "is-selected" : undefined} key={gate.id}>
                   {gate.label}{selectedGateId === gate.id && <span class="map-selected-text"> Selected</span>}
                 </th>
               ))}

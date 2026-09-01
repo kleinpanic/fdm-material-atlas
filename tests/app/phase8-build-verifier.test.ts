@@ -127,7 +127,9 @@ async function writeMode(root: string, base: string): Promise<void> {
   }
   const selectorProjection = { routes: { decisionMaps: [], decisionMapFallback: { kind: "unavailable", label: "Decision map is not available yet" }, materials: [] } };
   await writeFile(join(root, "index.html"), `<!doctype html><link rel="canonical" href="https://atlas.example${base}"><astro-island component-url="${prefix}/_astro/selector.js" component-export="SelectorIsland" renderer-url="${prefix}/_astro/client.js" props='${JSON.stringify({ model: selectorProjection })}' ssr client="load"><p>Decision map is not available yet</p></astro-island>`);
-  await writeFile(join(root, "map/index.html"), `<!doctype html><link rel="canonical" href="https://atlas.example${prefix}/map/"><nav>${modes.map((mode) => `<a href="${prefix}/map/#${mode}">${mode}</a>`).join("")}${lanes.map((lane) => `<a href="${prefix}/map/#${lane}">${lane}</a>`).join("")}</nav>${island(base)}`);
+  const fragmentTargets = ["main-content", ...modes, ...lanes, ...projection(base).processGates.gates.map(({ id }) => id)]
+    .map((id) => `<span id="${id}"></span>`).join("");
+  await writeFile(join(root, "map/index.html"), `<!doctype html><link rel="canonical" href="https://atlas.example${prefix}/map/"><nav>${modes.map((mode) => `<a href="${prefix}/map/#${mode}">${mode}</a>`).join("")}${lanes.map((lane) => `<a href="${prefix}/map/#${lane}">${lane}</a>`).join("")}</nav>${fragmentTargets}${island(base)}`);
   for (const route of ["method", "materials", "compare", "data"]) await writeFile(join(root, `${route}/index.html`), `<!doctype html><a href="${base}">Home</a>`);
   await writeFile(join(root, "_astro/client.js"), "export const hydrate = true;");
   await writeFile(join(root, "_astro/shared.js"), "export const shared = true;");
@@ -270,6 +272,11 @@ describe("Phase 8 emitted build verifier", () => {
       const path = join(outputs.root, "map/index.html");
       const html = await (await import("node:fs/promises")).readFile(path, "utf8");
       await writeFile(path, html.replace('href="/map/#decision-paths"', 'href="/map/#missing"'));
+    }],
+    ["MAP_FRAGMENT_TARGET_MISSING", async (outputs: Awaited<ReturnType<typeof fixture>>) => {
+      const path = join(outputs.root, "map/index.html");
+      const html = await (await import("node:fs/promises")).readFile(path, "utf8");
+      await writeFile(path, html.replace('id="gate-1"', 'id="gate-target-removed"'));
     }],
     ["MAP_PROJECTION_PRIVATE_FIELD", async (outputs: Awaited<ReturnType<typeof fixture>>) => {
       const path = join(outputs.root, "map/index.html");

@@ -249,6 +249,17 @@ function islandRecords(html) {
   });
 }
 
+function assertExactFragmentTargets(html, allowedFragments) {
+  const counts = new Map();
+  for (const match of html.matchAll(/<[a-z][^>]*>/giu)) {
+    const id = attributes(match[0]).get("id");
+    if (id !== undefined) counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  for (const fragment of allowedFragments) {
+    if (counts.get(fragment) !== 1) fail("MAP_FRAGMENT_TARGET_MISSING");
+  }
+}
+
 async function inspectMap(mode, files, exactPatterns) {
   const html = await readFile(files.get("map/index.html")?.path ?? "", "utf8").catch(() => fail("MAP_ROUTE_MISSING"));
   if (exactPatterns.some((pattern) => pattern !== "" && html.includes(pattern))) fail("CLIENT_PRIVATE_PATTERN_FORBIDDEN");
@@ -264,6 +275,7 @@ async function inspectMap(mode, files, exactPatterns) {
   const props = parseProps(serialized);
   if (typeof props !== "object" || props === null || Object.keys(props).join("\0") !== "projection") fail("PROPS_INVALID");
   const contract = assertProjectionContract(props.projection, mode, files, exactPatterns);
+  assertExactFragmentTargets(html, contract.allowedFragments);
   if (contract.projectionGzipBytes > MAX_PROJECTION_GZIP) fail("MAP_PROJECTION_BUDGET_EXCEEDED");
   for (const copy of STATIC_ALTERNATIVES) if (!island.complete.includes(copy)) fail("MAP_STATIC_ALTERNATIVE_MISSING");
   for (const fragment of [...MAP_MODES, ...LANE_IDS]) {
