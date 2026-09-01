@@ -16,6 +16,8 @@ describe("selector landing page source contract", () => {
     expect(source).toContain("loadPublicAtlas()");
     expect(source).toContain("buildSelectorPageModel(atlas, base, PUBLIC_ROUTE_REGISTRY)");
     expect(source).toContain("<SelectorIsland bootstrap={selectorBootstrap} client:load />");
+    expect(source).toContain("<SelectorControls");
+    expect(source.indexOf("<SelectorControls")).toBeLessThan(source.indexOf("<SelectorIsland"));
     expect(source).toContain('id="selector-client-model"');
     expect(source).toContain('type="application/json"');
     expect(source).toContain("serializeSelectorDeferredPayload(pageModel)");

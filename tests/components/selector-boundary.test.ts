@@ -155,6 +155,13 @@ describe("selector component boundary", () => {
     expect(astroConfig).not.toContain("manualChunks");
   });
 
+  it("hydrates only the controller and status over complete static controls", () => {
+    expect(island).not.toContain('import { SelectorControls } from "./SelectorControls.tsx"');
+    expect(island).toContain('import("./SelectorControls.tsx")');
+    expect(island).toContain("document.querySelector<HTMLFormElement>");
+    expect(controls).toContain("data-selector-criterion-id");
+  });
+
   it("uses native form and disclosure semantics for all seven criteria", () => {
     expect(controls).toMatch(/<form\b/);
     expect(controls).toMatch(/<fieldset\b/);
