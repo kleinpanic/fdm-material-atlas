@@ -1,0 +1,18 @@
+.astro/
+.git/
+.planning/
+.lighthouseci/
+artifacts/
+coverage/
+dist/
+dist-*/
+node_modules/
+playwright-report/
+reports/
+test-results/
+
+# The canonical artifact has its own stable serializer and byte-for-byte validation.
+src/data/public/atlas.v1.json
+
+# Local-only sensitive input is outside every public formatting surface.
+.publication-sensitive-patterns
