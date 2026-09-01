@@ -37,6 +37,15 @@
   padding-block-start: 0;
   border-block-start: 0;
 }
+@media screen {
+  .material-reference__sections
+    > section:not(:first-child):not(:target):not(:has(~ section:target)):not(
+      :focus-within
+    ):not(:has(~ section:focus-within)) {
+    content-visibility: auto;
+    contain-intrinsic-block-size: auto 100rem;
+  }
+}
 .material-fact-list {
   display: grid;
   gap: var(--spacing-4);
