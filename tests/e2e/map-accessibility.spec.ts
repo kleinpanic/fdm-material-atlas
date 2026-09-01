@@ -104,7 +104,7 @@ test("built map exposes landmarks, structured alternatives, labels, and logical 
   await page.getByLabel("Find a material in the impact-flex view").fill("PLA");
   await expect(liveStatus).toHaveText("Impact and flexibility filter updated.");
 
-  const targets = page.locator(".map-page button:visible, .map-page select:visible, .map-page input:visible, .map-mode-index a:visible, .map-lane-directory a:visible");
+  const targets = page.locator(".map-page a:visible, .map-page button:visible, .map-page select:visible, .map-page input:visible, .map-page summary:visible, .breadcrumbs a:visible, .site-identity__name:visible");
   const undersized = await targets.evaluateAll((elements: Element[]) => elements.flatMap((element) => {
     const rect = element.getBoundingClientRect();
     return rect.width < 44 || rect.height < 44 ? [element.textContent?.trim() ?? element.tagName] : [];
@@ -192,7 +192,22 @@ test("no-script and failed hydration retain complete static meaning", async ({ b
 test("320px reflow, 200 percent zoom, and long labels avoid page overflow or clipping", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 800 });
   await openMap(page);
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).minWidth)).toBe("0px");
+  await page.evaluate(() => document.documentElement.style.scrollbarGutter = "stable");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  const compactGeometry = await page.evaluate(() => {
+    const body = document.body.getBoundingClientRect();
+    return { bodyLeft: body.left, bodyRight: body.right, clientWidth: document.documentElement.clientWidth };
+  });
+  expect(compactGeometry.bodyLeft).toBeGreaterThanOrEqual(0);
+  expect(compactGeometry.bodyRight).toBeLessThanOrEqual(compactGeometry.clientWidth);
+
+  const typeRoles = await page.evaluate(() => ({
+    display: getComputedStyle(document.querySelector(".map-hero h1")!).fontSize,
+    heading: getComputedStyle(document.querySelector(".map-mode__header h2")!).fontSize,
+    diagram: getComputedStyle(document.querySelector(".thermal-service-diagram text")!).fontSize,
+  }));
+  expect(typeRoles).toEqual({ display: "32px", heading: "24px", diagram: "14px" });
   const longLabel = page.getByRole("navigation", { name: "Decision path index" }).getByRole("link").first();
   await longLabel.evaluate((element: Element) => {
     const strong = element.querySelector("strong");

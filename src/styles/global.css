@@ -98,7 +98,6 @@
   }
 
   html {
-    min-width: 20rem;
     background: var(--color-page);
     scroll-behavior: smooth;
   }

@@ -74,7 +74,11 @@ const { homeHref, navigation } = Astro.props;
   }
 
   .site-identity__name {
+    display: inline-flex;
     inline-size: fit-content;
+    min-inline-size: var(--size-target-min);
+    min-block-size: var(--size-target-min);
+    align-items: center;
     color: var(--color-ink-strong);
     font-size: var(--text-heading);
     font-weight: var(--font-weight-semibold);
@@ -101,6 +105,7 @@ const { homeHref, navigation } = Astro.props;
     display: inline-flex;
     align-items: center;
     min-block-size: var(--size-target-min);
+    min-inline-size: var(--size-target-min);
     padding-inline: var(--spacing-2);
     color: var(--color-ink-strong);
     text-decoration: underline;

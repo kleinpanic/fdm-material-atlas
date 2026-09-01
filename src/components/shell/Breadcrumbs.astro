@@ -50,6 +50,13 @@ const { items } = Astro.props;
     overflow-wrap: anywhere;
   }
 
+  .breadcrumbs a {
+    display: inline-flex;
+    min-inline-size: var(--size-target-min);
+    min-block-size: var(--size-target-min);
+    align-items: center;
+  }
+
   .breadcrumbs li:not(:last-child)::after {
     color: var(--color-ink-muted);
     content: "/";
