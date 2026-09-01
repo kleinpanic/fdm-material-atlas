@@ -5,7 +5,7 @@ import { lstat, opendir, readFile, realpath } from "node:fs/promises";
 import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { checkPublication } from "./check-publication.mjs";
+import { loadExactPatterns } from "./lib/publication-policy.mjs";
 
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_MODES = Object.freeze([
@@ -118,8 +118,15 @@ export async function verifyPhase6Build({ modes = DEFAULT_MODES, atlasPath = res
   if (new Set(reports.map(({ routeCount }) => routeCount)).size !== 1) fail("PHASE6_ROUTE_PARITY_FAILED");
   if (runPublication) {
     if (typeof sensitiveFile !== "string" || sensitiveFile === "") fail("PHASE6_SENSITIVE_INPUT_REQUIRED");
-    const publication = await checkPublication({ root: PROJECT_ROOT, artifacts: modes.map(({ output }) => output), sensitiveFile, remotePolicy: "any" });
-    if (publication.ok !== true) fail("PHASE6_PUBLICATION_SCAN_FAILED");
+    let patterns;
+    try { patterns = await loadExactPatterns({ root: PROJECT_ROOT, sensitiveFile }); } catch { fail("PHASE6_SENSITIVE_INPUT_INVALID"); }
+    for (const mode of modes) {
+      const files = await filesUnder(mode.output);
+      for (const { path } of files.values()) {
+        const bytes = await readFile(path).catch(() => fail("PHASE6_PUBLICATION_SCAN_FAILED"));
+        if (patterns.some(({ bytes: pattern }) => bytes.indexOf(pattern) !== -1)) fail("PHASE6_PUBLICATION_SCAN_FAILED");
+      }
+    }
   }
   return Object.freeze({ ok: true, modes: reports });
 }

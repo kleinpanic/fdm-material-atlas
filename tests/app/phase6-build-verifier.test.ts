@@ -78,4 +78,12 @@ describe("Phase 6 emitted build verifier", () => {
     await writeFile(path, `${await readFile(path, "utf8")}<script>window.bad=true</script>`);
     expect(await codeFor(() => verifyPhase6Build({ ...scripted, runPublication: false }))).toBe("PHASE6_STATIC_ROUTE_SCRIPT_FORBIDDEN");
   });
+
+  it("scans both emitted trees for exact private patterns without repository-history work", async () => {
+    const input = await fixture();
+    const sensitiveFile = join(roots[roots.length - 1]!, "sensitive.json");
+    await writeFile(sensitiveFile, JSON.stringify(["private-upstream-sentinel"]));
+    await writeFile(join(input.modes[1]!.output, "_astro/atlas.js"), 'export const value="private-upstream-sentinel"');
+    expect(await codeFor(() => verifyPhase6Build({ ...input, sensitiveFile }))).toBe("PHASE6_PUBLICATION_SCAN_FAILED");
+  });
 });
