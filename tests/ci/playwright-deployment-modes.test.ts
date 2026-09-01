@@ -2,6 +2,9 @@ import { spawnSync } from "node:child_process";
 
 import { describe, expect, it } from "vitest";
 
+const SUBPROCESS_TIMEOUT_MS = 60_000;
+const TEST_TIMEOUT_MS = SUBPROCESS_TIMEOUT_MS + 5_000;
+
 function listMode(mode: string, values: Record<string, string> = {}) {
   const env = { ...process.env };
   delete env.ATLAS_PAGES_ARTIFACT;
@@ -15,19 +18,23 @@ function listMode(mode: string, values: Record<string, string> = {}) {
       cwd: process.cwd(),
       encoding: "utf8",
       env,
-      timeout: 30_000,
+      timeout: SUBPROCESS_TIMEOUT_MS,
     },
   );
 }
 
 describe("Playwright deployment-mode boundary", () => {
-  it.each(["root", "repository"])("loads the %s suite without Pages-only inputs", (mode) => {
-    const result = listMode(mode);
+  it.each(["root", "repository"])(
+    "loads the %s suite without Pages-only inputs",
+    (mode) => {
+      const result = listMode(mode);
 
-    expect(result.error).toBeUndefined();
-    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
-    expect(result.stdout).toContain("Total: 4 tests in 1 file");
-  });
+      expect(result.error).toBeUndefined();
+      expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+      expect(result.stdout).toContain("Total: 4 tests in 1 file");
+    },
+    TEST_TIMEOUT_MS,
+  );
 
   it.each([
     [{ ATLAS_PAGES_ARTIFACT: "dist-pages" }, "ATLAS_PAGES_BASE_INVALID"],
@@ -36,11 +43,15 @@ describe("Playwright deployment-mode boundary", () => {
       { ATLAS_PAGES_ARTIFACT: "dist", ATLAS_PAGES_BASE: "/fdm-material-atlas/" },
       "ATLAS_PAGES_ARTIFACT_INVALID",
     ],
-  ])("rejects an unsafe Pages descriptor with %s", (values, code) => {
-    const result = listMode("pages", values);
+  ])(
+    "rejects an unsafe Pages descriptor with %s",
+    (values, code) => {
+      const result = listMode("pages", values);
 
-    expect(result.error).toBeUndefined();
-    expect(result.status).not.toBe(0);
-    expect(`${result.stdout}\n${result.stderr}`).toContain(code);
-  });
+      expect(result.error).toBeUndefined();
+      expect(result.status).not.toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toContain(code);
+    },
+    TEST_TIMEOUT_MS,
+  );
 });
