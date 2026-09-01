@@ -23,6 +23,7 @@ describe("compare page source contract", () => {
     expect(page).toContain("methodHref");
     expect(page).toContain("materialsHref");
     expect(page).toContain("homeHref");
+    expect(page).toContain('id="comparison-matrix"');
   });
 
   it("uses only local styles and no request, raw HTML, or guessed route", () => {
