@@ -1,7 +1,9 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import type { FactState } from "../../src/data/schema/fact-state.ts";
-import type { MaterialId } from "../../src/data/schema/ids.ts";
+import type { ClaimId, MaterialId } from "../../src/data/schema/ids.ts";
+import { compareThermalObservations, type ThermalObservation } from "../../src/data/schema/material.ts";
+import { partitionCompatibleThermalObservations } from "../../src/domain/thermal/compatibility-groups.ts";
 import {
   MAP_MODES,
   MAP_OMISSION_CODES,
@@ -108,5 +110,60 @@ describe("Phase 8 shared map seams", () => {
       13,
       2,
     ]);
+  });
+
+  it("partitions named observations deterministically through canonical compatibility", () => {
+    const atlas = loadPublicAtlas();
+    const inputs = atlas.materials.flatMap((material) => material.thermalObservations.map((observation) => ({
+      materialId: material.id,
+      observation,
+    })));
+    const expected = partitionCompatibleThermalObservations(inputs);
+    const permuted = partitionCompatibleThermalObservations([...inputs].reverse());
+
+    expect(JSON.stringify(permuted)).toBe(JSON.stringify(expected));
+    expect(expected.map(({ members }) => members.length).sort((left, right) => right - left))
+      .toEqual([8, 5, 3, 2, 2, 1, 1, 1]);
+    expect(expected.every(({ members }) => members.length > 0)).toBe(true);
+    for (const group of expected) {
+      for (const left of group.members) {
+        for (const right of group.members) {
+          expect(compareThermalObservations(left.observation, right.observation).comparable).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("retains every observation semantic while all represented method dimensions partition", () => {
+    const original = structuredClone(loadPublicAtlas().materials[0]!.thermalObservations[0]!);
+    const variants: ThermalObservation[] = [
+      original,
+      { ...structuredClone(original), id: "claim-synthetic-standard" as ClaimId, method: { ...original.method, standard: "Synthetic standard" } },
+      { ...structuredClone(original), id: "claim-synthetic-load" as ClaimId, method: { ...original.method, loadMpa: 12.5 } },
+      { ...structuredClone(original), id: "claim-synthetic-annealed" as ClaimId, method: { ...original.method, annealed: !(original.method?.annealed ?? false) } },
+      { ...structuredClone(original), id: "claim-synthetic-conditioning" as ClaimId, method: { ...original.method, conditioning: "Synthetic conditioning" } },
+      { ...structuredClone(original), id: "claim-synthetic-other" as ClaimId, method: { ...original.method, otherConditions: "Synthetic other condition" } },
+    ];
+    const groups = partitionCompatibleThermalObservations(variants.map((observation, index) => ({
+      materialId: `material-synthetic-thermal-${index + 1}` as MaterialId,
+      observation,
+    })));
+
+    expect(groups).toHaveLength(variants.length);
+    const retained = groups.flatMap(({ members }) => members);
+    expect(retained).toHaveLength(variants.length);
+    expect(retained[0]).toHaveProperty("observation.metricLabel");
+    expect(retained[0]).toHaveProperty("observation.measurement");
+    expect(retained[0]).toHaveProperty("observation.qualification");
+    expect(retained[0]).toHaveProperty("observation.basisScopes");
+  });
+
+  it("keeps singleton and empty partitions valid and rejects duplicate public references", () => {
+    const material = loadPublicAtlas().materials[0]!;
+    const input = { materialId: material.id, observation: material.thermalObservations[0]! };
+    expect(partitionCompatibleThermalObservations([])).toEqual([]);
+    expect(partitionCompatibleThermalObservations([input])).toHaveLength(1);
+    expect(() => partitionCompatibleThermalObservations([input, input]))
+      .toThrow("THERMAL_PARTITION_DUPLICATE_OBSERVATION");
   });
 });

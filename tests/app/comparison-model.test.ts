@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { AtlasV1 } from "../../src/data/schema/atlas.ts";
+import { partitionCompatibleThermalObservations } from "../../src/domain/thermal/compatibility-groups.ts";
 import { buildComparisonModel } from "../../src/features/comparison/model.ts";
 import { DATA_ATTRIBUTE_REGISTRY } from "../../src/features/data-explorer/attribute-registry.ts";
 import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
@@ -40,7 +41,8 @@ describe("comparison model", () => {
   });
 
   it("keeps service bounds and canonical thermal compatibility groups separate", () => {
-    const model = buildComparisonModel(loadPublicAtlas(), "/");
+    const atlas = loadPublicAtlas();
+    const model = buildComparisonModel(atlas, "/");
     const keys = model.groups.flatMap(({ fields }) => fields.map(({ key }) => key));
     expect(keys.slice(2, 6)).toEqual([
       "service-temperature-low",
@@ -50,6 +52,14 @@ describe("comparison model", () => {
     ]);
     expect(model.thermalGroups.length).toBeGreaterThan(0);
     expect(new Set(model.thermalGroups.map(({ id }) => id)).size).toBe(model.thermalGroups.length);
+    const partition = partitionCompatibleThermalObservations(
+      atlas.materials.flatMap((material) => material.thermalObservations.map((observation) => ({
+        materialId: material.id,
+        observation,
+      }))),
+    );
+    expect(model.thermalGroups.map(({ id, metric, metricLabel, method }) => ({ id, metric, metricLabel, method })))
+      .toEqual(partition.map(({ id, metric, metricLabel, method }) => ({ id, metric, metricLabel, method })));
 
     for (const material of model.materials) {
       const metric = material.cells.find(({ key }) => key === "thermal-metric")!;
