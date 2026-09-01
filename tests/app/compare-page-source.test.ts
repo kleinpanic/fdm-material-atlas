@@ -31,7 +31,7 @@ describe("compare page source contract", () => {
   });
 
   it("uses one property-first DOM that stacks below 768px without comparison scrolling", () => {
-    expect(styles).toContain("grid-template-columns: repeat(var(--comparison-material-count), minmax(176px, 1fr))");
+    expect(styles).toContain("grid-template-columns: repeat(auto-fit, minmax(176px, 1fr))");
     expect(styles).toContain("@media (max-width: 768px)");
     expect(styles).toContain("@media (max-width: 640px)");
     expect(styles).toContain("min-block-size: var(--size-target-min)");
