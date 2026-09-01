@@ -63,7 +63,7 @@ test("the SSR default and no-script fallback expose the complete identity and th
   await expect(page.getByRole("heading", { name: "Attribute group guide" })).toBeVisible();
   const guide = page.getByRole("heading", { name: "Attribute group guide" }).locator("..");
   await expect(guide.getByRole("listitem")).toHaveCount(8);
-  expect((await guide.getByRole("listitem").allInnerTexts()).map((text) => text.replaceAll(/\s+/gu, " ").trim()))
+  expect((await guide.getByRole("listitem").allInnerTexts()).map((text: string) => text.replaceAll(/\s+/gu, " ").trim()))
     .toEqual(model.groups.map((group) => `${group.label} ${group.fieldKeys.length} attributes`));
 
   const noScript = await openWithoutJavaScript(browser);
