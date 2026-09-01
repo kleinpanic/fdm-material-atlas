@@ -35,7 +35,7 @@ describe("complete process-gate transform", () => {
     expect(model.relationships).toHaveLength(64);
     expect(model.relationships.filter(({ relationship }) => relationship === "applies")).toHaveLength(13);
     expect(model.relationships.filter(({ relationship }) => relationship === "not-listed")).toHaveLength(51);
-    expect(new Set(model.relationships.map(({ laneId, gateId }) => `${laneId}\u0000${gateId}`))).toHaveLength(64);
+    expect(new Set(model.relationships.map(({ laneId, gateId }) => `${laneId}\u0000${gateId}`)).size).toBe(64);
     expect(new Set(model.relationships.map(({ label }) => label))).toEqual(new Set([
       "Applies — verify this gate",
       "Not listed for this lane",
@@ -44,9 +44,10 @@ describe("complete process-gate transform", () => {
 
   it("selects a lane with only its directly listed gates and live candidates", () => {
     const model = buildProcessGateMap(loadPublicAtlas(), "/repo/");
+    const industrial = model.lanes.find(({ id }) => id === "lane-industrial")!;
     const selected = selectProcessGateContext(model, {
       kind: "lane",
-      id: "lane-industrial",
+      id: industrial.id,
     });
 
     expect(selected.kind).toBe("lane");
@@ -64,9 +65,10 @@ describe("complete process-gate transform", () => {
 
   it("selects a gate with every referencing lane and lane-grouped candidate context", () => {
     const model = buildProcessGateMap(loadPublicAtlas(), "/repo/");
+    const drying = model.gates.find(({ id }) => id === "gate-drying-capability")!;
     const selected = selectProcessGateContext(model, {
       kind: "gate",
-      id: "gate-drying-capability",
+      id: drying.id,
     });
 
     expect(selected.kind).toBe("gate");
