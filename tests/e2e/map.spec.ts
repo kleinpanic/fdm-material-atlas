@@ -87,6 +87,7 @@ async function exposeEverySelectorResult(page: PlaywrightTestArgs["page"]): Prom
 }
 
 test("selector exposes every exact lane handoff and all four-stage paths retain canonical parity", async ({ page }) => {
+  test.setTimeout(60_000);
   const blocked = denyPrivateRuntimeRequests(page);
   await exposeEverySelectorResult(page);
   const expectedActions = selectorModel.routes.materials.flatMap(({ decisionMaps }) =>
@@ -191,6 +192,7 @@ test("thermal views keep service guidance separate from exact named groups", asy
 });
 
 test("process gates retain all 64 direct relationships and selected context", async ({ page }) => {
+  test.setTimeout(60_000);
   await openMap(page);
   const lane = projection.processGates.lanes[0]!;
   const gate = projection.processGates.gates[0]!;

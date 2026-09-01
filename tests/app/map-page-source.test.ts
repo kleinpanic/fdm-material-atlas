@@ -13,6 +13,8 @@ const pagePath = "src/pages/map/index.astro";
 const legacyBoardPath = "src/components/map/DecisionBoard.astro";
 const page = readFileSync(pagePath, "utf8");
 const styles = readFileSync("src/styles/map-board.css", "utf8");
+const browserSuite = readFileSync("tests/e2e/map.spec.ts", "utf8");
+const browserConfig = readFileSync("playwright.config.ts", "utf8");
 const projection = compileMapProjection(loadPublicAtlas(), "/repo/");
 const renderedIsland = render(h(MapExplorerIsland, { projection }));
 
@@ -101,5 +103,10 @@ describe("static-first map page source", () => {
     expect(styles).toContain(".map-page a");
     expect(styles).toContain("min-inline-size: var(--size-target-min)");
     expect(styles).not.toMatch(/linear-gradient|radial-gradient|backdrop-filter|text-overflow:\s*ellipsis|overflow:\s*hidden/);
+  });
+
+  it("bounds only the two exhaustive browser proofs without a global timeout increase", () => {
+    expect(occurrences(browserSuite, "test.setTimeout(60_000)")).toBe(2);
+    expect(browserConfig).not.toContain("\n  timeout:");
   });
 });
