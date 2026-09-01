@@ -35,7 +35,7 @@ function completedRegistry(): PublicRouteRegistry {
         verifiedFragments: Object.freeze(["starting-profile"]),
       }),
     ]),
-    compare: Object.freeze({ target: { id: "home" as const }, fragment: "compare", verifiedFragments: Object.freeze(["compare"]) }),
+    compare: Object.freeze({ target: { id: "compare" as const }, fragment: "comparison-matrix", verifiedFragments: Object.freeze(["comparison-matrix"]) }),
     decisionMaps: Object.freeze([
       Object.freeze({ laneId: LANE_ID, target: { id: "home" as const }, fragment: "lane-synthetic-alpha", verifiedFragments: Object.freeze(["lane-synthetic-alpha"]) }),
     ]),
@@ -85,8 +85,8 @@ describe("public selector route registry", () => {
   });
 
   it.each([
-    ["/", "/materials/synthetic-alpha/", "/materials/synthetic-alpha/#starting-profile", "/#compare", "/#lane-synthetic-alpha", "/#method"],
-    ["/atlas-preview/", "/atlas-preview/materials/synthetic-alpha/", "/atlas-preview/materials/synthetic-alpha/#starting-profile", "/atlas-preview/#compare", "/atlas-preview/#lane-synthetic-alpha", "/atlas-preview/#method"],
+    ["/", "/materials/synthetic-alpha/", "/materials/synthetic-alpha/#starting-profile", "/compare/#comparison-matrix", "/#lane-synthetic-alpha", "/#method"],
+    ["/atlas-preview/", "/atlas-preview/materials/synthetic-alpha/", "/atlas-preview/materials/synthetic-alpha/#starting-profile", "/atlas-preview/compare/#comparison-matrix", "/atlas-preview/#lane-synthetic-alpha", "/atlas-preview/#method"],
   ])("activates only verified targets under base %s", (base, details, profile, compare, map, method) => {
     const availability = buildSelectorRouteAvailability(base, completedRegistry(), catalog);
 

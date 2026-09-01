@@ -20,6 +20,10 @@ type FragmentRouteRegistration = Readonly<{
   verifiedFragments: readonly string[];
 }>;
 
+type CompareRouteRegistration = Omit<FragmentRouteRegistration, "target"> & Readonly<{
+  target: Extract<RouteTarget, Readonly<{ id: "compare" }>>;
+}>;
+
 type MaterialFragmentRegistration = FragmentRouteRegistration & Readonly<{
   materialId: MaterialId;
 }>;
@@ -35,7 +39,7 @@ export type PublicRouteRegistry = Readonly<{
   allMaterialDetails?: boolean;
   allStartingProfiles?: boolean;
   allDecisionMaps?: boolean;
-  compare?: FragmentRouteRegistration;
+  compare?: CompareRouteRegistration;
   decisionMaps: readonly LaneFragmentRegistration[];
   decisionMapOverview?: RouteTarget;
   methodEvidence?: FragmentRouteRegistration;
@@ -50,6 +54,16 @@ export type SelectorRouteCatalog = Readonly<{
   lanes: readonly Readonly<{ id: DecisionLaneId; label: string }>[];
 }>;
 
+export type CompareRouteAvailability =
+  | Readonly<{ kind: "unavailable"; label: string }>
+  | Readonly<{
+      kind: "link";
+      href: string;
+      label: string;
+      base: string;
+      knownMaterialIds: readonly MaterialId[];
+    }>;
+
 export type SelectorRouteAvailability = Readonly<{
   materials: readonly Readonly<{
     materialId: MaterialId;
@@ -57,7 +71,7 @@ export type SelectorRouteAvailability = Readonly<{
     startingProfile: RouteAction;
     decisionMaps: readonly Readonly<{ laneId: DecisionLaneId; action: RouteAction }>[];
   }>[];
-  compare: RouteAction;
+  compare: CompareRouteAvailability;
   decisionMaps: readonly Readonly<{ laneId: DecisionLaneId; action: RouteAction }>[];
   decisionMapFallback: RouteAction;
   methodEvidence: RouteAction;
@@ -166,7 +180,10 @@ export function buildSelectorRouteAvailability(
   }
   registry.startingProfiles.forEach(assertVerifiedFragment);
 
-  if (registry.compare) assertVerifiedFragment(registry.compare);
+  if (registry.compare) {
+    assertVerifiedFragment(registry.compare);
+    if (registry.compare.target.id !== "compare") fail("ROUTE_REGISTRY_TARGET_MISMATCH");
+  }
   if (registry.decisionMapOverview) internalHref("/", registry.decisionMapOverview);
   if (registry.methodEvidence) assertVerifiedFragment(registry.methodEvidence);
   for (const registration of registry.decisionMaps) {
@@ -212,7 +229,13 @@ export function buildSelectorRouteAvailability(
   return Object.freeze({
     materials: Object.freeze(materials),
     compare: registry.compare
-      ? link(base, registry.compare, LABELS.compareLink)
+      ? Object.freeze({
+          ...link(base, registry.compare, LABELS.compareLink),
+          base: internalHref(base, { id: "home" }),
+          knownMaterialIds: Object.freeze(
+            catalog.materials.map(({ id }) => id).sort((left, right) => left < right ? -1 : left > right ? 1 : 0),
+          ),
+        }) as CompareRouteAvailability
       : unavailable(LABELS.compareUnavailable),
     decisionMaps: Object.freeze(decisionMaps),
     decisionMapFallback: registry.decisionMapOverview

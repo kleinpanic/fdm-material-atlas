@@ -2,7 +2,11 @@
 import type { JSX, RefObject } from "preact";
 
 import type { MaterialId } from "../../data/schema/ids.ts";
-import type { RouteAction } from "../../lib/public-route-registry.ts";
+import type {
+  CompareRouteAvailability,
+  RouteAction,
+} from "../../lib/public-route-registry.ts";
+import { encodeCompareUrlState } from "../../features/comparison/url-state.ts";
 import {
   SELECTOR_COPY,
   eliminatedDisclosure,
@@ -44,6 +48,41 @@ function familyLabel(family: SelectorRuntimePageModel["display"]["materials"][nu
       : family.label;
 }
 
+const COMPARE_ENCODING_ORIGIN = "https://selector.invalid/";
+
+/** Convert only a complete, current shortlist through the comparison codec. */
+export function resolveCompareShortlistAction(
+  capability: CompareRouteAvailability,
+  materialIds: readonly MaterialId[],
+): RouteAction {
+  if (capability.kind !== "link") return capability;
+
+  const encoded = encodeCompareUrlState(
+    materialIds,
+    capability.knownMaterialIds,
+    capability.base,
+    COMPARE_ENCODING_ORIGIN,
+  );
+  if (encoded.kind !== "valid") {
+    return Object.freeze({ kind: "unavailable", label: SELECTOR_COPY.compareUnavailable });
+  }
+
+  try {
+    const registered = new URL(capability.href, COMPARE_ENCODING_ORIGIN);
+    const target = new URL(encoded.href, COMPARE_ENCODING_ORIGIN);
+    if (registered.origin !== target.origin || registered.pathname !== target.pathname) {
+      return Object.freeze({ kind: "unavailable", label: SELECTOR_COPY.compareUnavailable });
+    }
+    return Object.freeze({
+      kind: "link",
+      href: `${target.pathname}${target.search}${registered.hash}`,
+      label: capability.label,
+    });
+  } catch {
+    return Object.freeze({ kind: "unavailable", label: SELECTOR_COPY.compareUnavailable });
+  }
+}
+
 export function SelectorResults({
   pageModel,
   presentation,
@@ -63,6 +102,10 @@ export function SelectorResults({
   const labelFor = (materialId: MaterialId) =>
     pageModel.display.materials.find((material) => material.id === materialId)?.label ?? "Material";
   const shortlisted = new Set(shortlist.map(({ materialId }) => materialId));
+  const compareAction = resolveCompareShortlistAction(
+    pageModel.routes.compare,
+    shortlist.map(({ materialId }) => materialId),
+  );
 
   if (presentation.kind === "error") {
     return (
@@ -116,8 +159,8 @@ export function SelectorResults({
               </li>
             ))}
           </ol>
-          {pageModel.routes.compare.kind === "link" && shortlist.length >= 2
-            ? <a href={pageModel.routes.compare.href}>{pageModel.routes.compare.label}</a>
+          {compareAction.kind === "link"
+            ? <a href={compareAction.href}>{compareAction.label}</a>
             : <p>{SELECTOR_COPY.compareUnavailable}</p>}
           <button type="button" onClick={onClearShortlist}>{SELECTOR_COPY.clearShortlist}</button>
         </section>
