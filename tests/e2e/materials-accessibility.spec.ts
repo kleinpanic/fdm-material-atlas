@@ -29,6 +29,37 @@ async function axePasses(page: Page) {
   expect(result.violations).toEqual([]);
 }
 
+async function waitForMaterialAnchorLayout(page: Page, targetSelector: string): Promise<void> {
+  await page.locator(targetSelector).evaluate(async (target: Element) => {
+    const sections = target.closest(".material-reference__sections");
+    if (!(sections instanceof HTMLElement)) {
+      throw new Error("MATERIAL_ANCHOR_SECTIONS_MISSING");
+    }
+
+    await document.fonts.ready;
+    const deadline = performance.now() + 15_000;
+    let previousHeight = -1;
+    let stableVisibleFrames = 0;
+
+    while (performance.now() < deadline) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const bounds = target.getBoundingClientRect();
+      const visible =
+        bounds.bottom > 0 &&
+        bounds.right > 0 &&
+        bounds.top < window.innerHeight &&
+        bounds.left < window.innerWidth;
+      const currentHeight = sections.scrollHeight;
+      stableVisibleFrames =
+        visible && currentHeight === previousHeight ? stableVisibleFrames + 1 : 0;
+      previousHeight = currentHeight;
+      if (stableVisibleFrames >= 2) return;
+    }
+
+    throw new Error("MATERIAL_ANCHOR_LAYOUT_DID_NOT_SETTLE");
+  });
+}
+
 test("atlas default, filtered, zero-result, material, and method states pass axe", async ({
   page,
 }) => {
@@ -91,6 +122,7 @@ test("material rail anchors reveal contained sections without changing accessibl
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/#evidence$/u);
   await expect(page.locator("#evidence")).toBeFocused();
+  await waitForMaterialAnchorLayout(page, "#evidence > h2");
   await expect(page.locator("#evidence > h2")).toBeInViewport();
   await axePasses(page);
 
