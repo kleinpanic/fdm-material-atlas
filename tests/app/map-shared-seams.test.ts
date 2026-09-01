@@ -100,14 +100,13 @@ describe("Phase 8 shared map seams", () => {
     expect(membership).toHaveLength(8);
     expect(membership.map(({ candidateMaterialIds }) => candidateMaterialIds.length)).toEqual([
       4,
-      4,
       2,
       4,
       7,
       8,
+      4,
       13,
       2,
     ]);
   });
 });
-
