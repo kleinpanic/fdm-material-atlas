@@ -348,6 +348,11 @@
     border-block-start: var(--size-rule-strong) solid var(--color-rule);
   }
 
+  .selector-compatible-list > li {
+    content-visibility: auto;
+    contain-intrinsic-block-size: auto 48rem;
+  }
+
   .selector-compatible-list > li[data-alignment="highest"] {
     border-block-start-color: var(--color-accent);
   }
