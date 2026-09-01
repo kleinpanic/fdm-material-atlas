@@ -295,6 +295,22 @@ describe("thermal guidance renderer", () => {
     }
   });
 
+  it("applies the thermal query to named marks, counts, and controls without dropping table rows", () => {
+    const group = projection.thermalGroups.find(({ members }) => members.length > 0)!;
+    const match = group.members[0]!.material;
+    const html = renderThermal([
+      { type: "set-thermal-view", mode: "thermal-ranges", view: "named-observations" },
+      { type: "select-thermal-group", mode: "thermal-ranges", groupId: group.id },
+      { type: "set-search", target: "thermal", query: match.name },
+    ]);
+
+    expect(count(html, "data-named-row=\"true\"")).toBe(23);
+    expect(count(html, "data-named-control=\"true\"")).toBe(1);
+    expect(count(html, "data-named-mark=\"true\"")).toBe(1);
+    expect(html).toContain("1 observation plotted; 22 filtered from the diagram and controls");
+    expect(html).toContain("All 23 records remain in the table");
+  });
+
   it("shows a bounded recovery state when named mode has no current group", () => {
     const html = renderThermal([
       { type: "set-thermal-view", mode: "thermal-ranges", view: "named-observations" },

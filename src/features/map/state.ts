@@ -5,6 +5,7 @@ import {
   type MapDisposition,
   type MapImpactFlexRecord,
   type MapMode,
+  type MapNamedThermalRecord,
   type MapProjection,
   type MapSelectionAction,
   type MapSelectionTarget,
@@ -445,6 +446,20 @@ function serviceRecords(projection: MapProjection, state: MapState): readonly Ma
   });
 }
 
+function namedRecords(records: readonly MapNamedThermalRecord[], queryValue: string): readonly MapNamedThermalRecord[] {
+  const query = normalizedQuery(queryValue);
+  if (query === "") return records;
+  return records.map((record): MapNamedThermalRecord => {
+    const searchable = `${record.material.name}\u0000${record.material.id}`
+      .normalize("NFC").toLocaleLowerCase("en-US");
+    if (searchable.includes(query)) return record;
+    return {
+      ...record,
+      disposition: { disposition: "filtered", filter: { kind: "search", target: "thermal", query } },
+    };
+  });
+}
+
 const DIFFICULTY_ORDER = new Map<PrintDifficulty, number>(
   ["easy", "moderate", "advanced", "expert"].map((value, index) => [value as PrintDifficulty, index]),
 );
@@ -516,6 +531,7 @@ export function buildMapView(projection: MapProjection, state: MapState) {
   const selectedGroup = state.thermal.groupId === undefined
     ? undefined
     : projection.thermalGroups.find(({ id }) => id === state.thermal.groupId);
+  const currentNamedRecords = selectedGroup === undefined ? [] : namedRecords(selectedGroup.records, state.thermal.query);
   const selectedImpactId = impactTarget?.kind === "material" ? impactTarget.id : undefined;
   const selectedImpact = selectedImpactId === undefined
     ? undefined
@@ -536,7 +552,7 @@ export function buildMapView(projection: MapProjection, state: MapState) {
       serviceRecords: currentServiceRecords,
       groups: projection.thermalGroups,
       selectedGroup,
-      namedRecords: selectedGroup?.records ?? [],
+      namedRecords: currentNamedRecords,
       activeTarget: thermalTarget,
     },
     processGates: {

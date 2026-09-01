@@ -323,7 +323,8 @@ function NamedShape({ member, x, y }: Readonly<{ member: MapThermalMember; x: nu
 }
 
 function NamedDiagram({ records, dispatch }: Readonly<{ records: readonly MapNamedThermalRecord[]; dispatch: MapDispatch }>) {
-  const members = records.flatMap((record) => record.member === undefined ? [] : [record.member]);
+  const members = records.flatMap((record) =>
+    record.disposition.disposition === "plotted" && record.member !== undefined ? [record.member] : []);
   const rowHeight = 48;
   return (
     <svg
@@ -387,10 +388,15 @@ function NamedView({ view, dispatch, methodHref }: Props) {
   const records = view.thermal.namedRecords;
   const selectedId = view.thermal.activeTarget?.kind === "material" ? view.thermal.activeTarget.id : undefined;
   const selected = selectedId === undefined ? undefined : records.find(({ material }) => material.id === selectedId);
-  const omitted = records.filter(({ member }) => member === undefined);
+  const plotted = records.filter(({ disposition: state }) => state.disposition === "plotted");
+  const filtered = records.filter(({ disposition: state }) => state.disposition === "filtered");
+  const omitted = records.filter(({ disposition: state }) => state.disposition === "omitted");
+  const visibleControls = records.filter(({ disposition: state }) => state.disposition !== "filtered");
   return (
     <div class="thermal-view thermal-view--named">
-      <p class="map-current-state" aria-live="off">{group.members.length} observations in this exact group; {omitted.length} materials have no observation in the group.</p>
+      <p class="map-current-state" aria-live="off">
+        {plotted.length} {plotted.length === 1 ? "observation" : "observations"} plotted; {filtered.length} filtered from the diagram and controls; {omitted.length} materials have no observation in the group. All {records.length} records remain in the table.
+      </p>
       <div class="map-legend" aria-label="Named thermal observation legend">
         <span><span class={`map-mark map-mark--thermal-${group.metric}`} aria-hidden="true"></span>{group.metricLabel}</span>
         <span>Method and conditions: {group.methodLabel}</span>
@@ -401,7 +407,7 @@ function NamedView({ view, dispatch, methodHref }: Props) {
       </div>
       <section class="map-material-controls" aria-labelledby="named-material-controls-heading">
         <h3 id="named-material-controls-heading">Ordered named observation controls</h3>
-        <ol>{records.map((record) => (
+        <ol>{visibleControls.map((record) => (
           <li key={record.material.id}>
             <button
               type="button"
@@ -430,7 +436,7 @@ function NamedView({ view, dispatch, methodHref }: Props) {
           <thead><tr>
             <th scope="col">Material</th><th scope="col">State</th><th scope="col">Value</th><th scope="col">Unit</th>
             <th scope="col">Metric or guidance</th><th scope="col">Method and conditions</th><th scope="col">Qualification</th>
-            <th scope="col">Evidence scope</th><th scope="col">Material reference</th>
+            <th scope="col">Evidence scope</th><th scope="col">Diagram state</th><th scope="col">Material reference</th>
           </tr></thead>
           <tbody>{records.map((record) => {
             const member = record.member;
@@ -444,6 +450,7 @@ function NamedView({ view, dispatch, methodHref }: Props) {
                 <td>{member?.methodLabel ?? group.methodLabel}</td>
                 <td>{member === undefined ? "View absence; canonical fact state is unchanged." : qualification(member)}</td>
                 <td>{member === undefined ? "Not applicable to this view absence" : evidenceScopes(member)}</td>
+                <td>{disposition(record)}</td>
                 <td><a href={record.material.href}>Open material reference</a></td>
               </tr>
             );

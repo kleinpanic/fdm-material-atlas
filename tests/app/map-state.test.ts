@@ -127,6 +127,10 @@ describe("closed map state", () => {
     expect(view.view).toBe("named-observations");
     expect(view.selectedGroup?.id).toBe(group.id);
     expect(view.namedRecords).toHaveLength(23);
+    expect(view.namedRecords.filter(({ disposition }) => disposition.disposition === "filtered"))
+      .toHaveLength(22);
+    expect(view.namedRecords.find(({ material: recordMaterial }) => recordMaterial.id === uniqueMaterial.id)?.disposition)
+      .not.toMatchObject({ disposition: "filtered" });
     expect(view.serviceRecords).toHaveLength(23);
     expect(view.serviceRecords.filter(({ disposition }) => disposition.disposition === "plotted"))
       .toHaveLength(1);

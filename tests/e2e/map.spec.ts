@@ -160,9 +160,17 @@ test("thermal views keep service guidance separate from exact named groups", asy
   await page.getByLabel("Service guidance order").selectOption("low-endpoint");
   await page.getByRole("radio", { name: "Named thermal observations" }).check();
   await expect(page.getByRole("heading", { name: "Choose a named metric and method group to inspect its records." })).toBeVisible();
+  const normalizedQuery = firstService.material.name.normalize("NFC").toLocaleLowerCase("en-US");
+  const matchingMaterialIds = new Set(projection.serviceGuidance.records
+    .filter(({ material }) => `${material.name}\u0000${material.id}`
+      .normalize("NFC").toLocaleLowerCase("en-US").includes(normalizedQuery))
+    .map(({ material }) => material.id));
   for (const group of projection.thermalGroups) {
     await page.getByLabel("Named metric and method group", { exact: true }).selectOption(group.id);
-    await expect(page.getByText(`${group.members.length} observations in this exact group;`, { exact: false })).toBeVisible();
+    await expect(page.locator("[data-named-control]")).toHaveCount(matchingMaterialIds.size);
+    const expectedMarks = group.members.filter(({ material }) => matchingMaterialIds.has(material.id)).length;
+    await expect(page.locator("[data-named-mark]")).toHaveCount(expectedMarks);
+    await expect(page.getByText(/filtered from the diagram and controls/u)).toBeVisible();
     await expect(page.locator("[data-named-row]")).toHaveCount(projection.serviceGuidance.records.length);
   }
   await expect(page.getByRole("link", { name: "Review method and thermal definitions" }).last()).toHaveAttribute("href", projection.methodHref);
