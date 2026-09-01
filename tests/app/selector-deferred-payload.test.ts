@@ -1,3 +1,5 @@
+import { globSync, readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
@@ -31,12 +33,26 @@ describe("selector deferred payload", () => {
     );
   });
 
-  it("neutralizes script termination characters without changing the parsed string", () => {
-    const adversarial = [1, ["</script><script>bad()</script>"], [0, 0]] as SelectorClientModel;
+  it.each([
+    "</script><script>bad()</script>",
+    "</ScRiPt><script>bad()</script>",
+    "> & \u2028 \u2029",
+  ])("neutralizes script text %j without changing the parsed string", (value) => {
+    const adversarial = [1, [value], [0, 0]] as SelectorClientModel;
     const serialized = serializeSelectorDeferredPayload(adversarial);
 
-    expect(serialized).not.toContain("<");
+    expect(serialized).not.toMatch(/[<>&\u2028\u2029]/u);
+    expect(serialized).not.toMatch(/<\/script/iu);
     expect(JSON.parse(serialized)).toEqual(adversarial);
+  });
+
+  it("limits raw insertion to the one reviewed generated-JSON boundary", () => {
+    const uses = globSync("src/**/*.{astro,ts,tsx}").filter((file) =>
+      readFileSync(file, "utf8").includes("set:html"),
+    );
+
+    expect(uses).toEqual(["src/pages/index.astro"]);
+    expect(readFileSync(uses[0]!, "utf8").match(/set:html/gu)).toHaveLength(1);
   });
 
   it.each([

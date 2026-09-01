@@ -19,8 +19,10 @@ describe("selector landing page source contract", () => {
     expect(source).toContain('id="selector-client-model"');
     expect(source).toContain('type="application/json"');
     expect(source).toContain("serializeSelectorDeferredPayload(pageModel)");
+    expect(source).toContain("set:html={selectorPayload}");
     expect(source.match(/id="selector-client-model"/gu)).toHaveLength(1);
-    expect(source).not.toMatch(/set:html|is:raw|dangerouslySetInnerHTML/u);
+    expect(source.match(/set:html/gu)).toHaveLength(1);
+    expect(source).not.toMatch(/is:raw|dangerouslySetInnerHTML/u);
     expect(source).toContain("buildSelectorBootstrap(runtimeModel, defaultPresentation)");
     expect(source).toContain(
       "<SelectorStaticResults pageModel={runtimeModel} presentation={defaultPresentation} />",
