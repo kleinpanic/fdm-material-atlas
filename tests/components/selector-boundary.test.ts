@@ -135,6 +135,9 @@ describe("selector component boundary", () => {
     expect(staticResults).toContain('renderMode="static-compact"');
     expect(results).toContain('renderMode = "interactive"');
     expect(results).toContain('renderMode === "static-compact"');
+    expect(results).toContain('data-selector-command="expand-calculation"');
+    expect(island).toContain('action === "expand-calculation"');
+    expect(island).toContain("pendingCalculationOpenRef");
   });
 
   it("uses native form and disclosure semantics for all seven criteria", () => {
@@ -158,6 +161,7 @@ describe("selector component boundary", () => {
     expect(results).toContain("reasons.map");
     expect(results).toContain("data-contribution-state");
     expect(results).toContain("data-exclusion-state");
+    expect(results).toContain("selector-static-exclusion-state");
     expect(results).toContain("data-shortlist-status");
     expect(results).toContain("data-alignment");
     expect(results).not.toMatch(
