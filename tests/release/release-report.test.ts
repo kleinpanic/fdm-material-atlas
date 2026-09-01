@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { renderReleaseReport } from "../../tools/render-release-report.mjs";
-import { DIGEST, REPO_DIGEST, ROOT_DIGEST, SHA } from "./release-evidence.test";
-import { barrier } from "./review-barrier.test";
+import { DIGEST, REPO_DIGEST, reviewBarrierFixture, ROOT_DIGEST, SHA } from "./fixtures";
 
 export function verifiedEvidence() {
   return {
@@ -23,7 +22,8 @@ export function verifiedEvidence() {
         stack: ["Astro 7", "Preact 10", "Tailwind CSS 4", "TypeScript 6"],
         routes: ["/", "/materials/", "/compare/", "/data/", "/map/", "/method/"],
         selectorContractVersion: 1,
-        selectorArchitecture: "Deterministic pure scoring engine with hard gates and reason records.",
+        selectorArchitecture:
+          "Deterministic pure scoring engine with hard gates and reason records.",
         visualizationModes: ["decision-path", "thermal-range", "process-gates", "impact-flex"],
         visualizationArchitecture: "Static projections with lazy interactive islands.",
         workflows: ["CI", "Pages", "Dependency review"],
@@ -35,7 +35,7 @@ export function verifiedEvidence() {
         repositoryArtifactDigest: REPO_DIGEST,
         checks: [{ id: "ci-all", status: "passed", observedAt: "2026-09-01T18:11:00.000Z" }],
       },
-      reviewBarrier: barrier(),
+      reviewBarrier: reviewBarrierFixture(),
     },
     publication: {
       observedAt: "2026-09-01T18:20:00.000Z",
@@ -97,9 +97,9 @@ describe("fact-only completion report", () => {
   });
 
   it("refuses incomplete or non-verified evidence", () => {
-    expect(() => renderReleaseReport({ ...verifiedEvidence(), stage: "deployed" }, { format: "markdown" })).toThrowError(
-      expect.objectContaining({ code: "RELEASE_REPORT_NOT_VERIFIED" }),
-    );
+    expect(() =>
+      renderReleaseReport({ ...verifiedEvidence(), stage: "deployed" }, { format: "markdown" }),
+    ).toThrowError(expect.objectContaining({ code: "RELEASE_REPORT_NOT_VERIFIED" }));
     const missing = verifiedEvidence();
     delete (missing.candidate.product as { routes?: string[] }).routes;
     expect(() => renderReleaseReport(missing, { format: "markdown" })).toThrow();
