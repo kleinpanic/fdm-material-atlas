@@ -252,7 +252,14 @@ export function SelectorResults({
                       <p>{material.summaryExplanation}</p>
                       {renderMode === "static-compact" ? (
                         <p class="selector-static-contributions">
-                          <strong>{SELECTOR_COPY.resultDisclosure}.</strong>{" "}
+                          <button
+                            type="button"
+                            data-selector-command="expand-calculation"
+                            data-material-id={material.materialId}
+                          >
+                            {SELECTOR_COPY.resultDisclosure}
+                          </button>
+                          .{" "}
                           {material.contributions
                             .map(
                               (contribution) =>
@@ -356,10 +363,15 @@ export function SelectorResults({
                           {material.materialLabel}.
                         </strong>{" "}
                         {familyLabel(material.familyOrFill)}.{" "}
+                        <strong class="selector-static-exclusion-state">
+                          {material.reasons[0]?.stateLabel}
+                        </strong>
+                        .{" "}
                         {material.reasons
-                          .map(
-                            (reason) =>
-                              `${reason.stateLabel}. ${reason.criterionLabel}: ${reason.optionLabel}. ${reason.explanation}`,
+                          .map((reason, index) =>
+                            index === 0
+                              ? `${reason.criterionLabel}: ${reason.optionLabel}. ${reason.explanation}`
+                              : `${reason.stateLabel}. ${reason.criterionLabel}: ${reason.optionLabel}. ${reason.explanation}`,
                           )
                           .join(" ")}{" "}
                         <RouteLink action={material.routes.details} />

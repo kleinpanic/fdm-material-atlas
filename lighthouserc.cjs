@@ -1,5 +1,6 @@
 "use strict";
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- Lighthouse loads this controlled policy as CommonJS.
 const policy = require("./performance-budgets.json");
 
 module.exports = {

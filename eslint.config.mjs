@@ -121,4 +121,13 @@ export default defineConfig([
       "astro/no-set-html-directive": "error",
     },
   },
+  {
+    name: "reviewed selector JSON insertion boundary",
+    files: ["src/pages/index.astro"],
+    rules: {
+      // The sole set:html call receives only serializeSelectorDeferredPayload output;
+      // a source contract rejects any second use in public source.
+      "astro/no-set-html-directive": "off",
+    },
+  },
 ]);

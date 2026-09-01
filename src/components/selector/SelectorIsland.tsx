@@ -113,6 +113,7 @@ function SelectorRuntimeIsland({
   const resultControlRefs = useRef(new Map<MaterialId, HTMLButtonElement>());
   const pendingFocusIntentRef = useRef<ShortlistFocusIntent | null>(null);
   const pendingPreservedMaterialRef = useRef<MaterialId | null>(null);
+  const pendingCalculationOpenRef = useRef<MaterialId | null>(null);
   const rendererPromiseRef = useRef<Promise<ResultsRenderer> | null>(null);
   const rendererRef = useRef<ResultsRenderer | null>(null);
   const renderQueuedRef = useRef(false);
@@ -254,14 +255,19 @@ function SelectorRuntimeIsland({
     }
     renderQueuedRef.current = true;
     mount.setAttribute("aria-busy", "true");
-    const openCalculationIds = Array.from(
-      mount.querySelectorAll<HTMLElement>(".selector-compatible-list > li"),
-    ).flatMap((item) => {
-      const details = item.querySelector<HTMLDetailsElement>("details.selector-calculation");
-      const materialId = item.querySelector<HTMLButtonElement>("button[data-material-id]")?.dataset
-        .materialId;
-      return details?.open && isMaterialIdValue(materialId) ? [materialId] : [];
-    });
+    const openCalculationIds = new Set(
+      Array.from(mount.querySelectorAll<HTMLElement>(".selector-compatible-list > li")).flatMap(
+        (item) => {
+          const details = item.querySelector<HTMLDetailsElement>("details.selector-calculation");
+          const materialId = item.querySelector<HTMLButtonElement>("button[data-material-id]")
+            ?.dataset.materialId;
+          return details?.open && isMaterialIdValue(materialId) ? [materialId] : [];
+        },
+      ),
+    );
+    if (pendingCalculationOpenRef.current) {
+      openCalculationIds.add(pendingCalculationOpenRef.current);
+    }
     const eliminationsWereOpen =
       mount.querySelector<HTMLDetailsElement>("details.selector-eliminated")?.open ?? false;
     const rendererPromise = rendererRef.current
@@ -286,6 +292,16 @@ function SelectorRuntimeIsland({
             ?.closest("li")
             ?.querySelector<HTMLDetailsElement>("details.selector-calculation");
           if (details) details.open = true;
+        }
+        if (pendingCalculationOpenRef.current) {
+          const calculationTrigger = mount
+            .querySelector<HTMLButtonElement>(
+              `button[data-material-id="${pendingCalculationOpenRef.current}"]`,
+            )
+            ?.closest("li")
+            ?.querySelector<HTMLElement>("details.selector-calculation > summary");
+          pendingCalculationOpenRef.current = null;
+          calculationTrigger?.focus();
         }
         const eliminations = mount.querySelector<HTMLDetailsElement>("details.selector-eliminated");
         if (eliminations && eliminationsWereOpen) eliminations.open = true;
@@ -312,6 +328,13 @@ function SelectorRuntimeIsland({
     } else if (action === "show-all") {
       setShowAll(true);
       evaluateForResults(selection);
+    } else if (action === "expand-calculation") {
+      if (!isMaterialIdValue(materialId) || !compatibleIds.includes(materialId as MaterialId)) {
+        setAnnouncementOverride(SELECTOR_COPY.errorState);
+        return;
+      }
+      pendingCalculationOpenRef.current = materialId as MaterialId;
+      evaluateForResults(selection);
     }
   };
 
@@ -325,7 +348,8 @@ function SelectorRuntimeIsland({
       const button = event.target.closest<HTMLButtonElement>("button[data-selector-command]");
       if (!button || !mount.contains(button) || button.type !== "button") return;
       const action = button.dataset.selectorCommand;
-      if (action !== "toggle-shortlist" && action !== "show-all") return;
+      if (action !== "toggle-shortlist" && action !== "show-all" && action !== "expand-calculation")
+        return;
       event.preventDefault();
       staticActionRef.current(action, button.dataset.materialId);
     };
