@@ -8,7 +8,8 @@ import { Phase7BuildError, verifyPhase7Build } from "../../tools/verify-phase7-b
 const roots: string[] = [];
 
 function island(component: "CompareIsland" | "DataExplorerIsland", componentUrl: string, props: object): string {
-  return `<astro-island component-url="${componentUrl}" component-export="${component}" renderer-url="/_astro/client.js" props='${JSON.stringify(props)}' ssr client="load"><section><h2>${component} static fallback</h2></section><!--astro:end--></astro-island>`;
+  const assetBase = componentUrl.slice(0, componentUrl.lastIndexOf("/"));
+  return `<astro-island component-url="${componentUrl}" component-export="${component}" renderer-url="${assetBase}/client.js" props='${JSON.stringify(props)}' ssr client="load"><section><h2>${component} static fallback</h2></section><!--astro:end--></astro-island>`;
 }
 
 async function writeMode(root: string, base: string): Promise<void> {
