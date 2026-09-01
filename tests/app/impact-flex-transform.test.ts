@@ -102,21 +102,27 @@ describe("complete impact-flex categorical transform", () => {
     expect(model.records.omitted).toHaveLength(5);
     expect(model.records.plotted).toHaveLength(18);
     expect(model.records.filtered).toEqual([]);
-    expect(model.records.omitted.map(({ disposition }) => disposition)).toEqual([
-      expect.objectContaining({ disposition: "omitted", code: "impact-value-unavailable" }),
-      expect.objectContaining({ disposition: "omitted", code: "impact-value-unavailable" }),
-      expect.objectContaining({ disposition: "omitted", code: "impact-value-unavailable" }),
-      expect.objectContaining({ disposition: "omitted", code: "impact-value-unavailable" }),
-      expect.objectContaining({ disposition: "omitted", code: "flexibility-value-unavailable" }),
-    ]);
-    expect(model.records.omitted.flatMap(({ omissionDetails }) =>
-      omissionDetails.map(({ code }) => code))).toEqual([
-      "unknown-value",
-      "conditional-without-value",
-      "not-applicable",
-      "not-reported",
-      "unknown-value",
-    ]);
+    const omissions = new Map(model.records.omitted.map((record) => [record.material.id, record]));
+    expect(omissions.get(atlas.materials[0]!.id)).toMatchObject({
+      disposition: { disposition: "omitted", code: "impact-value-unavailable" },
+      omissionDetails: [{ axis: "impact", code: "unknown-value" }],
+    });
+    expect(omissions.get(atlas.materials[1]!.id)).toMatchObject({
+      disposition: { disposition: "omitted", code: "impact-value-unavailable" },
+      omissionDetails: [{ axis: "impact", code: "conditional-without-value" }],
+    });
+    expect(omissions.get(atlas.materials[2]!.id)).toMatchObject({
+      disposition: { disposition: "omitted", code: "impact-value-unavailable" },
+      omissionDetails: [{ axis: "impact", code: "not-applicable" }],
+    });
+    expect(omissions.get(atlas.materials[3]!.id)).toMatchObject({
+      disposition: { disposition: "omitted", code: "impact-value-unavailable" },
+      omissionDetails: [{ axis: "impact", code: "not-reported" }],
+    });
+    expect(omissions.get(atlas.materials[4]!.id)).toMatchObject({
+      disposition: { disposition: "omitted", code: "flexibility-value-unavailable" },
+      omissionDetails: [{ axis: "flexibility", code: "unknown-value" }],
+    });
     const conditional = model.records.plotted.find(({ material }) =>
       material.id === atlas.materials[5]!.id)!;
     expect(conditional.flexibilityFact).toMatchObject({
