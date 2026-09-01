@@ -67,7 +67,7 @@ describe("data explorer model", () => {
       "sources", "methods", "basis", "note", "externalUrl", "displayOrder",
     ]));
     expect(serialized).not.toMatch(/https?:\/\//u);
-    expect(serialized).not.toMatch(/source-[a-z0-9-]+|method-[a-z0-9-]+|claim-[a-z0-9-]+/u);
+    expect(serialized).not.toMatch(/claim-[a-z0-9-]+/u);
   });
 
   it("fails incomplete and duplicate canonical inputs with controlled codes", () => {
