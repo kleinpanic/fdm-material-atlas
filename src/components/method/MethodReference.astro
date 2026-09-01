@@ -2,7 +2,9 @@
 import type { MethodPageModel } from "../../features/method/model.ts";
 import TechnicalTable from "../data/TechnicalTable.astro";
 
-interface Props { model: MethodPageModel }
+interface Props {
+  model: MethodPageModel;
+}
 const { model } = Astro.props;
 ---
 
@@ -11,53 +13,185 @@ const { model } = Astro.props;
 
   <nav class="method-contents" aria-label="On this page">
     <h2>On this page</h2>
-    <ol>{model.contents.map((item) => <li><a href={item.href}>{item.label}</a></li>)}</ol>
+    <ol>
+      {
+        model.contents.map((item) => (
+          <li>
+            <a href={item.href}>{item.label}</a>
+          </li>
+        ))
+      }
+    </ol>
   </nav>
 
   <div class="method-sections">
     <section id="evidence-scopes" tabindex="-1">
       <h2>Evidence scopes</h2>
       <p>{model.copy.evidenceScopeNotice}</p>
-      <dl class="method-definitions">{model.copy.evidenceScopes.map((scope) => <div><dt>{scope.label}</dt><dd>{scope.meaning}</dd></div>)}</dl>
+      <dl class="method-definitions">
+        {
+          model.copy.evidenceScopes.map((scope) => (
+            <div>
+              <>
+                <dt>{scope.label}</dt>
+                <dd>{scope.meaning}</dd>
+              </>
+            </div>
+          ))
+        }
+      </dl>
     </section>
 
     <section id="thermal-metrics" tabindex="-1">
       <h2>Thermal metrics</h2>
       <p data-state="verify">{model.copy.thermalNotice}</p>
-      <TechnicalTable id="thermal-concepts" caption="How to interpret named thermal concepts" scrollLabel="Thermal concept definitions" scrollGuidance="Scroll horizontally to read every thermal definition when needed.">
+      <TechnicalTable
+        id="thermal-concepts"
+        caption="How to interpret named thermal concepts"
+        scrollLabel="Thermal concept definitions"
+        scrollGuidance="Scroll horizontally to read every thermal definition when needed."
+      >
         <tr slot="header"><th scope="col">Concept</th><th scope="col">Interpretation</th></tr>
-        {model.copy.thermalConcepts.map((concept) => <tr slot="body"><th scope="row">{concept.label}</th><td>{concept.meaning}</td></tr>)}
+        {
+          model.copy.thermalConcepts.map((concept) => (
+            <tr slot="body">
+              <>
+                <th scope="row">{concept.label}</th>
+                <td>{concept.meaning}</td>
+              </>
+            </tr>
+          ))
+        }
       </TechnicalTable>
     </section>
 
     <section id="selector-scoring" tabindex="-1">
       <h2>Selector scoring</h2>
       <p>{model.copy.selectorScoring.explanation}</p>
-      <ul><li>Primary goal match: {model.copy.selectorScoring.primaryWeight} points</li><li>Applicable secondary match: {model.copy.selectorScoring.secondaryWeight} point</li></ul>
+      <ul>
+        <li>Primary goal match: {model.copy.selectorScoring.primaryWeight} points</li><li>
+          Applicable secondary match: {model.copy.selectorScoring.secondaryWeight} point
+        </li>
+      </ul>
       <p data-state="information">{model.copy.selectorScoring.limitation}</p>
     </section>
 
     <section id="qualitative-guidance" tabindex="-1">
       <h2>Qualitative guidance</h2>
       <p>{model.copy.qualitativeGuidance}</p>
-      <dl class="method-definitions">{model.copy.factStates.map((state) => <div><dt>{state.id}</dt><dd>{state.label}</dd></div>)}</dl>
+      <dl class="method-definitions">
+        {
+          model.copy.factStates.map((state) => (
+            <div>
+              <>
+                <dt>{state.id}</dt>
+                <dd>{state.label}</dd>
+              </>
+            </div>
+          ))
+        }
+      </dl>
     </section>
 
-    <section id="starting-profiles" tabindex="-1"><h2>Starting profiles</h2><p>{model.copy.startingProfiles}</p></section>
+    <section id="starting-profiles" tabindex="-1">
+      <h2>Starting profiles</h2><p>{model.copy.startingProfiles}</p>
+    </section>
 
     <section id="methods" tabindex="-1">
       <h2>Methods</h2>
-      <ol class="method-ledger">{model.methods.map((record) => <li id={record.anchor}><h3>{record.name}</h3><p>{record.description}</p><p><strong>Evidence scopes:</strong> {record.scopes.length > 0 ? record.scopes.join(", ") : "Explanatory method"}</p><ul>{record.limitations.map((limitation) => <li>{limitation}</li>)}</ul>{record.uses.length > 0 ? <details><summary>{record.claimUseCount} supporting claim uses</summary><ul>{record.uses.map((use) => <li><a href={use.href}>{use.materialSlug}: {use.label}</a> — {use.scopeLabel}</li>)}</ul></details> : <p>No direct material-claim use; this method explains interpretation.</p>}</li>)}</ol>
+      <ol class="method-ledger">
+        {
+          model.methods.map((record) => (
+            <li id={record.anchor}>
+              <ul>
+                {record.limitations.map((limitation) => (
+                  <li>{limitation}</li>
+                ))}
+              </ul>
+              {record.uses.length > 0 ? (
+                <details>
+                  <summary>{record.claimUseCount} supporting claim uses</summary>
+                  <ul>
+                    {record.uses.map((use) => (
+                      <li>
+                        <a href={use.href}>
+                          {use.materialSlug}: {use.label}
+                        </a>{" "}
+                        — {use.scopeLabel}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : (
+                <p>No direct material-claim use; this method explains interpretation.</p>
+              )}
+            </li>
+          ))
+        }
+      </ol>
     </section>
 
     <section id="sources" tabindex="-1">
       <h2>Sources</h2>
-      <TechnicalTable id="source-ledger" caption="Public evidence source ledger" scrollLabel="Evidence source ledger" scrollGuidance="Scroll horizontally to read source details when needed.">
-        <tr slot="header"><th scope="col">Source</th><th scope="col">Publisher and kind</th><th scope="col">Evidence use</th><th scope="col">Action</th></tr>
-        {model.sources.map((record) => <tr slot="body" id={record.anchor}><th scope="row">{record.title}</th><td>{record.publisher}<br />{record.sourceKindLabel}</td><td><p>{record.claimUseCount} claim uses; {record.scopes.join(", ")}</p><details><summary>Show supporting claims</summary><ul>{record.uses.map((use) => <li><a href={use.href}>{use.materialSlug}: {use.label}</a> — {use.scopeLabel}</li>)}</ul></details></td><td><a href={record.externalAction.url} target="_blank" rel="noopener noreferrer">{record.externalAction.label} <span>(opens in a new tab)</span></a></td></tr>)}
+      <TechnicalTable
+        id="source-ledger"
+        caption="Public evidence source ledger"
+        scrollLabel="Evidence source ledger"
+        scrollGuidance="Scroll horizontally to read source details when needed."
+      >
+        <tr slot="header"
+          ><th scope="col">Source</th><th scope="col">Publisher and kind</th><th scope="col"
+            >Evidence use</th
+          ><th scope="col">Action</th></tr
+        >
+        {
+          model.sources.map((record) => (
+            <tr slot="body" id={record.anchor}>
+              <>
+                <th scope="row">{record.title}</th>
+                <td>
+                  {record.publisher}
+                  <br />
+                  {record.sourceKindLabel}
+                </td>
+                <td>
+                  <>
+                    <p>
+                      {record.claimUseCount} claim uses; {record.scopes.join(", ")}
+                    </p>
+                    <details>
+                      <>
+                        <summary>Show supporting claims</summary>
+                        <ul>
+                          {record.uses.map((use) => (
+                            <li>
+                              <a href={use.href}>
+                                {use.materialSlug}: {use.label}
+                              </a>{" "}
+                              — {use.scopeLabel}
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    </details>
+                  </>
+                </td>
+                <td>
+                  <a href={record.externalAction.url} target="_blank" rel="noopener noreferrer">
+                    {record.externalAction.label} <span>(opens in a new tab)</span>
+                  </a>
+                </td>
+              </>
+            </tr>
+          ))
+        }
       </TechnicalTable>
     </section>
 
-    <section id="limitations" tabindex="-1"><h2>Limitations</h2><ul class="method-limitations">{model.copy.cautions.map((caution) => <li>{caution}</li>)}</ul></section>
+    <section id="limitations" tabindex="-1">
+      <h2>Limitations</h2><ul class="method-limitations">
+        {model.copy.cautions.map((caution) => <li>{caution}</li>)}
+      </ul>
+    </section>
   </div>
 </article>

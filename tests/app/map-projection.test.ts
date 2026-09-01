@@ -42,30 +42,39 @@ describe("compact map projection", () => {
 
     expect(Object.keys(projection).sort()).toEqual(TOP_LEVEL_KEYS);
     expect(projection.lanes).toHaveLength(8);
-    expect(new Set(projection.lanes.flatMap(({ candidates }) => candidates.map(({ id }) => id))).size)
-      .toBeGreaterThan(0);
+    expect(
+      new Set(projection.lanes.flatMap(({ candidates }) => candidates.map(({ id }) => id))).size,
+    ).toBeGreaterThan(0);
     expect(projection.serviceGuidance.records).toHaveLength(23);
     expect(projection.serviceGuidance.ticks.length).toBeGreaterThan(1);
     expect(projection.thermalGroups).toHaveLength(8);
     expect(projection.thermalGroups.every(({ records }) => records.length === 23)).toBe(true);
     expect(projection.thermalGroups.flatMap(({ members }) => members)).toHaveLength(23);
-    expect(projection.thermalGroups.flatMap(({ members }) => members).every(({ measurement }) =>
-      measurement !== undefined && measurement.unit === "degC"))
-      .toBe(true);
-    expect(projection.thermalGroups.flatMap(({ records }) => records)
-      .filter(({ disposition }) => disposition.disposition === "omitted")
-      .every(({ disposition }) => disposition.disposition === "omitted"
-        && disposition.code === "no-observation-in-group"))
-      .toBe(true);
+    expect(
+      projection.thermalGroups
+        .flatMap(({ members }) => members)
+        .every(({ measurement }) => measurement !== undefined && measurement.unit === "degC"),
+    ).toBe(true);
+    expect(
+      projection.thermalGroups
+        .flatMap(({ records }) => records)
+        .filter(({ disposition }) => disposition.disposition === "omitted")
+        .every(
+          ({ disposition }) =>
+            disposition.disposition === "omitted" && disposition.code === "no-observation-in-group",
+        ),
+    ).toBe(true);
     expect(projection.processGates.gates).toHaveLength(8);
     expect(projection.processGates.relationships).toHaveLength(64);
     expect(projection.impactFlex.impactAxis).toHaveLength(5);
     expect(projection.impactFlex.flexibilityAxis).toHaveLength(4);
     expect(projection.impactFlex.difficultyTerms).toHaveLength(4);
     expect(projection.impactFlex.records).toHaveLength(23);
-    expect(projection.impactFlex.records.every(({ printDifficultyFact }) =>
-      Array.isArray(printDifficultyFact.display)))
-      .toBe(true);
+    expect(
+      projection.impactFlex.records.every(({ printDifficultyFact }) =>
+        Array.isArray(printDifficultyFact.display),
+      ),
+    ).toBe(true);
     expect(Object.keys(projection.modeFragments).sort()).toEqual([...MAP_MODES].sort());
 
     const hrefs = JSON.stringify(projection).match(/\/fdm-material-atlas\/[^"\\]*/gu) ?? [];
@@ -77,7 +86,9 @@ describe("compact map projection", () => {
 
   it("produces deterministic bytes for every relevant canonical source permutation", () => {
     const expected = JSON.stringify(compileMapProjection(loadPublicAtlas(), "/repo/"));
-    const permuted = JSON.stringify(compileMapProjection(reverseCanonicalRegistries(cloneAtlas()), "/repo/"));
+    const permuted = JSON.stringify(
+      compileMapProjection(reverseCanonicalRegistries(cloneAtlas()), "/repo/"),
+    );
     expect(permuted).toBe(expected);
   });
 
@@ -92,18 +103,55 @@ describe("compact map projection", () => {
     const serialized = JSON.stringify(compileMapProjection(atlas, "/repo/"));
     expect(serialized).not.toContain(sentinel);
     expect(serialized).not.toMatch(/https?:\/\//u);
-    expect(serialized).not.toMatch(/(?:sources|methods|selector|startingProfile|thermalObservations|visualizationReferences)/u);
+    expect(serialized).not.toMatch(
+      /(?:sources|methods|selector|startingProfile|thermalObservations|visualizationReferences)/u,
+    );
     expect(gzipSync(serialized).byteLength).toBeLessThanOrEqual(8 * 1024);
   });
 
   it.each([
-    ["zero materials", (atlas: AtlasV1) => { atlas.materials = []; }],
-    ["incomplete material set", (atlas: AtlasV1) => { atlas.materials.pop(); }],
-    ["duplicate material ID", (atlas: AtlasV1) => { atlas.materials[1]!.id = atlas.materials[0]!.id; }],
-    ["incomplete lanes", (atlas: AtlasV1) => { atlas.decisionLanes.pop(); }],
-    ["incomplete gates", (atlas: AtlasV1) => { atlas.processGates.pop(); }],
-    ["incomplete visualization references", (atlas: AtlasV1) => { atlas.visualizationReferences.pop(); }],
-    ["dangling gate reference", (atlas: AtlasV1) => { atlas.decisionLanes[0]!.processGateIds[0] = "gate-stale" as never; }],
+    [
+      "zero materials",
+      (atlas: AtlasV1) => {
+        atlas.materials = [];
+      },
+    ],
+    [
+      "incomplete material set",
+      (atlas: AtlasV1) => {
+        atlas.materials.pop();
+      },
+    ],
+    [
+      "duplicate material ID",
+      (atlas: AtlasV1) => {
+        atlas.materials[1]!.id = atlas.materials[0]!.id;
+      },
+    ],
+    [
+      "incomplete lanes",
+      (atlas: AtlasV1) => {
+        atlas.decisionLanes.pop();
+      },
+    ],
+    [
+      "incomplete gates",
+      (atlas: AtlasV1) => {
+        atlas.processGates.pop();
+      },
+    ],
+    [
+      "incomplete visualization references",
+      (atlas: AtlasV1) => {
+        atlas.visualizationReferences.pop();
+      },
+    ],
+    [
+      "dangling gate reference",
+      (atlas: AtlasV1) => {
+        atlas.decisionLanes[0]!.processGateIds[0] = "gate-stale" as never;
+      },
+    ],
   ] as const)("reduces %s to one controlled projection failure", (_label, mutate) => {
     const atlas = cloneAtlas();
     mutate(atlas);
@@ -114,7 +162,9 @@ describe("compact map projection", () => {
 
   it("reduces invalid hrefs, oversized output, and injected transform failures without echo", () => {
     const atlas = cloneAtlas();
-    const invalidHref = safeCompileMapProjection(() => compileMapProjection(atlas, "https://rejected.example/"));
+    const invalidHref = safeCompileMapProjection(() =>
+      compileMapProjection(atlas, "https://rejected.example/"),
+    );
     const injected = safeCompileMapProjection(() => {
       throw new Error("PRIVATE_REJECTED_VALUE");
     });

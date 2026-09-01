@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type {
-  ProcessGateId,
-  SelectorOptionId,
-} from "../../src/data/schema/ids.ts";
+import type { ProcessGateId, SelectorOptionId } from "../../src/data/schema/ids.ts";
 import {
   ExplanationResolutionError,
   resolveExplanationToken,
@@ -149,10 +146,7 @@ describe("resolveExplanationToken", () => {
     expect(
       resolveExplanationToken(projection, {
         kind: "no-compatible",
-        selectedCriterionIds: [
-          "selector-primary-goal",
-          "selector-enclosure-capability",
-        ],
+        selectedCriterionIds: ["selector-primary-goal", "selector-enclosure-capability"],
         eliminatedCount: 23,
       }),
     ).toBe(

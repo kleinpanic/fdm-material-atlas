@@ -1,9 +1,4 @@
-import {
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,7 +13,8 @@ import { privateLookingSyntheticMarker } from "../fixtures/atlas-invalid-cases.t
 
 function parsedAtlas(candidate: unknown = createMinimalAtlas()) {
   const result = parseAtlas(candidate);
-  if (!result.success) throw new Error(`Synthetic fixture failed with ${result.issues.length} safe issues`);
+  if (!result.success)
+    throw new Error(`Synthetic fixture failed with ${result.issues.length} safe issues`);
   return result.data;
 }
 
@@ -43,11 +39,13 @@ function withPermutationData() {
     capability: "drying",
     requirement: "Use suitable drying equipment when this gate applies.",
     verification: "Confirm that the equipment meets the drying requirement.",
-    basis: [{
-      kind: "method",
-      methodId: "method-synthetic-review",
-      scope: "derived-selector-logic",
-    }],
+    basis: [
+      {
+        kind: "method",
+        methodId: "method-synthetic-review",
+        scope: "derived-selector-logic",
+      },
+    ],
   } as never);
   atlas.visualizationReferences.push({
     id: "visualization-synthetic-second",
@@ -82,7 +80,9 @@ function reverseCanonicalSets(atlas: ReturnType<typeof withPermutationData>) {
   return atlas;
 }
 
-const validatorPath = fileURLToPath(new URL("../../tools/validate-public-data.ts", import.meta.url));
+const validatorPath = fileURLToPath(
+  new URL("../../tools/validate-public-data.ts", import.meta.url),
+);
 
 function runValidator(contents: string) {
   const root = mkdtempSync(join(tmpdir(), "atlas-validator-"));

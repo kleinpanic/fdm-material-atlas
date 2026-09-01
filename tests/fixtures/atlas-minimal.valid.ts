@@ -74,7 +74,12 @@ export function createMinimalMaterial() {
     startingProfile: {
       interpretation: "calibration-starting-point",
       printSpeed: startingClaim("print-speed", { shape: "exact", value: 55, unit: "mm/s" }),
-      partCoolingFan: startingClaim("part-fan", { shape: "range", min: 20, max: 60, unit: "percent" }),
+      partCoolingFan: startingClaim("part-fan", {
+        shape: "range",
+        min: 20,
+        max: 60,
+        unit: "percent",
+      }),
       bridgeSpeed: startingClaim("bridge-speed", { shape: "exact", value: 28, unit: "mm/s" }),
       bridgeFan: startingClaim("bridge-fan", { shape: "exact", value: 80, unit: "percent" }),
     },
@@ -195,4 +200,3 @@ export function createMinimalAtlas() {
 }
 
 export type MinimalAtlas = ReturnType<typeof createMinimalAtlas>;
-

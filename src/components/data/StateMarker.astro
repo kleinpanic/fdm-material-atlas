@@ -34,11 +34,9 @@ const marker = MARKERS[variant];
 ---
 
 <span class="scientific-state" data-marker-variant={variant}>
-  <span
-    class="scientific-state__glyph"
-    data-marker-shape={marker.shape}
-    aria-hidden="true"
-  >{marker.glyph}</span>
+  <span class="scientific-state__glyph" data-marker-shape={marker.shape} aria-hidden="true"
+    >{marker.glyph}</span
+  >
   <span class="scientific-state__label">{label}</span>
 </span>
 

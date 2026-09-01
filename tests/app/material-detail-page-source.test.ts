@@ -11,7 +11,15 @@ describe("material detail route source", () => {
     expect(page).toContain("params: { slug: model.slug }");
     expect(page).toContain("props: { model }");
     expect(page).toContain("<MaterialReference model={model} />");
-    for (const forbidden of ["slugify", "client:", "fetch(", "buildTracerViewModel", "sample", "fallback"]) expect(page).not.toContain(forbidden);
+    for (const forbidden of [
+      "slugify",
+      "client:",
+      "fetch(",
+      "buildTracerViewModel",
+      "sample",
+      "fallback",
+    ])
+      expect(page).not.toContain(forbidden);
   });
 
   it("uses unique model metadata and closed shell routes", () => {

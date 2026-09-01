@@ -98,7 +98,9 @@ function thermalRows(
   const cells = materials.map((material) => oneCell(material, key));
   if (cells.some(({ kind }) => kind !== "thermal")) throw new Error("COMPARISON_MODEL_INVALID");
   const thermalCells = cells as readonly ComparisonThermalCell[];
-  const present = new Set(thermalCells.flatMap(({ members }) => members.map(({ groupId }) => groupId)));
+  const present = new Set(
+    thermalCells.flatMap(({ members }) => members.map(({ groupId }) => groupId)),
+  );
   const orderedGroups = model.thermalGroups.filter(({ id }) => present.has(id));
   if (orderedGroups.length !== present.size) throw new Error("COMPARISON_MODEL_INVALID");
 

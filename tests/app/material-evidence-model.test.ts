@@ -35,12 +35,14 @@ describe("material evidence model", () => {
     expect(index.materials).toHaveLength(23);
     expect(index.records.flatMap(({ uses }) => uses)).toHaveLength(999);
     expect(index.materials.reduce((sum, material) => sum + material.edgeCount, 0)).toBe(999);
-    expect(index.records
-      .filter(({ record }) => record.kind === "source")
-      .every(({ uses }) => uses.length > 0)).toBe(true);
-    expect(index.records
-      .filter(({ record, uses }) => record.kind === "method" && uses.length === 0))
-      .toHaveLength(3);
+    expect(
+      index.records
+        .filter(({ record }) => record.kind === "source")
+        .every(({ uses }) => uses.length > 0),
+    ).toBe(true);
+    expect(
+      index.records.filter(({ record, uses }) => record.kind === "method" && uses.length === 0),
+    ).toHaveLength(3);
   });
 
   it("groups records only after preserving scopes and exact supported claims", () => {
@@ -49,17 +51,22 @@ describe("material evidence model", () => {
     const model = buildMaterialEvidenceModel(atlas, material);
 
     expect(model.materialSlug).toBe(material.slug);
-    expect(new Set(model.records.map(({ target }) =>
-      target.kind === "source" ? target.sourceId : target.methodId
-    )).size).toBe(model.records.length);
+    expect(
+      new Set(
+        model.records.map(({ target }) =>
+          target.kind === "source" ? target.sourceId : target.methodId,
+        ),
+      ).size,
+    ).toBe(model.records.length);
     for (const record of model.records) {
       expect(record.scopes).toEqual(
-        [...record.scopes].sort((left, right) =>
-          EVIDENCE_SCOPE_ORDER.indexOf(left) - EVIDENCE_SCOPE_ORDER.indexOf(right)
+        [...record.scopes].sort(
+          (left, right) => EVIDENCE_SCOPE_ORDER.indexOf(left) - EVIDENCE_SCOPE_ORDER.indexOf(right),
         ),
       );
-      expect(new Set(record.supportedClaims.map(({ claimId }) => claimId)).size)
-        .toBe(record.supportedClaims.length);
+      expect(new Set(record.supportedClaims.map(({ claimId }) => claimId)).size).toBe(
+        record.supportedClaims.length,
+      );
       expect(record.edges.every(({ scope }) => record.scopes.includes(scope))).toBe(true);
     }
   });
@@ -68,9 +75,12 @@ describe("material evidence model", () => {
     const index = buildEvidenceIndex(loadPublicAtlas());
     const uses = index.records.flatMap(({ uses }) => uses);
 
-    expect(uses.every(({ materialSlug, claimAnchor }) =>
-      /^[a-z][a-z0-9-]*$/u.test(materialSlug) && /^[a-z][a-z0-9-]*$/u.test(claimAnchor)
-    )).toBe(true);
+    expect(
+      uses.every(
+        ({ materialSlug, claimAnchor }) =>
+          /^[a-z][a-z0-9-]*$/u.test(materialSlug) && /^[a-z][a-z0-9-]*$/u.test(claimAnchor),
+      ),
+    ).toBe(true);
     expect(uses.every((use) => !("href" in use))).toBe(true);
     expect(index.records.every((record) => !("href" in record))).toBe(true);
   });
@@ -93,30 +103,47 @@ describe("material evidence model", () => {
   });
 
   it.each([
-    ["duplicate records", "EVIDENCE_RECORD_DUPLICATE", (atlas: AtlasV1) => {
-      atlas.sources.push(structuredClone(atlas.sources[0]!));
-    }],
-    ["missing basis", "EVIDENCE_BASIS_MISSING", (atlas: AtlasV1) => {
-      const basis = firstBasis(atlas);
-      if (basis.kind === "source") basis.sourceId = "source-does-not-exist" as typeof basis.sourceId;
-      else basis.methodId = "method-does-not-exist" as typeof basis.methodId;
-    }],
-    ["wrong-kind basis", "EVIDENCE_BASIS_WRONG_KIND", (atlas: AtlasV1) => {
-      atlas.materials[0]!.familyOrFill.basis[0] = {
-        kind: "source",
-        sourceId: atlas.methods[0]!.id as unknown as AtlasV1["sources"][number]["id"],
-        scope: "family-guidance",
-      };
-    }],
-    ["unused record", "EVIDENCE_RECORD_UNUSED", (atlas: AtlasV1) => {
-      atlas.sources.push({
-        id: "source-unused-record" as AtlasV1["sources"][number]["id"],
-        title: "Unused public source",
-        publisher: "Example publisher",
-        kind: "manufacturer-guide",
-        url: "https://example.com/unused",
-      });
-    }],
+    [
+      "duplicate records",
+      "EVIDENCE_RECORD_DUPLICATE",
+      (atlas: AtlasV1) => {
+        atlas.sources.push(structuredClone(atlas.sources[0]!));
+      },
+    ],
+    [
+      "missing basis",
+      "EVIDENCE_BASIS_MISSING",
+      (atlas: AtlasV1) => {
+        const basis = firstBasis(atlas);
+        if (basis.kind === "source")
+          basis.sourceId = "source-does-not-exist" as typeof basis.sourceId;
+        else basis.methodId = "method-does-not-exist" as typeof basis.methodId;
+      },
+    ],
+    [
+      "wrong-kind basis",
+      "EVIDENCE_BASIS_WRONG_KIND",
+      (atlas: AtlasV1) => {
+        atlas.materials[0]!.familyOrFill.basis[0] = {
+          kind: "source",
+          sourceId: atlas.methods[0]!.id as unknown as AtlasV1["sources"][number]["id"],
+          scope: "family-guidance",
+        };
+      },
+    ],
+    [
+      "unused record",
+      "EVIDENCE_RECORD_UNUSED",
+      (atlas: AtlasV1) => {
+        atlas.sources.push({
+          id: "source-unused-record" as AtlasV1["sources"][number]["id"],
+          title: "Unused public source",
+          publisher: "Example publisher",
+          kind: "manufacturer-guide",
+          url: "https://example.com/unused",
+        });
+      },
+    ],
   ])("fails %s with one stable redacted code", (_name, code, mutate) => {
     const atlas = structuredClone(loadPublicAtlas());
     mutate(atlas);

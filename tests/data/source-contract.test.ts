@@ -32,7 +32,13 @@ const dto = {
   surfaces: {
     materials: { records: [record] },
     selector: {
-      records: [{ ...record, logicalRecordId: "selector-primary-goal", semanticKey: "selector-primary-goal" }],
+      records: [
+        {
+          ...record,
+          logicalRecordId: "selector-primary-goal",
+          semanticKey: "selector-primary-goal",
+        },
+      ],
     },
     "evidence-method": {
       records: [{ ...record, logicalRecordId: "source-alpha", semanticKey: "source-record" }],
@@ -45,15 +51,42 @@ const dto = {
 
 describe("source-neutral DTO", () => {
   it("accepts exactly four logical roles and normalized semantic channels", () => {
-    expect(sourceLogicalRoles).toEqual(["materials", "selector", "evidence-method", "decision-map"]);
+    expect(sourceLogicalRoles).toEqual([
+      "materials",
+      "selector",
+      "evidence-method",
+      "decision-map",
+    ]);
     expect(SourceWorkbookDtoSchema.parse(dto)).toEqual(dto);
   });
 
   it.each([
     { ...dto, metadata: { locator: "private" } },
-    { ...dto, surfaces: { ...dto.surfaces, materials: { ...dto.surfaces.materials, account: "owner" } } },
-    { ...dto, surfaces: { ...dto.surfaces, selector: { records: [{ ...dto.surfaces.selector.records[0], coordinate: "R1C1" }] } } },
-    { ...dto, surfaces: { ...dto.surfaces, selector: { records: [{ ...dto.surfaces.selector.records[0], channels: { ...channel, formulaSemantics: "=RUN()" } }] } } },
+    {
+      ...dto,
+      surfaces: { ...dto.surfaces, materials: { ...dto.surfaces.materials, account: "owner" } },
+    },
+    {
+      ...dto,
+      surfaces: {
+        ...dto.surfaces,
+        selector: { records: [{ ...dto.surfaces.selector.records[0], coordinate: "R1C1" }] },
+      },
+    },
+    {
+      ...dto,
+      surfaces: {
+        ...dto.surfaces,
+        selector: {
+          records: [
+            {
+              ...dto.surfaces.selector.records[0],
+              channels: { ...channel, formulaSemantics: "=RUN()" },
+            },
+          ],
+        },
+      },
+    },
   ])("rejects source-coupled metadata and raw executable semantics", (value) => {
     expect(SourceWorkbookDtoSchema.safeParse(value).success).toBe(false);
   });
@@ -63,7 +96,11 @@ describe("semantic field manifest", () => {
   it("contains exactly 32 unique canonical paths", () => {
     expect(MATERIAL_SEMANTIC_FIELDS).toHaveLength(32);
     expect(new Set(MATERIAL_SEMANTIC_FIELDS).size).toBe(32);
-    expect(MATERIAL_SEMANTIC_FIELDS.every((path) => MaterialSemanticFieldPathSchema.safeParse(path).success)).toBe(true);
+    expect(
+      MATERIAL_SEMANTIC_FIELDS.every(
+        (path) => MaterialSemanticFieldPathSchema.safeParse(path).success,
+      ),
+    ).toBe(true);
     expect(MATERIAL_SEMANTIC_FIELDS).toContain("serviceTemperature.minimum");
     expect(MATERIAL_SEMANTIC_FIELDS).toContain("serviceTemperature.maximum");
     expect(MATERIAL_SEMANTIC_FIELDS).toContain("thermalObservations.metric");

@@ -37,7 +37,9 @@ export function createSafeMapReducer(
     try {
       return reducer(state, action);
     } catch {
-      return recoverMapState(initial.hydrated || state.hydrated ? { hydrated: true } : { hydrated: false });
+      return recoverMapState(
+        initial.hydrated || state.hydrated ? { hydrated: true } : { hydrated: false },
+      );
     }
   };
 }

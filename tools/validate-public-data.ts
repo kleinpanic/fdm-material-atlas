@@ -8,14 +8,16 @@ import { serializeAtlas } from "../src/data/serialization/stable-json.ts";
 const PUBLIC_DATA_PATH = "src/data/public/atlas.v1.json";
 const MAX_PUBLIC_DATA_BYTES = 20 * 1024 * 1024;
 
-type CliIssue = AtlasIssue | {
-  code:
-    | "CLI_ARGUMENTS_UNSUPPORTED"
-    | "DATA_FILE_INVALID"
-    | "DATA_FILE_TOO_LARGE"
-    | "DATA_FILE_UNREADABLE";
-  pointer: "/";
-};
+type CliIssue =
+  | AtlasIssue
+  | {
+      code:
+        | "CLI_ARGUMENTS_UNSUPPORTED"
+        | "DATA_FILE_INVALID"
+        | "DATA_FILE_TOO_LARGE"
+        | "DATA_FILE_UNREADABLE";
+      pointer: "/";
+    };
 
 function writeJson(stream: NodeJS.WriteStream, value: unknown): void {
   stream.write(`${JSON.stringify(value)}\n`);

@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  permittedPredicateOperators,
-  type SelectorField,
-} from "../../src/data/schema/selector.ts";
+import { permittedPredicateOperators, type SelectorField } from "../../src/data/schema/selector.ts";
 import {
   compilePredicate,
   compilePredicateSet,
@@ -127,18 +124,24 @@ describe("predicate scalar operators", () => {
   );
 
   it.each([
-    [resolved(enclosureField, ["required"]), { op: "equals", field: enclosureField, value: "required" }],
+    [
+      resolved(enclosureField, ["required"]),
+      { op: "equals", field: enclosureField, value: "required" },
+    ],
     [resolved(temperatureField, "100"), { op: "at-least", field: temperatureField, value: 100 }],
-    [resolved(guidanceField, "outdoor"), { op: "contains-any", field: guidanceField, values: ["outdoor"] }],
+    [
+      resolved(guidanceField, "outdoor"),
+      { op: "contains-any", field: guidanceField, values: ["outdoor"] },
+    ],
   ] as const)("returns indeterminate for an incompatible resolved value", (record, rule) => {
     expect(evaluatePredicate(rule, resolverFor(record))).toBe("indeterminate");
   });
 
   it("returns indeterminate when the resolver returns a record for another field", () => {
     const rule = { op: "equals", field: enclosureField, value: "required" };
-    expect(evaluatePredicate(rule, resolverFor(resolved("process.hardenedNozzle", "required")))).toBe(
-      "indeterminate",
-    );
+    expect(
+      evaluatePredicate(rule, resolverFor(resolved("process.hardenedNozzle", "required"))),
+    ).toBe("indeterminate");
   });
 });
 
@@ -149,7 +152,9 @@ describe("three-state composition", () => {
     value: outcome === "match" ? suffix : outcome === "no-match" ? `${suffix}-other` : undefined,
   });
 
-  function outcomeResolver(records: Readonly<Record<string, string | undefined>>): PredicateFieldResolver {
+  function outcomeResolver(
+    records: Readonly<Record<string, string | undefined>>,
+  ): PredicateFieldResolver {
     return (field) => {
       const value = records[field];
       return value === undefined ? indeterminate(field) : resolved(field, value);
@@ -162,9 +167,10 @@ describe("three-state composition", () => {
     ["indeterminate", "indeterminate"],
   ] as const)("not maps %s to %s", (input, expected) => {
     const child = leafFor(input, "required");
-    const resolver = child.value === undefined
-      ? resolverFor(indeterminate(enclosureField))
-      : resolverFor(resolved(enclosureField, child.value));
+    const resolver =
+      child.value === undefined
+        ? resolverFor(indeterminate(enclosureField))
+        : resolverFor(resolved(enclosureField, child.value));
     expect(evaluatePredicate({ op: "not", rule: child.rule }, resolver)).toBe(expected);
   });
 
@@ -176,11 +182,12 @@ describe("three-state composition", () => {
       rule: { op: "equals", field: "process.hardenedNozzle" as const, value: "required" },
       value: right === "match" ? "required" : right === "no-match" ? "other" : undefined,
     };
-    const expected: PredicateOutcome = left === "no-match" || right === "no-match"
-      ? "no-match"
-      : left === "indeterminate" || right === "indeterminate"
-        ? "indeterminate"
-        : "match";
+    const expected: PredicateOutcome =
+      left === "no-match" || right === "no-match"
+        ? "no-match"
+        : left === "indeterminate" || right === "indeterminate"
+          ? "indeterminate"
+          : "match";
     expect(
       evaluatePredicate(
         { op: "all", rules: [leftLeaf.rule, rightLeaf.rule] },
@@ -198,11 +205,12 @@ describe("three-state composition", () => {
       rule: { op: "equals", field: "process.hardenedNozzle" as const, value: "required" },
       value: right === "match" ? "required" : right === "no-match" ? "other" : undefined,
     };
-    const expected: PredicateOutcome = left === "match" || right === "match"
-      ? "match"
-      : left === "indeterminate" || right === "indeterminate"
-        ? "indeterminate"
-        : "no-match";
+    const expected: PredicateOutcome =
+      left === "match" || right === "match"
+        ? "match"
+        : left === "indeterminate" || right === "indeterminate"
+          ? "indeterminate"
+          : "no-match";
     expect(
       evaluatePredicate(
         { op: "any", rules: [leftLeaf.rule, rightLeaf.rule] },
@@ -220,9 +228,10 @@ describe("three-state composition", () => {
     ["indeterminate", "indeterminate"],
   ] as const)("maps %s to fail-closed hard-gate outcome %s", (outcome, expected) => {
     const leaf = leafFor(outcome, "required");
-    const resolver = leaf.value === undefined
-      ? resolverFor(indeterminate(enclosureField))
-      : resolverFor(resolved(enclosureField, leaf.value));
+    const resolver =
+      leaf.value === undefined
+        ? resolverFor(indeterminate(enclosureField))
+        : resolverFor(resolved(enclosureField, leaf.value));
     expect(evaluateHardGatePredicate(leaf.rule, resolver)).toBe(expected);
   });
 });
@@ -291,7 +300,10 @@ describe("bounded predicate compilation", () => {
     [{ op: "at-least", field: enclosureField, value: 1 }, "PREDICATE_OPERAND_INVALID"],
     [{ op: "equals", field: temperatureField, value: "100" }, "PREDICATE_OPERAND_INVALID"],
     [{ op: "one-of", field: enclosureField, values: ["required", 1] }, "PREDICATE_OPERAND_INVALID"],
-    [{ op: "contains-any", field: enclosureField, values: ["required"] }, "PREDICATE_OPERAND_INVALID"],
+    [
+      { op: "contains-any", field: enclosureField, values: ["required"] },
+      "PREDICATE_OPERAND_INVALID",
+    ],
     [{ op: "all", rules: [] }, "PREDICATE_OPERAND_INVALID"],
     [{ op: "not" }, "PREDICATE_OPERAND_INVALID"],
   ] as const)("rejects invalid configuration with controlled code", (rule, code) => {
@@ -305,16 +317,17 @@ describe("bounded predicate compilation", () => {
       return resolved(field, "required");
     };
     expectConfigurationCode(
-      () => evaluatePredicate(
-        {
-          op: "all",
-          rules: [
-            { op: "equals", field: enclosureField, value: "required" },
-            { op: "at-least", field: enclosureField, value: 1 },
-          ],
-        },
-        resolver,
-      ),
+      () =>
+        evaluatePredicate(
+          {
+            op: "all",
+            rules: [
+              { op: "equals", field: enclosureField, value: "required" },
+              { op: "at-least", field: enclosureField, value: 1 },
+            ],
+          },
+          resolver,
+        ),
       "PREDICATE_OPERAND_INVALID",
     );
     expect(resolverCalls).toBe(0);
@@ -323,12 +336,21 @@ describe("bounded predicate compilation", () => {
   it("rejects duplicate hard-gate reason IDs within one option", () => {
     const rule = { op: "equals", field: enclosureField, value: "required" };
     expectConfigurationCode(
-      () => compilePredicateSet({
-        hardGates: [
-          { reasonId: "reason-duplicate", processGateId: "gate-enclosure-capability", incompatibleWhen: rule },
-          { reasonId: "reason-duplicate", processGateId: "gate-drying-capability", incompatibleWhen: rule },
-        ],
-      }),
+      () =>
+        compilePredicateSet({
+          hardGates: [
+            {
+              reasonId: "reason-duplicate",
+              processGateId: "gate-enclosure-capability",
+              incompatibleWhen: rule,
+            },
+            {
+              reasonId: "reason-duplicate",
+              processGateId: "gate-drying-capability",
+              incompatibleWhen: rule,
+            },
+          ],
+        }),
       "PREDICATE_REASON_DUPLICATE",
     );
   });
@@ -349,11 +371,13 @@ describe("bounded predicate compilation", () => {
       const compiled = compilePredicate(rule);
       expect(Object.isFrozen(compiled)).toBe(true);
       expect(
-        evaluateCompiledPredicate(compiled, (field) => field === temperatureField
-          ? resolved(field, 100)
-          : field === guidanceField
-            ? resolved(field, ["outdoor housings"])
-            : resolved(field, "required")),
+        evaluateCompiledPredicate(compiled, (field) =>
+          field === temperatureField
+            ? resolved(field, 100)
+            : field === guidanceField
+              ? resolved(field, ["outdoor housings"])
+              : resolved(field, "required"),
+        ),
       ).toBe("match");
     }
   });

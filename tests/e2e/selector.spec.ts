@@ -49,7 +49,9 @@ async function waitForSelector(page: Page): Promise<void> {
   await expect(page.getByRole("button", { name: "View recommendations" })).toBeEnabled();
 }
 
-async function openWithoutJavaScript(browser: Browser): Promise<{ context: BrowserContext; page: Page }> {
+async function openWithoutJavaScript(
+  browser: Browser,
+): Promise<{ context: BrowserContext; page: Page }> {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
   await page.goto("./");
@@ -63,89 +65,135 @@ function selectorComponentUrl(): string {
   return match[1].replaceAll("&amp;", "&");
 }
 
-async function openWithSelectorChunkAborted(browser: Browser): Promise<{ context: BrowserContext; page: Page }> {
+async function openWithSelectorChunkAborted(
+  browser: Browser,
+): Promise<{ context: BrowserContext; page: Page }> {
   const context = await browser.newContext();
   const page = await context.newPage();
-  const componentUrl = new URL(selectorComponentUrl(), `http://127.0.0.1:${mode === "root" ? 4321 : 4322}`).href;
-  await page.route(componentUrl, (route: { abort(errorCode?: string): Promise<void> }) => route.abort("blockedbyclient"));
+  const componentUrl = new URL(
+    selectorComponentUrl(),
+    `http://127.0.0.1:${mode === "root" ? 4321 : 4322}`,
+  ).href;
+  await page.route(componentUrl, (route: { abort(errorCode?: string): Promise<void> }) =>
+    route.abort("blockedbyclient"),
+  );
   await page.goto("./");
   return { context, page };
 }
 
 async function displayedRanking(page: Page): Promise<readonly string[]> {
-  return compatibleItems(page).evaluateAll((items: Element[]) => items.map((item: Element) => {
-    const rank = item.querySelector("article > p:first-child")?.textContent?.trim() ?? "";
-    const name = item.querySelector("h3")?.textContent?.trim() ?? "";
-    const score = [...item.querySelectorAll("p")]
-      .map((node) => node.textContent?.trim() ?? "")
-      .find((text) => /^\d+ of \d+ alignment points$/u.test(text)) ?? "";
-    return `${rank}|${name}|${score}`;
-  }));
+  return compatibleItems(page).evaluateAll((items: Element[]) =>
+    items.map((item: Element) => {
+      const rank = item.querySelector("article > p:first-child")?.textContent?.trim() ?? "";
+      const name = item.querySelector("h3")?.textContent?.trim() ?? "";
+      const score =
+        [...item.querySelectorAll("p")]
+          .map((node) => node.textContent?.trim() ?? "")
+          .find((text) => /^\d+ of \d+ alignment points$/u.test(text)) ?? "";
+      return `${rank}|${name}|${score}`;
+    }),
+  );
 }
 
 async function selectRelaxedHardware(page: Page): Promise<void> {
   await page.getByRole("radio", { name: "High heat or sustained load" }).check();
   await page.getByLabel("Maximum print difficulty").selectOption("option-difficulty-expert");
   await page.getByLabel("Enclosure capability").selectOption("option-enclosure-available");
-  await page.getByLabel("Wear-resistant nozzle capability").selectOption("option-hardened-nozzle-available");
+  await page
+    .getByLabel("Wear-resistant nozzle capability")
+    .selectOption("option-hardened-nozzle-available");
   await page.getByLabel("Dryer or drybox capability").selectOption("option-dryer-available");
   await page.getByLabel("Cooling-shrink tolerance").selectOption("option-shrink-any");
   await page.getByLabel("Ventilation capability").selectOption("option-ventilation-engineered");
   await expect(compatibleItems(page)).toHaveCount(10);
-  await expect(page.getByRole("button", { name: "Show all 23 compatible materials" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Show all 23 compatible materials" }),
+  ).toBeVisible();
 }
 
-test("selector keeps complete default meaning without JavaScript and when only its island aborts", async ({ browser }) => {
+test("selector keeps complete default meaning without JavaScript and when only its island aborts", async ({
+  browser,
+}) => {
   const noScript = await openWithoutJavaScript(browser);
-  await expect(noScript.page.getByRole("heading", { level: 1 })).toHaveText("Choose a material that fits your process");
+  await expect(noScript.page.getByRole("heading", { level: 1 })).toHaveText(
+    "Choose a material that fits your process",
+  );
   await expect(noScript.page.locator("h1")).toHaveCount(1);
-  await expect(noScript.page.getByLabel("What the score means").getByText("Alignment scores reflect only the criteria you selected.", { exact: false })).toBeVisible();
+  await expect(
+    noScript.page
+      .getByLabel("What the score means")
+      .getByText("Alignment scores reflect only the criteria you selected.", { exact: false }),
+  ).toBeVisible();
   expect(readFileSync(resolve(outputRoot, "index.html"), "utf8")).toContain(
     "Interactive filtering needs JavaScript. The published default results remain available below.",
   );
-  await expect(noScript.page.getByRole("radio", { checked: true })).toHaveValue(pageModel.defaults["selector-primary-goal"]);
-  for (const criterion of pageModel.projection.criteria.filter(({ role }) => role === "secondary")) {
+  await expect(noScript.page.getByRole("radio", { checked: true })).toHaveValue(
+    pageModel.defaults["selector-primary-goal"],
+  );
+  for (const criterion of pageModel.projection.criteria.filter(
+    ({ role }) => role === "secondary",
+  )) {
     await expect(noScript.page.getByLabel(criterion.label)).toHaveValue(criterion.defaultOptionId);
   }
-  expect(await displayedRanking(noScript.page)).toEqual(defaultPresentation.compatible.map((material) =>
-    `Rank ${material.rank}|${material.materialLabel}|${material.scoreLabel}`));
+  expect(await displayedRanking(noScript.page)).toEqual(
+    defaultPresentation.compatible.map(
+      (material) => `Rank ${material.rank}|${material.materialLabel}|${material.scoreLabel}`,
+    ),
+  );
   await noScript.context.close();
 
   const aborted = await openWithSelectorChunkAborted(browser);
-  await expect(aborted.page.getByText("Interactive filtering needs JavaScript.", { exact: false })).toHaveCount(0);
+  await expect(
+    aborted.page.getByText("Interactive filtering needs JavaScript.", { exact: false }),
+  ).toHaveCount(0);
   await expect(aborted.page.getByText("Selector is preparing", { exact: true })).toBeVisible();
   await expect(aborted.page.getByRole("button", { name: "View recommendations" })).toBeDisabled();
-  expect(await displayedRanking(aborted.page)).toEqual(defaultPresentation.compatible.map((material) =>
-    `Rank ${material.rank}|${material.materialLabel}|${material.scoreLabel}`));
+  expect(await displayedRanking(aborted.page)).toEqual(
+    defaultPresentation.compatible.map(
+      (material) => `Rank ${material.rank}|${material.materialLabel}|${material.scoreLabel}`,
+    ),
+  );
   await aborted.context.close();
 });
 
-test("hydration preserves SSR ranking and controls drive transparent engine records without data requests", async ({ browser, page }) => {
+test("hydration preserves SSR ranking and controls drive transparent engine records without data requests", async ({
+  browser,
+  page,
+}) => {
   const aborted = await openWithSelectorChunkAborted(browser);
   const ssrRanking = await displayedRanking(aborted.page);
   await aborted.context.close();
 
   const dataRequests: string[] = [];
   page.on("request", (request: { resourceType(): string }) => {
-    if (["fetch", "xhr"].includes(request.resourceType())) dataRequests.push(request.resourceType());
+    if (["fetch", "xhr"].includes(request.resourceType()))
+      dataRequests.push(request.resourceType());
   });
   await waitForSelector(page);
   expect(await displayedRanking(page)).toEqual(ssrRanking);
-  await expect(page.getByRole("radio", { checked: true })).toHaveValue(pageModel.defaults["selector-primary-goal"]);
+  await expect(page.getByRole("radio", { checked: true })).toHaveValue(
+    pageModel.defaults["selector-primary-goal"],
+  );
 
   const firstExpected = defaultPresentation.compatible[0]!;
   const firstResult = compatibleItems(page).first();
   await firstResult.getByText("Why this rank").click();
   const renderedContributions = await firstResult.locator("details li").allInnerTexts();
-  expect(renderedContributions).toEqual(firstExpected.contributions.map((record) =>
-    `${record.pointsLabel}\n${record.criterionLabel}: ${record.optionLabel}\n${record.explanation}`));
+  expect(renderedContributions).toEqual(
+    firstExpected.contributions.map(
+      (record) =>
+        `${record.pointsLabel}\n${record.criterionLabel}: ${record.optionLabel}\n${record.explanation}`,
+    ),
+  );
 
   await expect(page.locator(".selector-compatible-count")).toHaveText(
     `${defaultPresentation.compatible.length} Compatible`,
   );
   await expect(firstResult).toHaveAttribute("data-alignment", "highest");
   await expect(firstResult.locator(".selector-family-marker")).toBeVisible();
-  await expect(firstResult.locator("[data-contribution-state]")).toHaveCount(firstExpected.contributions.length);
+  await expect(firstResult.locator("[data-contribution-state]")).toHaveCount(
+    firstExpected.contributions.length,
+  );
 
   await expect(page.locator("details.selector-secondary")).toHaveAttribute("open", "");
   const enclosure = page.getByLabel("Enclosure capability");
@@ -153,23 +201,32 @@ test("hydration preserves SSR ranking and controls drive transparent engine reco
   await enclosure.selectOption("option-enclosure-available");
   await expect(enclosure).toBeFocused();
   await expect(firstResult.locator("details")).toHaveAttribute("open", "");
-  await expect(page.locator("[role=status]")).toContainText(/compatible materials; \d+ eliminated\./u);
+  await expect(page.locator("[role=status]")).toContainText(
+    /compatible materials; \d+ eliminated\./u,
+  );
 
   const eliminated = page.locator("details.selector-eliminated");
   await eliminated.locator(":scope > summary").click();
-  const currentSelection = { ...pageModel.defaults, "selector-enclosure-capability": "option-enclosure-available" };
+  const currentSelection = {
+    ...pageModel.defaults,
+    "selector-enclosure-capability": "option-enclosure-available",
+  };
   const currentOutcome = selectProjectedMaterials(pageModel.projection, currentSelection);
   const currentPresentation = presentSelectorOutcome(pageModel, currentOutcome);
   if (currentPresentation.kind !== "ranked") throw new Error("SELECTOR_CURRENT_NOT_RANKED");
   const expectedEliminated = currentPresentation.eliminated[0]!;
-  const eliminatedItem = eliminated.locator("article").filter({ has: page.getByRole("heading", { name: expectedEliminated.materialLabel }) });
+  const eliminatedItem = eliminated
+    .locator("article")
+    .filter({ has: page.getByRole("heading", { name: expectedEliminated.materialLabel }) });
   await expect(eliminatedItem).toBeVisible();
   const renderedReasons = await eliminatedItem.locator("li").allInnerTexts();
   expect(renderedReasons.length).toBeGreaterThan(0);
   await expect(eliminated.locator(".selector-eliminated-help")).toHaveText(
     "Open to review every hard constraint that removed a material.",
   );
-  await expect(eliminatedItem.locator("[data-exclusion-state]")).toHaveCount(expectedEliminated.reasons.length);
+  await expect(eliminatedItem.locator("[data-exclusion-state]")).toHaveCount(
+    expectedEliminated.reasons.length,
+  );
   await expect(eliminatedItem.getByText(/Rank \d+|alignment points/u)).toHaveCount(0);
 
   await page.getByRole("button", { name: "View recommendations" }).click();
@@ -189,24 +246,34 @@ test("hydration preserves SSR ranking and controls drive transparent engine reco
   }
 });
 
-test("shortlist is ordered, bounded, retained across exclusions, and returns focus deterministically", async ({ page }) => {
+test("shortlist is ordered, bounded, retained across exclusions, and returns focus deterministically", async ({
+  page,
+}) => {
   await waitForSelector(page);
   await selectRelaxedHardware(page);
   await page.getByRole("button", { name: "Show all 23 compatible materials" }).click();
 
   const addButtons = page.getByRole("button", { name: /^Add .+ to shortlist$/u });
-  const labels = await addButtons.evaluateAll((buttons: Element[]) => buttons.slice(0, 5).map((button: Element) => button.textContent?.trim() ?? ""));
+  const labels = await addButtons.evaluateAll((buttons: Element[]) =>
+    buttons.slice(0, 5).map((button: Element) => button.textContent?.trim() ?? ""),
+  );
   for (let index = 0; index < 4; index += 1) {
     await page.getByRole("button", { name: labels[index], exact: true }).click();
   }
   const shortlist = page.locator(".selector-shortlist");
   await expect(shortlist.locator("li")).toHaveCount(4);
   const shortlistedNames = await shortlist.locator("li > span:first-child").allInnerTexts();
-  expect(shortlistedNames).toEqual(labels.slice(0, 4).map((label: string) => label.replace(/^Add /u, "").replace(/ to shortlist$/u, "")));
+  expect(shortlistedNames).toEqual(
+    labels
+      .slice(0, 4)
+      .map((label: string) => label.replace(/^Add /u, "").replace(/ to shortlist$/u, "")),
+  );
 
   await page.getByRole("button", { name: labels[4], exact: true }).click();
   await expect(shortlist.locator("li")).toHaveCount(4);
-  await expect(page.locator("[role=status]")).toHaveText("Shortlist holds up to 4 materials. Remove one before adding another.");
+  await expect(page.locator("[role=status]")).toHaveText(
+    "Shortlist holds up to 4 materials. Remove one before adding another.",
+  );
 
   const firstName = shortlistedNames[0]!;
   await shortlist.getByRole("button", { name: `Remove ${firstName} from shortlist` }).click();
@@ -217,13 +284,18 @@ test("shortlist is ordered, bounded, retained across exclusions, and returns foc
   await page.waitForTimeout(400);
   await expect(page.locator("[role=status]")).toHaveText("Selector reset to published defaults.");
   await expect(shortlist.getByText("Now eliminated by current constraints").first()).toBeVisible();
-  await expect(shortlist.getByRole("link", { name: "Review exclusion" }).first()).toHaveAttribute("href", /^#eliminated-material-/u);
+  await expect(shortlist.getByRole("link", { name: "Review exclusion" }).first()).toHaveAttribute(
+    "href",
+    /^#eliminated-material-/u,
+  );
   await shortlist.getByRole("button", { name: "Clear shortlist" }).click();
   await expect(shortlist).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Compatible materials" })).toBeFocused();
 });
 
-test("removing the final retained eliminated item focuses the mounted results heading", async ({ page }) => {
+test("removing the final retained eliminated item focuses the mounted results heading", async ({
+  page,
+}) => {
   await waitForSelector(page);
   await selectRelaxedHardware(page);
   await page.getByRole("button", { name: "Show all 23 compatible materials" }).click();
@@ -240,7 +312,9 @@ test("removing the final retained eliminated item focuses the mounted results he
   await expect(page.locator("body")).not.toBeFocused();
 });
 
-test("show-all preserves order and every browser resource maps to the built deployment base", async ({ page }) => {
+test("show-all preserves order and every browser resource maps to the built deployment base", async ({
+  page,
+}) => {
   const badResources: string[] = [];
   page.on("response", (response: { url(): string; ok(): boolean }) => {
     const url = new URL(response.url());
@@ -257,7 +331,9 @@ test("show-all preserves order and every browser resource maps to the built depl
   await selectRelaxedHardware(page);
   await page.getByRole("button", { name: "Show all 23 compatible materials" }).click();
   await expect(compatibleItems(page)).toHaveCount(23);
-  await expect(page.getByText("Showing all 23 compatible materials", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Showing all 23 compatible materials", { exact: true }),
+  ).toBeVisible();
   const ranks = await compatibleItems(page).locator("article > p:first-child").allInnerTexts();
   expect(ranks).toEqual(Array.from({ length: 23 }, (_, index) => `Rank ${index + 1}`));
   expect(badResources).toEqual([]);

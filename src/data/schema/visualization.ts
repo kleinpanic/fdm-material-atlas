@@ -54,4 +54,3 @@ export type MaterialRouteSlug = z.infer<typeof MaterialRouteSlugSchema>;
 export type VisualizationKind = z.infer<typeof VisualizationKindSchema>;
 export type VisualizationTargetRef = z.infer<typeof VisualizationTargetRefSchema>;
 export type VisualizationReferenceRecord = z.infer<typeof VisualizationReferenceRecordSchema>;
-

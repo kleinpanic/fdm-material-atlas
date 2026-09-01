@@ -30,24 +30,33 @@ export function SelectorControls({
   onReset,
 }: Props) {
   const primary = pageModel.projection.criteria.find((criterion) => criterion.role === "primary");
-  const secondary = pageModel.projection.criteria.filter((criterion) => criterion.role === "secondary");
+  const secondary = pageModel.projection.criteria.filter(
+    (criterion) => criterion.role === "secondary",
+  );
   if (!primary) return null;
 
   const selectedLabel = (criterion: (typeof pageModel.projection.criteria)[number]) =>
-    criterion.options.find((option) => option.id === selection[criterion.id])?.label
-      ?? criterion.options.find((option) => option.id === criterion.defaultOptionId)?.label
-      ?? "";
+    criterion.options.find((option) => option.id === selection[criterion.id])?.label ??
+    criterion.options.find((option) => option.id === criterion.defaultOptionId)?.label ??
+    "";
 
-  const acceptValue = (criterion: (typeof pageModel.projection.criteria)[number], value: string) => {
+  const acceptValue = (
+    criterion: (typeof pageModel.projection.criteria)[number],
+    value: string,
+  ) => {
     if (criterion.options.some((option) => option.id === value)) onChange(criterion.id, value);
     else onInvalid(criterion.id);
   };
 
   return (
-    <form class="selector-controls" aria-describedby="selector-default-note" onSubmit={(event: JSX.TargetedSubmitEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      onView();
-    }}>
+    <form
+      class="selector-controls"
+      aria-describedby="selector-default-note"
+      onSubmit={(event: JSX.TargetedSubmitEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        onView();
+      }}
+    >
       <p id="selector-default-note">{SELECTOR_COPY.defaultStateNote}</p>
       <fieldset disabled={disabled}>
         <legend>{SELECTOR_COPY.primaryGoalLegend}</legend>
@@ -60,7 +69,9 @@ export function SelectorControls({
                 name={primary.id}
                 value={option.id}
                 checked={selection[primary.id] === option.id}
-                onChange={(event: JSX.TargetedEvent<HTMLInputElement>) => acceptValue(primary, event.currentTarget.value)}
+                onChange={(event: JSX.TargetedEvent<HTMLInputElement>) =>
+                  acceptValue(primary, event.currentTarget.value)
+                }
               />
               <span>{option.label}</span>
             </label>
@@ -81,10 +92,14 @@ export function SelectorControls({
               <select
                 name={criterion.id}
                 value={selection[criterion.id] ?? criterion.defaultOptionId}
-                onChange={(event: JSX.TargetedEvent<HTMLSelectElement>) => acceptValue(criterion, event.currentTarget.value)}
+                onChange={(event: JSX.TargetedEvent<HTMLSelectElement>) =>
+                  acceptValue(criterion, event.currentTarget.value)
+                }
               >
                 {criterion.options.map((option) => (
-                  <option key={option.id} value={option.id}>{option.label}</option>
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
                 ))}
               </select>
             </label>
@@ -105,8 +120,12 @@ export function SelectorControls({
       </section>
 
       <div class="selector-actions">
-        <button type="submit" disabled={disabled}>{SELECTOR_COPY.primaryAction}</button>
-        <button type="button" disabled={disabled} onClick={onReset}>{SELECTOR_COPY.resetAction}</button>
+        <button type="submit" disabled={disabled}>
+          {SELECTOR_COPY.primaryAction}
+        </button>
+        <button type="button" disabled={disabled} onClick={onReset}>
+          {SELECTOR_COPY.resetAction}
+        </button>
       </div>
     </form>
   );

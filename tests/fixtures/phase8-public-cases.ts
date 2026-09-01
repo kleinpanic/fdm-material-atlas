@@ -41,8 +41,10 @@ export const phase8SixWayCollision = Object.freeze(
 );
 
 export const phase8LongText = Object.freeze({
-  laneLabel: "A deliberately long synthetic decision-lane label that must wrap without hiding any decision-relevant words",
-  materialName: "Synthetic fiber-reinforced calibration material with an intentionally long public display name",
+  laneLabel:
+    "A deliberately long synthetic decision-lane label that must wrap without hiding any decision-relevant words",
+  materialName:
+    "Synthetic fiber-reinforced calibration material with an intentionally long public display name",
 });
 
 export const phase8StaleSelections = Object.freeze({
@@ -67,7 +69,9 @@ export const phase8OmissionRecoveryReason =
  * an explicit scientific omission and its bounded recovery state.
  */
 export function phase8OmissionRecoveryProjection(base: string): MapProjection {
-  const projection = structuredClone(compileMapProjection(loadPublicAtlas(), base)) as MapProjection;
+  const projection = structuredClone(
+    compileMapProjection(loadPublicAtlas(), base),
+  ) as MapProjection;
   const first = projection.impactFlex.records[0];
   if (first === undefined) throw new Error("PHASE8_OMISSION_FIXTURE_MISSING");
   const { impact: _impact, slot: _slot, shape: _shape, ...withoutImpact } = first;

@@ -15,7 +15,7 @@ const UNIT_LABELS: Readonly<Record<string, string>> = {
 function titleCase(value: string): string {
   return value
     .split("-")
-    .map((part) => part.length === 0 ? part : `${part[0]?.toUpperCase()}${part.slice(1)}`)
+    .map((part) => (part.length === 0 ? part : `${part[0]?.toUpperCase()}${part.slice(1)}`))
     .join(" ");
 }
 
@@ -27,9 +27,8 @@ function formatKnown(value: unknown): string {
   if (typeof value !== "object" || value === null) return "Not reported";
 
   const measurement = value as Record<string, unknown>;
-  const unit = typeof measurement.unit === "string"
-    ? (UNIT_LABELS[measurement.unit] ?? measurement.unit)
-    : "";
+  const unit =
+    typeof measurement.unit === "string" ? (UNIT_LABELS[measurement.unit] ?? measurement.unit) : "";
   if (measurement.shape === "exact" && typeof measurement.value === "number") {
     return `${measurement.value}${unit === "%" ? "" : " "}${unit}`.trim();
   }

@@ -7,21 +7,14 @@ import {
   SourceIdSchema,
   type MaterialId,
 } from "../../src/data/schema/ids.ts";
-import {
-  factStateSchema,
-  type FactState,
-} from "../../src/data/schema/fact-state.ts";
+import { factStateSchema, type FactState } from "../../src/data/schema/fact-state.ts";
 import {
   DensityMeasurementSchema,
   FanMeasurementSchema,
   SpeedMeasurementSchema,
   TemperatureMeasurementSchema,
 } from "../../src/data/schema/measurements.ts";
-import {
-  syntheticCondition,
-  syntheticIds,
-  syntheticReason,
-} from "../fixtures/schema-values.ts";
+import { syntheticCondition, syntheticIds, syntheticReason } from "../fixtures/schema-values.ts";
 import * as z from "zod";
 
 describe("stable public identifiers", () => {
@@ -133,7 +126,10 @@ describe("numeric measurements", () => {
 
   it.each([
     [TemperatureMeasurementSchema, { shape: "exact", value: Number.NaN, unit: "degC" }],
-    [TemperatureMeasurementSchema, { shape: "exact", value: Number.POSITIVE_INFINITY, unit: "degC" }],
+    [
+      TemperatureMeasurementSchema,
+      { shape: "exact", value: Number.POSITIVE_INFINITY, unit: "degC" },
+    ],
     [TemperatureMeasurementSchema, { shape: "range", min: 220, max: 190, unit: "degC" }],
     [TemperatureMeasurementSchema, { shape: "exact", value: 200, unit: "celsius" }],
     [DensityMeasurementSchema, { shape: "exact", value: 0, unit: "g/cm3" }],

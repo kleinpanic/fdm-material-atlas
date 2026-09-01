@@ -4,10 +4,7 @@ import { resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 
 import { parseAtlas } from "../../src/data/schema/parse-atlas.ts";
-import type {
-  MaterialId,
-  ProcessGateId,
-} from "../../src/data/schema/ids.ts";
+import type { MaterialId, ProcessGateId } from "../../src/data/schema/ids.ts";
 import type { Material } from "../../src/data/schema/material.ts";
 import {
   compileSelectorProjection,
@@ -18,11 +15,7 @@ import type {
   RankedSelectorOutcome,
   SelectorEngineOutcome,
 } from "../../src/domain/selector/types.ts";
-import {
-  makeSyntheticAtlas,
-  selectorScenarioKeys,
-  selectorScenarios,
-} from "./fixtures.ts";
+import { makeSyntheticAtlas, selectorScenarioKeys, selectorScenarios } from "./fixtures.ts";
 
 const artifactPath = resolve(import.meta.dirname, "../../src/data/public/atlas.v1.json");
 const parsed = parseAtlas(JSON.parse(readFileSync(artifactPath, "utf8")) as unknown);
@@ -284,15 +277,17 @@ function syntheticAtlas(kind: "tie" | "no-compatible") {
     const primary = synthetic.selector.criteria.find(({ id }) => id === "selector-primary-goal");
     const highHeat = primary?.options.find(({ id }) => id === "option-goal-high-heat");
     if (!highHeat) throw new Error("Canonical synthetic option is missing");
-    highHeat.hardGates = [{
-      reasonId: "reason-synthetic-capability",
-      processGateId: gateId("gate-synthetic-capability"),
-      incompatibleWhen: {
-        op: "equals",
-        field: "properties.outdoorUv",
-        value: "excellent",
+    highHeat.hardGates = [
+      {
+        reasonId: "reason-synthetic-capability",
+        processGateId: gateId("gate-synthetic-capability"),
+        incompatibleWhen: {
+          op: "equals",
+          field: "properties.outdoorUv",
+          value: "excellent",
+        },
       },
-    }];
+    ];
     synthetic.processGates.push({
       ...structuredClone(synthetic.processGates[0]!),
       id: gateId("gate-synthetic-capability"),
@@ -331,13 +326,16 @@ const syntheticExpectations: readonly RegressionExpectation[] = [
 ];
 
 const cases = selectorScenarioKeys.map((name) => {
-  const expected = [...canonicalExpectations, ...syntheticExpectations]
-    .find((candidate) => candidate.name === name);
+  const expected = [...canonicalExpectations, ...syntheticExpectations].find(
+    (candidate) => candidate.name === name,
+  );
   if (!expected) throw new Error(`Missing selector regression expectation: ${name}`);
   return expected;
 });
 
-function expectStableOutcome(outcome: Exclude<SelectorEngineOutcome, { kind: "invalid-selection" }>) {
+function expectStableOutcome(
+  outcome: Exclude<SelectorEngineOutcome, { kind: "invalid-selection" }>,
+) {
   const eliminatedIds = outcome.eliminated.map(({ materialId }) => materialId);
   expect(eliminatedIds).toEqual([...eliminatedIds].sort());
   outcome.eliminated.forEach((result) => {
@@ -364,11 +362,12 @@ function expectStableOutcome(outcome: Exclude<SelectorEngineOutcome, { kind: "in
 describe("required selector regressions", () => {
   test.each(cases)("$name", (expected) => {
     const fixture = selectorScenarios[expected.name];
-    const sourceAtlas = expected.name === "no-compatible-material"
-      ? syntheticAtlas("no-compatible")
-      : expected.name === "equal-score-ordering"
-        ? syntheticAtlas("tie")
-        : atlas;
+    const sourceAtlas =
+      expected.name === "no-compatible-material"
+        ? syntheticAtlas("no-compatible")
+        : expected.name === "equal-score-ordering"
+          ? syntheticAtlas("tie")
+          : atlas;
     const compiled = sourceAtlas === atlas ? projection : compileSelectorProjection(sourceAtlas);
     const projectedOutcome = selectProjectedMaterials(compiled, fixture.input);
     const atlasOutcome = selectMaterials(sourceAtlas, fixture.input);
@@ -387,8 +386,9 @@ describe("required selector regressions", () => {
     if (expected.primaryContribution) {
       const top = projectedOutcome.compatible[0];
       expect(top).toBeDefined();
-      expect(top!.contributions.find(({ criterionId }) =>
-        criterionId === "selector-primary-goal")).toMatchObject({
+      expect(
+        top!.contributions.find(({ criterionId }) => criterionId === "selector-primary-goal"),
+      ).toMatchObject({
         criterionId: "selector-primary-goal",
         optionId: expected.primaryContribution.optionId,
         role: "primary",
@@ -405,16 +405,25 @@ describe("required selector regressions", () => {
         ({ materialId: id }) => id === expected.exclusion!.materialId,
       );
       expect(eliminated).toBeDefined();
-      expect(eliminated!.exclusions.map(({ reasonId, processGateId, outcome }) =>
-        [reasonId, processGateId, outcome])).toEqual(expected.exclusion.reasons);
+      expect(
+        eliminated!.exclusions.map(({ reasonId, processGateId, outcome }) => [
+          reasonId,
+          processGateId,
+          outcome,
+        ]),
+      ).toEqual(expected.exclusion.reasons);
     }
 
     if (expected.name === "easy-prototype-no-enclosure") {
       const enclosureBlocked = projectedOutcome.eliminated.filter(({ exclusions }) =>
-        exclusions.some(({ reasonId }) => reasonId === "reason-enclosure-required"));
+        exclusions.some(({ reasonId }) => reasonId === "reason-enclosure-required"),
+      );
       expect(enclosureBlocked.length).toBeGreaterThan(0);
-      expect(projectedOutcome.compatible.every(({ materialId: id }) =>
-        enclosureBlocked.every(({ materialId: blocked }) => blocked !== id))).toBe(true);
+      expect(
+        projectedOutcome.compatible.every(({ materialId: id }) =>
+          enclosureBlocked.every(({ materialId: blocked }) => blocked !== id),
+        ),
+      ).toBe(true);
     }
 
     if (expected.name === "constraint-eliminates-prior-top") {

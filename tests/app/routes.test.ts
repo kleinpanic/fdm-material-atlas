@@ -39,18 +39,14 @@ describe("routePath", () => {
     "alpha#unsafe",
     "UPPERCASE",
   ])("rejects unsafe material slug %s", (slug) => {
-    expect(() => routePath({ id: "material", slug })).toThrow(
-      "ROUTE_SLUG_INVALID",
-    );
+    expect(() => routePath({ id: "material", slug })).toThrow("ROUTE_SLUG_INVALID");
   });
 
   it("rejects targets outside the closed route variants", () => {
     expect(() => routePath({ id: "external", url: "https://example.com" } as never)).toThrow(
       "ROUTE_TARGET_INVALID",
     );
-    expect(() => routePath("/materials/synthetic-alpha/" as never)).toThrow(
-      "ROUTE_TARGET_INVALID",
-    );
+    expect(() => routePath("/materials/synthetic-alpha/" as never)).toThrow("ROUTE_TARGET_INVALID");
   });
 });
 
@@ -64,19 +60,15 @@ describe("internalHref", () => {
     expect(internalHref(base, DATA)).toBe("/data/");
   });
 
-  it.each([
-    "/atlas-preview/",
-    "/atlas-preview",
-    "atlas-preview/",
-    "atlas-preview",
-  ])("normalizes repository base separators once for %s", (base) => {
-    expect(internalHref(base, HOME)).toBe("/atlas-preview/");
-    expect(internalHref(base, MATERIAL)).toBe(
-      "/atlas-preview/materials/synthetic-alpha/",
-    );
-    expect(internalHref(base, COMPARE)).toBe("/atlas-preview/compare/");
-    expect(internalHref(base, DATA)).toBe("/atlas-preview/data/");
-  });
+  it.each(["/atlas-preview/", "/atlas-preview", "atlas-preview/", "atlas-preview"])(
+    "normalizes repository base separators once for %s",
+    (base) => {
+      expect(internalHref(base, HOME)).toBe("/atlas-preview/");
+      expect(internalHref(base, MATERIAL)).toBe("/atlas-preview/materials/synthetic-alpha/");
+      expect(internalHref(base, COMPARE)).toBe("/atlas-preview/compare/");
+      expect(internalHref(base, DATA)).toBe("/atlas-preview/data/");
+    },
+  );
 
   it("never doubles a base prefix when a slug contains the base name", () => {
     expect(
@@ -124,7 +116,11 @@ describe("fragmentHref", () => {
 describe("internalFragmentHref", () => {
   it.each([
     ["/", "/materials/synthetic-alpha/#evidence", "/method/#source-synthetic-guide"],
-    ["/atlas-preview/", "/atlas-preview/materials/synthetic-alpha/#evidence", "/atlas-preview/method/#source-synthetic-guide"],
+    [
+      "/atlas-preview/",
+      "/atlas-preview/materials/synthetic-alpha/#evidence",
+      "/atlas-preview/method/#source-synthetic-guide",
+    ],
   ])("composes one validated cross-document fragment under %s", (base, material, method) => {
     expect(internalFragmentHref(base, MATERIAL, "evidence")).toBe(material);
     expect(internalFragmentHref(base, METHOD, "source-synthetic-guide")).toBe(method);
@@ -132,6 +128,8 @@ describe("internalFragmentHref", () => {
 
   it("rejects invalid fragments and bases through the existing stable codes", () => {
     expect(() => internalFragmentHref("/", METHOD, "#unsafe")).toThrow("FRAGMENT_ID_INVALID");
-    expect(() => internalFragmentHref("https://example.com/", METHOD, "sources")).toThrow("ROUTE_BASE_INVALID");
+    expect(() => internalFragmentHref("https://example.com/", METHOD, "sources")).toThrow(
+      "ROUTE_BASE_INVALID",
+    );
   });
 });

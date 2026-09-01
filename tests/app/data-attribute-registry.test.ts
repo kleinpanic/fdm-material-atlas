@@ -15,65 +15,69 @@ import {
 } from "../fixtures/phase7-public-cases.ts";
 
 const EXPECTED_GROUPS = [
-  ["identity-thermal", "Identity and thermal behavior", [
-    "material-name",
-    "family-or-fill",
-    "service-temperature-low",
-    "service-temperature-high",
-    "thermal-metric",
-    "thermal-value",
-  ]],
-  ["mechanical-use", "Mechanical and use behavior", [
-    "wear-abrasion",
-    "impact-resistance",
-    "creep-sustained-load",
-    "flexibility",
-  ]],
-  ["environment-exposure", "Environment and exposure", [
-    "outdoor-uv",
-    "moisture-sensitivity",
-    "chemical-resistance",
-  ]],
-  ["print-process", "Print and process requirements", [
-    "print-difficulty",
-    "nozzle-temperature",
-    "bed-temperature",
-    "enclosure-requirement",
-    "hardened-nozzle-requirement",
-    "warp-tendency",
-  ]],
-  ["dimensional-cooling", "Dimensional behavior and cooling", [
-    "cooling-shrink-risk",
-    "dimensional-stability",
-    "cooling-fit-guidance",
-  ]],
-  ["handling-density-cost", "Handling, density, and cost", [
-    "drying-priority",
-    "ventilation-category",
-    "density",
-    "relative-cost-tier",
-  ]],
-  ["uses-tradeoffs", "Uses and tradeoffs", [
-    "recommended-uses",
-    "tradeoffs",
-  ]],
-  ["starting-profile", "Starting print profile", [
-    "starting-print-speed",
-    "part-cooling-fan",
-    "bridge-speed",
-    "bridge-fan",
-  ]],
+  [
+    "identity-thermal",
+    "Identity and thermal behavior",
+    [
+      "material-name",
+      "family-or-fill",
+      "service-temperature-low",
+      "service-temperature-high",
+      "thermal-metric",
+      "thermal-value",
+    ],
+  ],
+  [
+    "mechanical-use",
+    "Mechanical and use behavior",
+    ["wear-abrasion", "impact-resistance", "creep-sustained-load", "flexibility"],
+  ],
+  [
+    "environment-exposure",
+    "Environment and exposure",
+    ["outdoor-uv", "moisture-sensitivity", "chemical-resistance"],
+  ],
+  [
+    "print-process",
+    "Print and process requirements",
+    [
+      "print-difficulty",
+      "nozzle-temperature",
+      "bed-temperature",
+      "enclosure-requirement",
+      "hardened-nozzle-requirement",
+      "warp-tendency",
+    ],
+  ],
+  [
+    "dimensional-cooling",
+    "Dimensional behavior and cooling",
+    ["cooling-shrink-risk", "dimensional-stability", "cooling-fit-guidance"],
+  ],
+  [
+    "handling-density-cost",
+    "Handling, density, and cost",
+    ["drying-priority", "ventilation-category", "density", "relative-cost-tier"],
+  ],
+  ["uses-tradeoffs", "Uses and tradeoffs", ["recommended-uses", "tradeoffs"]],
+  [
+    "starting-profile",
+    "Starting print profile",
+    ["starting-print-speed", "part-cooling-fan", "bridge-speed", "bridge-fan"],
+  ],
 ] as const;
 
 const EXPECTED_KEYS = EXPECTED_GROUPS.flatMap(([, , keys]) => keys);
 
 describe("data attribute registry", () => {
   it("registers the independent 8-group, 32-field inventory exactly once", () => {
-    expect(DATA_ATTRIBUTE_GROUPS.map(({ key, label, fields }) => [
-      key,
-      label,
-      fields.map(({ key: fieldKey }) => fieldKey),
-    ])).toEqual(EXPECTED_GROUPS);
+    expect(
+      DATA_ATTRIBUTE_GROUPS.map(({ key, label, fields }) => [
+        key,
+        label,
+        fields.map(({ key: fieldKey }) => fieldKey),
+      ]),
+    ).toEqual(EXPECTED_GROUPS);
     expect(DATA_ATTRIBUTE_REGISTRY.map(({ key }) => key)).toEqual(EXPECTED_KEYS);
     expect(new Set(DATA_ATTRIBUTE_REGISTRY.map(({ key }) => key))).toHaveLength(32);
   });
@@ -83,7 +87,9 @@ describe("data attribute registry", () => {
       expect(field.displayOrder).toBe(index);
       expect(field.label).toMatch(/^[A-Z][^\n]*$/u);
       expect(field.help).toMatch(/\S/u);
-      expect(field.valueKind).toMatch(/^(identity|fact|service-endpoint|thermal-metric|thermal-value)$/u);
+      expect(field.valueKind).toMatch(
+        /^(identity|fact|service-endpoint|thermal-metric|thermal-value)$/u,
+      );
       expect(field.search).toMatch(/^(display|none)$/u);
       expect(field.filter).toMatch(/^(state-and-scope|scope|none)$/u);
       expect(field.sort).toMatch(/^(canonical|label|vocabulary|number|none)$/u);
@@ -102,7 +108,7 @@ describe("data attribute registry", () => {
     expect(byKey.get("service-temperature-low")?.read(material)).toMatchObject({
       kind: "service-endpoint",
       endpoint: "low",
-      fact: { state: "known", value:  -10 },
+      fact: { state: "known", value: -10 },
     });
     expect(byKey.get("service-temperature-high")?.read(material)).toMatchObject({
       kind: "service-endpoint",

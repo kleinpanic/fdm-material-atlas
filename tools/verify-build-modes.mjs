@@ -149,7 +149,8 @@ async function collectFiles(root) {
 function localFileForUrl(mode, rawValue, currentPublicPath, files, { allowExternal = false } = {}) {
   const value = rawValue.trim().replaceAll("&amp;", "&");
   if (value === "" || value.startsWith("data:") || value.startsWith("#")) return undefined;
-  if (/^(?:javascript|file|blob):/i.test(value) || value.startsWith("//")) fail("URL_SCHEME_FORBIDDEN");
+  if (/^(?:javascript|file|blob):/i.test(value) || value.startsWith("//"))
+    fail("URL_SCHEME_FORBIDDEN");
   if (/(?:^|\/)\.\.?\//.test(value) || /%2f|%5c/i.test(value)) fail("URL_PATH_UNSAFE");
 
   let url;
@@ -185,7 +186,8 @@ function attributeValues(html) {
     const name = match[1].toLowerCase();
     const value = match[2] ?? match[3] ?? "";
     if (name === "srcset") {
-      for (const item of value.split(",")) values.push({ name, value: item.trim().split(/\s+/)[0] ?? "" });
+      for (const item of value.split(","))
+        values.push({ name, value: item.trim().split(/\s+/)[0] ?? "" });
     } else {
       values.push({ name, value });
     }
@@ -197,7 +199,9 @@ function inspectHtml(mode, name, html, files) {
   const route = routeForHtml(name);
   const publicPath = posix.join(mode.base, route.slice(1));
   if (FORBIDDEN_OUTPUT_TEXT.some((pattern) => pattern.test(html))) fail("CLIENT_RUNTIME_FORBIDDEN");
-  const canonicalMatches = [...html.matchAll(/<link\b[^>]*\brel=["']canonical["'][^>]*\bhref=["']([^"']+)["'][^>]*>/gi)];
+  const canonicalMatches = [
+    ...html.matchAll(/<link\b[^>]*\brel=["']canonical["'][^>]*\bhref=["']([^"']+)["'][^>]*>/gi),
+  ];
   if (canonicalMatches.length !== 1) fail("CANONICAL_COUNT_INVALID");
   const expectedCanonical = new URL(publicPath, PUBLIC_ORIGIN).href;
   if (canonicalMatches[0][1] !== expectedCanonical) fail("CANONICAL_URL_INVALID");
@@ -242,7 +246,9 @@ async function inspectMode(mode, { runPublication = true } = {}) {
   const htmlNames = [...files.keys()].filter((name) => name.endsWith(".html")).sort();
   const routes = [];
   for (const name of htmlNames) {
-    const html = await readFile(files.get(name).path, "utf8").catch(() => fail("OUTPUT_READ_FAILED"));
+    const html = await readFile(files.get(name).path, "utf8").catch(() =>
+      fail("OUTPUT_READ_FAILED"),
+    );
     routes.push(inspectHtml(mode, name, html, files));
   }
   if (!routes.includes("/") || !routes.includes("/materials/") || !routes.includes("/method/")) {
@@ -251,7 +257,9 @@ async function inspectMode(mode, { runPublication = true } = {}) {
 
   const cssGraph = new Map();
   for (const name of [...files.keys()].filter((entry) => entry.endsWith(".css")).sort()) {
-    const css = await readFile(files.get(name).path, "utf8").catch(() => fail("OUTPUT_READ_FAILED"));
+    const css = await readFile(files.get(name).path, "utf8").catch(() =>
+      fail("OUTPUT_READ_FAILED"),
+    );
     if (FORBIDDEN_OUTPUT_TEXT.some((pattern) => pattern.test(css))) fail("CSS_OUTPUT_FORBIDDEN");
     const publicPath = toPublicPath(mode, name);
     const importedCss = [];
@@ -266,7 +274,8 @@ async function inspectMode(mode, { runPublication = true } = {}) {
   for (const [name, record] of files) {
     if (!/\.(?:html|css|js|mjs|json|xml|txt|svg)$/i.test(name)) continue;
     const text = await readFile(record.path, "utf8").catch(() => fail("OUTPUT_READ_FAILED"));
-    if (FORBIDDEN_OUTPUT_TEXT.some((pattern) => pattern.test(text))) fail("OUTPUT_CONTENT_FORBIDDEN");
+    if (FORBIDDEN_OUTPUT_TEXT.some((pattern) => pattern.test(text)))
+      fail("OUTPUT_CONTENT_FORBIDDEN");
   }
 
   const sensitiveFile = process.env.FDM_PUBLICATION_SENSITIVE_FILE;
@@ -301,9 +310,10 @@ async function inspectMode(mode, { runPublication = true } = {}) {
 
 async function runPublicationScan(mode) {
   const sensitiveFile = process.env.FDM_PUBLICATION_SENSITIVE_FILE;
-  const sensitiveArguments = typeof sensitiveFile === "string" && sensitiveFile !== ""
-    ? ["--sensitive-file", sensitiveFile]
-    : [];
+  const sensitiveArguments =
+    typeof sensitiveFile === "string" && sensitiveFile !== ""
+      ? ["--sensitive-file", sensitiveFile]
+      : [];
   const output = await run(
     process.execPath,
     [
@@ -331,18 +341,22 @@ async function buildAndInspect() {
   for (const mode of MODES) await rm(mode.output, { recursive: true, force: true });
   await run("npm", ["run", "validate:data"], { code: "DATA_VALIDATION_FAILED" });
   for (const mode of MODES) {
-    await run("npm", ["run", mode.buildScript], { code: `BUILD_FAILED_${mode.name.toUpperCase()}` });
+    await run("npm", ["run", mode.buildScript], {
+      code: `BUILD_FAILED_${mode.name.toUpperCase()}`,
+    });
   }
   const reports = [];
   for (const mode of MODES) reports.push(await inspectMode(mode, { runPublication: false }));
-  if (JSON.stringify(reports[0].routes) !== JSON.stringify(reports[1].routes)) fail("ROUTE_PARITY_FAILED");
+  if (JSON.stringify(reports[0].routes) !== JSON.stringify(reports[1].routes))
+    fail("ROUTE_PARITY_FAILED");
   return reports;
 }
 
 async function runBrowserChecks() {
   const reports = [];
   for (const mode of MODES) reports.push(await inspectMode(mode, { runPublication: false }));
-  if (JSON.stringify(reports[0].routes) !== JSON.stringify(reports[1].routes)) fail("ROUTE_PARITY_FAILED");
+  if (JSON.stringify(reports[0].routes) !== JSON.stringify(reports[1].routes))
+    fail("ROUTE_PARITY_FAILED");
   for (const mode of MODES) {
     await run("npm", ["run", mode.e2eScript], {
       code: `BROWSER_FAILED_${mode.name.toUpperCase()}`,
@@ -355,7 +369,8 @@ async function runBrowserChecks() {
 async function inspectExistingBuilds() {
   const reports = [];
   for (const mode of MODES) reports.push(await inspectMode(mode, { runPublication: false }));
-  if (JSON.stringify(reports[0].routes) !== JSON.stringify(reports[1].routes)) fail("ROUTE_PARITY_FAILED");
+  if (JSON.stringify(reports[0].routes) !== JSON.stringify(reports[1].routes))
+    fail("ROUTE_PARITY_FAILED");
   return reports;
 }
 
@@ -382,8 +397,13 @@ export async function createPreviewServer(mode) {
       }
       if (!url.pathname.startsWith(mode.base)) fail("SERVE_PATH_INVALID");
       const logical = decodeURIComponent(url.pathname.slice(mode.base.length));
-      if (logical.includes("\\") || logical.split("/").some((segment) => segment === "." || segment === "..")) fail("SERVE_PATH_INVALID");
-      const relativeFile = logical === "" || logical.endsWith("/") ? `${logical}index.html` : logical;
+      if (
+        logical.includes("\\") ||
+        logical.split("/").some((segment) => segment === "." || segment === "..")
+      )
+        fail("SERVE_PATH_INVALID");
+      const relativeFile =
+        logical === "" || logical.endsWith("/") ? `${logical}index.html` : logical;
       const record = files.get(relativeFile);
       if (record === undefined) {
         response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
@@ -427,38 +447,48 @@ async function main() {
   }
   if (command === "phase8") {
     const report = await verifyPhase8Build(parsePhase8Arguments(process.argv.slice(3)));
-    process.stdout.write(`${JSON.stringify({ ok: true, command, stage: report.stage, routeCount: report.routeCount, modes: report.modes })}\n`);
+    process.stdout.write(
+      `${JSON.stringify({ ok: true, command, stage: report.stage, routeCount: report.routeCount, modes: report.modes })}\n`,
+    );
     return;
   }
-  if (process.argv.length !== 3 || !["build", "browser", "selector", "phase7"].includes(command)) fail("ARGUMENTS_INVALID");
+  if (process.argv.length !== 3 || !["build", "browser", "selector", "phase7"].includes(command))
+    fail("ARGUMENTS_INVALID");
   if (command === "phase7") {
     const report = await verifyPhase7Build();
-    process.stdout.write(`${JSON.stringify({ ok: true, command, routeCount: report.routeCount, modes: report.modes })}\n`);
+    process.stdout.write(
+      `${JSON.stringify({ ok: true, command, routeCount: report.routeCount, modes: report.modes })}\n`,
+    );
     return;
   }
-  const reports = command === "build"
-    ? await buildAndInspect()
-    : command === "browser"
-      ? await runBrowserChecks()
-      : await inspectExistingBuilds();
-  process.stdout.write(`${JSON.stringify({
-    ok: true,
-    command,
-    modes: reports.map((report, index) => ({
-      mode: MODES[index].name,
-      routeCount: report.routes.length,
-      fileCount: report.fileCount,
-      selectorGzipBytes: report.selectorGzipBytes,
-      selectorJavaScriptCount: report.selectorJavaScriptCount,
-    })),
-  })}\n`);
+  const reports =
+    command === "build"
+      ? await buildAndInspect()
+      : command === "browser"
+        ? await runBrowserChecks()
+        : await inspectExistingBuilds();
+  process.stdout.write(
+    `${JSON.stringify({
+      ok: true,
+      command,
+      modes: reports.map((report, index) => ({
+        mode: MODES[index].name,
+        routeCount: report.routes.length,
+        fileCount: report.fileCount,
+        selectorGzipBytes: report.selectorGzipBytes,
+        selectorJavaScriptCount: report.selectorJavaScriptCount,
+      })),
+    })}\n`,
+  );
 }
 
 if (resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   main().catch((error) => {
-    const code = error instanceof VerificationError || (typeof error?.code === "string" && /^[A-Z0-9_]+$/u.test(error.code))
-      ? error.code
-      : "VERIFICATION_FAILED";
+    const code =
+      error instanceof VerificationError ||
+      (typeof error?.code === "string" && /^[A-Z0-9_]+$/u.test(error.code))
+        ? error.code
+        : "VERIFICATION_FAILED";
     process.stderr.write(`${JSON.stringify({ ok: false, code })}\n`);
     process.exitCode = 1;
   });

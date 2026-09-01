@@ -12,17 +12,23 @@ describe("comparison model", () => {
     const model = buildComparisonModel(atlas, "/atlas-preview/");
 
     expect(model.groups).toHaveLength(8);
-    expect(model.groups.flatMap(({ fields }) => fields.map(({ key }) => key)))
-      .toEqual(DATA_ATTRIBUTE_REGISTRY.map(({ key }) => key));
+    expect(model.groups.flatMap(({ fields }) => fields.map(({ key }) => key))).toEqual(
+      DATA_ATTRIBUTE_REGISTRY.map(({ key }) => key),
+    );
     expect(model.materials).toHaveLength(23);
     expect(model.materials.map(({ id }) => id)).toEqual(
       [...atlas.materials]
-        .sort((left, right) => left.displayOrder - right.displayOrder || left.id.localeCompare(right.id, "en"))
+        .sort(
+          (left, right) =>
+            left.displayOrder - right.displayOrder || left.id.localeCompare(right.id, "en"),
+        )
         .map(({ id }) => id),
     );
     for (const material of model.materials) {
       expect(material.cells).toHaveLength(32);
-      expect(material.cells.map(({ key }) => key)).toEqual(DATA_ATTRIBUTE_REGISTRY.map(({ key }) => key));
+      expect(material.cells.map(({ key }) => key)).toEqual(
+        DATA_ATTRIBUTE_REGISTRY.map(({ key }) => key),
+      );
       expect(material.href).toMatch(/^\/atlas-preview\/materials\/[a-z0-9-]+\/$/u);
     }
   });
@@ -53,13 +59,23 @@ describe("comparison model", () => {
     expect(model.thermalGroups.length).toBeGreaterThan(0);
     expect(new Set(model.thermalGroups.map(({ id }) => id)).size).toBe(model.thermalGroups.length);
     const partition = partitionCompatibleThermalObservations(
-      atlas.materials.flatMap((material) => material.thermalObservations.map((observation) => ({
-        materialId: material.id,
-        observation,
-      }))),
+      atlas.materials.flatMap((material) =>
+        material.thermalObservations.map((observation) => ({
+          materialId: material.id,
+          observation,
+        })),
+      ),
     );
-    expect(model.thermalGroups.map(({ id, metric, metricLabel, method }) => ({ id, metric, metricLabel, method })))
-      .toEqual(partition.map(({ id, metric, metricLabel, method }) => ({ id, metric, metricLabel, method })));
+    expect(
+      model.thermalGroups.map(({ id, metric, metricLabel, method }) => ({
+        id,
+        metric,
+        metricLabel,
+        method,
+      })),
+    ).toEqual(
+      partition.map(({ id, metric, metricLabel, method }) => ({ id, metric, metricLabel, method })),
+    );
 
     for (const material of model.materials) {
       const metric = material.cells.find(({ key }) => key === "thermal-metric")!;
@@ -67,7 +83,9 @@ describe("comparison model", () => {
       expect(metric.kind).toBe("thermal");
       expect(value.kind).toBe("thermal");
       if (metric.kind !== "thermal" || value.kind !== "thermal") continue;
-      expect(metric.members.map(({ groupId }) => groupId)).toEqual(value.members.map(({ groupId }) => groupId));
+      expect(metric.members.map(({ groupId }) => groupId)).toEqual(
+        value.members.map(({ groupId }) => groupId),
+      );
     }
   });
 
@@ -84,17 +102,19 @@ describe("comparison model", () => {
       }
     };
     visit(model);
-    expect([...keys]).not.toEqual(expect.arrayContaining([
-      "atlas",
-      "selector",
-      "decisionLanes",
-      "processGates",
-      "visualizationReferences",
-      "sources",
-      "methods",
-      "basis",
-      "externalUrl",
-    ]));
+    expect([...keys]).not.toEqual(
+      expect.arrayContaining([
+        "atlas",
+        "selector",
+        "decisionLanes",
+        "processGates",
+        "visualizationReferences",
+        "sources",
+        "methods",
+        "basis",
+        "externalUrl",
+      ]),
+    );
     expect(serialized).not.toMatch(/https?:\/\/|claim-[a-z0-9-]+/u);
     expect(serialized).toContain('"href":"/method/#');
   });

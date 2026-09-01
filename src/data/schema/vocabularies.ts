@@ -1,21 +1,58 @@
 import * as z from "zod";
 
-export const wearAbrasionRatingValues = ["low-wear", "moderate-wear", "high-wear", "abrasive"] as const;
-export const impactResistanceRatingValues = ["brittle", "low-impact", "moderate-impact", "high-impact", "very-high-impact"] as const;
-export const creepSustainedLoadRatingValues = ["poor", "limited", "moderate", "good", "very-good"] as const;
+export const wearAbrasionRatingValues = [
+  "low-wear",
+  "moderate-wear",
+  "high-wear",
+  "abrasive",
+] as const;
+export const impactResistanceRatingValues = [
+  "brittle",
+  "low-impact",
+  "moderate-impact",
+  "high-impact",
+  "very-high-impact",
+] as const;
+export const creepSustainedLoadRatingValues = [
+  "poor",
+  "limited",
+  "moderate",
+  "good",
+  "very-good",
+] as const;
 export const outdoorUvRatingValues = ["unsuitable", "limited", "suitable", "excellent"] as const;
 export const moistureSensitivityValues = ["low", "moderate", "high", "very-high"] as const;
 export const printDifficultyValues = ["easy", "moderate", "advanced", "expert"] as const;
 export const enclosureRequirementValues = ["not-required", "recommended", "required"] as const;
 export const hardenedNozzleRequirementValues = ["not-required", "recommended", "required"] as const;
 export const warpTendencyValues = ["low", "moderate", "high", "very-high"] as const;
-export const flexibilityRatingValues = ["rigid", "semi-rigid", "flexible", "very-flexible"] as const;
-export const chemicalResistanceRatingValues = ["limited", "moderate", "good", "broad-resistance"] as const;
+export const flexibilityRatingValues = [
+  "rigid",
+  "semi-rigid",
+  "flexible",
+  "very-flexible",
+] as const;
+export const chemicalResistanceRatingValues = [
+  "limited",
+  "moderate",
+  "good",
+  "broad-resistance",
+] as const;
 export const coolingShrinkRiskValues = ["low", "moderate", "high", "very-high"] as const;
 export const dimensionalStabilityValues = ["low", "moderate", "high", "very-high"] as const;
-export const coolingFitGuidanceValues = ["minimal-cooling", "managed-cooling", "active-cooling", "geometry-specific"] as const;
+export const coolingFitGuidanceValues = [
+  "minimal-cooling",
+  "managed-cooling",
+  "active-cooling",
+  "geometry-specific",
+] as const;
 export const dryingPriorityValues = ["optional", "recommended", "required", "critical"] as const;
-export const ventilationCategoryValues = ["standard-room", "good-ventilation", "local-exhaust", "specialized-controls"] as const;
+export const ventilationCategoryValues = [
+  "standard-room",
+  "good-ventilation",
+  "local-exhaust",
+  "specialized-controls",
+] as const;
 export const costTierValues = ["low", "medium", "high", "premium"] as const;
 
 export const WearAbrasionRatingSchema = z.enum(wearAbrasionRatingValues);

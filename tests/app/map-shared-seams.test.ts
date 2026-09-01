@@ -2,7 +2,10 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 
 import type { FactState } from "../../src/data/schema/fact-state.ts";
 import type { ClaimId, MaterialId } from "../../src/data/schema/ids.ts";
-import { compareThermalObservations, type ThermalObservation } from "../../src/data/schema/material.ts";
+import {
+  compareThermalObservations,
+  type ThermalObservation,
+} from "../../src/data/schema/material.ts";
 import { partitionCompatibleThermalObservations } from "../../src/domain/thermal/compatibility-groups.ts";
 import {
   MAP_MODES,
@@ -47,11 +50,18 @@ describe("Phase 8 shared map seams", () => {
     expectTypeOf<MapDisposition>().toMatchTypeOf<
       | { readonly disposition: "plotted" }
       | { readonly disposition: "filtered"; readonly filter: MapFilter }
-      | { readonly disposition: "omitted"; readonly code: (typeof MAP_OMISSION_CODES)[number]; readonly reason: string }
+      | {
+          readonly disposition: "omitted";
+          readonly code: (typeof MAP_OMISSION_CODES)[number];
+          readonly reason: string;
+        }
     >();
     expectTypeOf<MapSelectionAction>().toMatchTypeOf<
       | { readonly type: "select-material"; readonly materialId: MaterialId }
-      | { readonly type: "clear-selection"; readonly target: "all" | "lane" | "material" | "gate" | "thermal-group" }
+      | {
+          readonly type: "clear-selection";
+          readonly target: "all" | "lane" | "material" | "gate" | "thermal-group";
+        }
     >();
   });
 
@@ -102,33 +112,30 @@ describe("Phase 8 shared map seams", () => {
     const membership = deriveDecisionLaneMembership(loadPublicAtlas());
     expect(membership).toHaveLength(8);
     expect(membership.map(({ candidateMaterialIds }) => candidateMaterialIds.length)).toEqual([
-      4,
-      2,
-      4,
-      7,
-      8,
-      4,
-      13,
-      2,
+      4, 2, 4, 7, 8, 4, 13, 2,
     ]);
   });
 
   it("partitions named observations deterministically through canonical compatibility", () => {
     const atlas = loadPublicAtlas();
-    const inputs = atlas.materials.flatMap((material) => material.thermalObservations.map((observation) => ({
-      materialId: material.id,
-      observation,
-    })));
+    const inputs = atlas.materials.flatMap((material) =>
+      material.thermalObservations.map((observation) => ({
+        materialId: material.id,
+        observation,
+      })),
+    );
     const expected = partitionCompatibleThermalObservations(inputs);
     const permuted = partitionCompatibleThermalObservations([...inputs].reverse());
-    const originalByKey = new Map(inputs.map(({ materialId, observation }) => [
-      `${materialId}\0${observation.id}`,
-      observation,
-    ] as const));
+    const originalByKey = new Map(
+      inputs.map(
+        ({ materialId, observation }) => [`${materialId}\0${observation.id}`, observation] as const,
+      ),
+    );
 
     expect(JSON.stringify(permuted)).toBe(JSON.stringify(expected));
-    expect(expected.map(({ members }) => members.length).sort((left, right) => right - left))
-      .toEqual([8, 5, 3, 2, 2, 1, 1, 1]);
+    expect(
+      expected.map(({ members }) => members.length).sort((left, right) => right - left),
+    ).toEqual([8, 5, 3, 2, 2, 1, 1, 1]);
     expect(expected.every(({ members }) => members.length > 0)).toBe(true);
     for (const group of expected) {
       for (const left of group.members) {
@@ -147,16 +154,38 @@ describe("Phase 8 shared map seams", () => {
     const original = structuredClone(loadPublicAtlas().materials[0]!.thermalObservations[0]!);
     const variants: ThermalObservation[] = [
       original,
-      { ...structuredClone(original), id: "claim-synthetic-standard" as ClaimId, method: { ...original.method, standard: "Synthetic standard" } },
-      { ...structuredClone(original), id: "claim-synthetic-load" as ClaimId, method: { ...original.method, loadMpa: 12.5 } },
-      { ...structuredClone(original), id: "claim-synthetic-annealed" as ClaimId, method: { ...original.method, annealed: !(original.method?.annealed ?? false) } },
-      { ...structuredClone(original), id: "claim-synthetic-conditioning" as ClaimId, method: { ...original.method, conditioning: "Synthetic conditioning" } },
-      { ...structuredClone(original), id: "claim-synthetic-other" as ClaimId, method: { ...original.method, otherConditions: "Synthetic other condition" } },
+      {
+        ...structuredClone(original),
+        id: "claim-synthetic-standard" as ClaimId,
+        method: { ...original.method, standard: "Synthetic standard" },
+      },
+      {
+        ...structuredClone(original),
+        id: "claim-synthetic-load" as ClaimId,
+        method: { ...original.method, loadMpa: 12.5 },
+      },
+      {
+        ...structuredClone(original),
+        id: "claim-synthetic-annealed" as ClaimId,
+        method: { ...original.method, annealed: !(original.method?.annealed ?? false) },
+      },
+      {
+        ...structuredClone(original),
+        id: "claim-synthetic-conditioning" as ClaimId,
+        method: { ...original.method, conditioning: "Synthetic conditioning" },
+      },
+      {
+        ...structuredClone(original),
+        id: "claim-synthetic-other" as ClaimId,
+        method: { ...original.method, otherConditions: "Synthetic other condition" },
+      },
     ];
-    const groups = partitionCompatibleThermalObservations(variants.map((observation, index) => ({
-      materialId: `material-synthetic-thermal-${index + 1}` as MaterialId,
-      observation,
-    })));
+    const groups = partitionCompatibleThermalObservations(
+      variants.map((observation, index) => ({
+        materialId: `material-synthetic-thermal-${index + 1}` as MaterialId,
+        observation,
+      })),
+    );
 
     expect(groups).toHaveLength(variants.length);
     const retained = groups.flatMap(({ members }) => members);
@@ -172,7 +201,8 @@ describe("Phase 8 shared map seams", () => {
     const input = { materialId: material.id, observation: material.thermalObservations[0]! };
     expect(partitionCompatibleThermalObservations([])).toEqual([]);
     expect(partitionCompatibleThermalObservations([input])).toHaveLength(1);
-    expect(() => partitionCompatibleThermalObservations([input, input]))
-      .toThrow("THERMAL_PARTITION_DUPLICATE_OBSERVATION");
+    expect(() => partitionCompatibleThermalObservations([input, input])).toThrow(
+      "THERMAL_PARTITION_DUPLICATE_OBSERVATION",
+    );
   });
 });

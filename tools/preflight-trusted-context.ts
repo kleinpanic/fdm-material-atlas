@@ -35,9 +35,10 @@ function isWithin(root: string, candidate: string): boolean {
 }
 
 async function validate(modeArgument: string | undefined): Promise<number> {
-  const config = modeArgument === "--audit" || modeArgument === "--publication"
-    ? MODE_CONFIG[modeArgument]
-    : undefined;
+  const config =
+    modeArgument === "--audit" || modeArgument === "--publication"
+      ? MODE_CONFIG[modeArgument]
+      : undefined;
   if (config === undefined || process.argv.length !== 3) return fail("CLI_ARGUMENTS_UNSUPPORTED");
 
   const configuredPath = process.env[config.environmentName];
@@ -51,7 +52,11 @@ async function validate(modeArgument: string | undefined): Promise<number> {
   let physicalRepository: string;
   try {
     configuredDetails = await lstat(configuredPath);
-    if (!configuredDetails.isDirectory() && !configuredDetails.isFile() && !configuredDetails.isSymbolicLink()) {
+    if (
+      !configuredDetails.isDirectory() &&
+      !configuredDetails.isFile() &&
+      !configuredDetails.isSymbolicLink()
+    ) {
       return fail("TRUSTED_INPUT_TYPE_INVALID");
     }
     [physicalInput, physicalRepository] = await Promise.all([
@@ -69,9 +74,8 @@ async function validate(modeArgument: string | undefined): Promise<number> {
 
   try {
     const physicalDetails = await lstat(physicalInput);
-    const validType = config.type === "directory"
-      ? physicalDetails.isDirectory()
-      : physicalDetails.isFile();
+    const validType =
+      config.type === "directory" ? physicalDetails.isDirectory() : physicalDetails.isFile();
     if (!validType) return fail("TRUSTED_INPUT_TYPE_INVALID");
   } catch {
     return fail("TRUSTED_INPUT_UNREADABLE");

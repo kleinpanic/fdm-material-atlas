@@ -22,9 +22,19 @@ const FORBIDDEN_CLIENT_TEXT = [
   /(?:^|["'`/_.-])d3(?:-[a-z]+)?(?:["'`/_.-]|$)/iu,
 ];
 const PROHIBITED_PROP_KEYS = new Set([
-  "atlas", "sourceLedger", "sources", "methods", "rules", "ruleRegistry",
-  "decisionLanes", "visualizations", "sourceMetadata", "operationalMetadata",
-  "workbook", "spreadsheet", "privateMetadata",
+  "atlas",
+  "sourceLedger",
+  "sources",
+  "methods",
+  "rules",
+  "ruleRegistry",
+  "decisionLanes",
+  "visualizations",
+  "sourceMetadata",
+  "operationalMetadata",
+  "workbook",
+  "spreadsheet",
+  "privateMetadata",
 ]);
 
 export class Phase7BuildError extends Error {
@@ -45,9 +55,14 @@ function fail(code) {
 
 function decodeAttribute(value) {
   return value
-    .replaceAll("&quot;", '"').replaceAll("&#34;", '"').replaceAll("&#x22;", '"')
-    .replaceAll("&#39;", "'").replaceAll("&#x27;", "'")
-    .replaceAll("&lt;", "<").replaceAll("&gt;", ">").replaceAll("&amp;", "&");
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#34;", '"')
+    .replaceAll("&#x22;", '"')
+    .replaceAll("&#39;", "'")
+    .replaceAll("&#x27;", "'")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&amp;", "&");
 }
 
 function attributes(tag) {
@@ -74,13 +89,18 @@ function reviveAstro(value) {
     11: (item) => Number.POSITIVE_INFINITY * item,
   };
   function reviveTuple(tuple) {
-    return Array.isArray(tuple) && tuple.length === 2 && Number.isInteger(tuple[0]) && tuple[0] in handlers
+    return Array.isArray(tuple) &&
+      tuple.length === 2 &&
+      Number.isInteger(tuple[0]) &&
+      tuple[0] in handlers
       ? handlers[tuple[0]](tuple[1])
       : tuple;
   }
   function reviveObject(item) {
     if (typeof item !== "object" || item === null || Array.isArray(item)) return item;
-    return Object.fromEntries(Object.entries(item).map(([key, child]) => [key, reviveTuple(child)]));
+    return Object.fromEntries(
+      Object.entries(item).map(([key, child]) => [key, reviveTuple(child)]),
+    );
   }
   return reviveObject(value);
 }
@@ -88,8 +108,12 @@ function reviveAstro(value) {
 function parseProps(serialized) {
   try {
     const parsed = JSON.parse(serialized);
-    const encoded = typeof parsed === "object" && parsed !== null
-      && Object.values(parsed).some((value) => Array.isArray(value) && value.length === 2 && Number.isInteger(value[0]));
+    const encoded =
+      typeof parsed === "object" &&
+      parsed !== null &&
+      Object.values(parsed).some(
+        (value) => Array.isArray(value) && value.length === 2 && Number.isInteger(value[0]),
+      );
     return encoded ? reviveAstro(parsed) : parsed;
   } catch {
     fail("PROPS_INVALID");
@@ -98,7 +122,8 @@ function parseProps(serialized) {
 
 function inspectProps(value, exactPatterns, seen = new Set()) {
   if (typeof value === "string") {
-    if (exactPatterns.some((pattern) => pattern !== "" && value.includes(pattern))) fail("CLIENT_PRIVATE_PATTERN_FORBIDDEN");
+    if (exactPatterns.some((pattern) => pattern !== "" && value.includes(pattern)))
+      fail("CLIENT_PRIVATE_PATTERN_FORBIDDEN");
     return;
   }
   if (typeof value !== "object" || value === null || seen.has(value)) return;
@@ -122,7 +147,12 @@ function inspectProps(value, exactPatterns, seen = new Set()) {
 
 async function collectFiles(root) {
   const literal = await lstat(root).catch(() => fail("OUTPUT_MISSING"));
-  if (!literal.isDirectory() || literal.isSymbolicLink() || await realpath(root).catch(() => "") !== root) fail("OUTPUT_INVALID");
+  if (
+    !literal.isDirectory() ||
+    literal.isSymbolicLink() ||
+    (await realpath(root).catch(() => "")) !== root
+  )
+    fail("OUTPUT_INVALID");
   const files = new Map();
   async function walk(directory) {
     const stream = await opendir(directory).catch(() => fail("OUTPUT_INVALID"));
@@ -162,7 +192,8 @@ function localFile(raw, mode, currentRoute, files, code = "ROUTE_LINK_INVALID") 
   } catch {
     fail(code);
   }
-  if (logical.includes("\\") || logical.split("/").some((part) => part === "." || part === "..")) fail(code);
+  if (logical.includes("\\") || logical.split("/").some((part) => part === "." || part === ".."))
+    fail(code);
   const candidate = logical === "" || logical.endsWith("/") ? `${logical}index.html` : logical;
   if (!files.has(candidate)) fail(code);
   return candidate;
@@ -175,7 +206,8 @@ function imports(source) {
     /\b(?:import|export)\s*[\w*$,\s{}]+\bfrom\s*["']([^"']+)["']/gu,
     /\bimport\s*\(\s*["']([^"']+)["']\s*\)/gu,
   ];
-  for (const pattern of patterns) for (const match of source.matchAll(pattern)) values.push(match[1]);
+  for (const pattern of patterns)
+    for (const match of source.matchAll(pattern)) values.push(match[1]);
   return values;
 }
 
@@ -192,8 +224,10 @@ async function reachableJavaScript(entryNames, files, exactPatterns) {
     const bytes = await readFile(record.path).catch(() => fail("OUTPUT_READ_FAILED"));
     const source = bytes.toString("utf8");
     if (REQUEST_PATTERN.test(source)) fail("CLIENT_REQUEST_FORBIDDEN");
-    if (FORBIDDEN_CLIENT_TEXT.some((pattern) => pattern.test(source))) fail("CLIENT_STACK_FORBIDDEN");
-    if (exactPatterns.some((pattern) => pattern !== "" && source.includes(pattern))) fail("CLIENT_PRIVATE_PATTERN_FORBIDDEN");
+    if (FORBIDDEN_CLIENT_TEXT.some((pattern) => pattern.test(source)))
+      fail("CLIENT_STACK_FORBIDDEN");
+    if (exactPatterns.some((pattern) => pattern !== "" && source.includes(pattern)))
+      fail("CLIENT_PRIVATE_PATTERN_FORBIDDEN");
     gzipBytes += gzipSync(bytes).length;
     for (const specifier of imports(source)) {
       if (!specifier.startsWith(".")) fail("CLIENT_IMPORT_FORBIDDEN");
@@ -210,10 +244,14 @@ async function inspectRoute(mode, route, expectedExport, files, exactPatterns) {
   const html = await readFile(files.get(htmlName)?.path ?? "").catch(() => fail("ROUTE_MISSING"));
   const source = html.toString("utf8");
   const publicRoute = `${mode.base}${route}/`.replaceAll("//", "/");
-  const canonical = [...source.matchAll(/<link\b[^>]*\brel=["']canonical["'][^>]*\bhref=["']([^"']+)["'][^>]*>/giu)];
-  if (canonical.length !== 1 || canonical[0][1] !== `${ORIGIN}${publicRoute}`) fail("CANONICAL_INVALID");
+  const canonical = [
+    ...source.matchAll(/<link\b[^>]*\brel=["']canonical["'][^>]*\bhref=["']([^"']+)["'][^>]*>/giu),
+  ];
+  if (canonical.length !== 1 || canonical[0][1] !== `${ORIGIN}${publicRoute}`)
+    fail("CANONICAL_INVALID");
   if (FORBIDDEN_CLIENT_TEXT.some((pattern) => pattern.test(source))) fail("CLIENT_STACK_FORBIDDEN");
-  if (exactPatterns.some((pattern) => pattern !== "" && source.includes(pattern))) fail("CLIENT_PRIVATE_PATTERN_FORBIDDEN");
+  if (exactPatterns.some((pattern) => pattern !== "" && source.includes(pattern)))
+    fail("CLIENT_PRIVATE_PATTERN_FORBIDDEN");
 
   for (const match of source.matchAll(/\b(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)')/giu)) {
     localFile(decodeAttribute(match[1] ?? match[2] ?? ""), mode, `/${route}/`, files);
@@ -223,21 +261,45 @@ async function inspectRoute(mode, route, expectedExport, files, exactPatterns) {
   const complete = islands[0][0];
   const opening = complete.slice(0, complete.indexOf(">") + 1);
   const attrs = attributes(opening);
-  if (!opening.includes(" ssr") || attrs.get("client") !== "load" || attrs.get("component-export") !== expectedExport) fail("ISLAND_CONTRACT_INVALID");
+  if (
+    !opening.includes(" ssr") ||
+    attrs.get("client") !== "load" ||
+    attrs.get("component-export") !== expectedExport
+  )
+    fail("ISLAND_CONTRACT_INVALID");
   const fallback = complete.slice(opening.length, complete.lastIndexOf("</astro-island>"));
   if (fallback.replace(/<!--[\s\S]*?-->/gu, "").trim() === "") fail("STATIC_FALLBACK_MISSING");
   const serialized = attrs.get("props");
   if (serialized === undefined) fail("PROPS_INVALID");
   const props = parseProps(serialized);
   const expectedKeys = expectedExport === "CompareIsland" ? ["base", "model"] : ["model"];
-  if (typeof props !== "object" || props === null || Array.isArray(props) || Object.keys(props).sort().join("\0") !== expectedKeys.join("\0")) fail("PROPS_SHAPE_INVALID");
+  if (
+    typeof props !== "object" ||
+    props === null ||
+    Array.isArray(props) ||
+    Object.keys(props).sort().join("\0") !== expectedKeys.join("\0")
+  )
+    fail("PROPS_SHAPE_INVALID");
   inspectProps(props, exactPatterns);
-  const component = localFile(attrs.get("component-url") ?? "", mode, `/${route}/`, files, "CLIENT_REFERENCE_INVALID");
-  const renderer = localFile(attrs.get("renderer-url") ?? "", mode, `/${route}/`, files, "CLIENT_REFERENCE_INVALID");
+  const component = localFile(
+    attrs.get("component-url") ?? "",
+    mode,
+    `/${route}/`,
+    files,
+    "CLIENT_REFERENCE_INVALID",
+  );
+  const renderer = localFile(
+    attrs.get("renderer-url") ?? "",
+    mode,
+    `/${route}/`,
+    files,
+    "CLIENT_REFERENCE_INVALID",
+  );
   const graph = await reachableJavaScript([component, renderer], files, exactPatterns);
   const totalGzipBytes = graph.gzipBytes + gzipSync(Buffer.from(serialized)).length;
   const budget = expectedExport === "CompareIsland" ? MAX_COMPARE_GZIP : MAX_DATA_GZIP;
-  if (totalGzipBytes > budget) fail(expectedExport === "CompareIsland" ? "COMPARE_BUDGET_EXCEEDED" : "DATA_BUDGET_EXCEEDED");
+  if (totalGzipBytes > budget)
+    fail(expectedExport === "CompareIsland" ? "COMPARE_BUDGET_EXCEEDED" : "DATA_BUDGET_EXCEEDED");
   return { route: `/${route}/`, gzipBytes: totalGzipBytes, javascriptCount: graph.count };
 }
 
@@ -283,7 +345,11 @@ export async function verifyPhase7Build({
   sensitiveFile = process.env.FDM_PUBLICATION_SENSITIVE_FILE,
   runPublicationScan = true,
 } = {}) {
-  if (!Array.isArray(prohibitedExactPatterns) || prohibitedExactPatterns.some((item) => typeof item !== "string")) fail("ARGUMENTS_INVALID");
+  if (
+    !Array.isArray(prohibitedExactPatterns) ||
+    prohibitedExactPatterns.some((item) => typeof item !== "string")
+  )
+    fail("ARGUMENTS_INVALID");
   const modes = [
     { name: "root", base: "/", output: resolve(rootOutput) },
     { name: "repository", base: "/atlas-preview/", output: resolve(repositoryOutput) },
@@ -291,17 +357,32 @@ export async function verifyPhase7Build({
   const reports = [];
   for (const mode of modes) {
     const files = await collectFiles(mode.output);
-    const compare = await inspectRoute(mode, "compare", "CompareIsland", files, prohibitedExactPatterns);
-    const data = await inspectRoute(mode, "data", "DataExplorerIsland", files, prohibitedExactPatterns);
-    reports.push(Object.freeze({
-      mode: mode.name,
-      compareGzipBytes: compare.gzipBytes,
-      compareJavaScriptCount: compare.javascriptCount,
-      dataGzipBytes: data.gzipBytes,
-      dataJavaScriptCount: data.javascriptCount,
-    }));
+    const compare = await inspectRoute(
+      mode,
+      "compare",
+      "CompareIsland",
+      files,
+      prohibitedExactPatterns,
+    );
+    const data = await inspectRoute(
+      mode,
+      "data",
+      "DataExplorerIsland",
+      files,
+      prohibitedExactPatterns,
+    );
+    reports.push(
+      Object.freeze({
+        mode: mode.name,
+        compareGzipBytes: compare.gzipBytes,
+        compareJavaScriptCount: compare.javascriptCount,
+        dataGzipBytes: data.gzipBytes,
+        dataJavaScriptCount: data.javascriptCount,
+      }),
+    );
   }
-  if (runPublicationScan) await scanBoundedPublication(modes[0].output, modes[1].output, sensitiveFile);
+  if (runPublicationScan)
+    await scanBoundedPublication(modes[0].output, modes[1].output, sensitiveFile);
   return Object.freeze({ ok: true, routeCount: 2, modes: Object.freeze(reports) });
 }
 

@@ -134,9 +134,12 @@ export type MaterialDetailModel = {
   }[];
 };
 
-const THERMAL_NOTICE = "Thermal values answer different questions. Practical service guidance, Tg, HDT, Vicat softening, melting point, and other named tests are not directly interchangeable.";
-const PROFILE_BEFORE = "These values are calibration starting points. They are not guaranteed settings, maxima, manufacturer specifications, or proof that a print is safe.";
-const PROFILE_AFTER = "Tune for the exact filament, printer, nozzle, geometry, moisture condition, chamber, cooling, and required part performance.";
+const THERMAL_NOTICE =
+  "Thermal values answer different questions. Practical service guidance, Tg, HDT, Vicat softening, melting point, and other named tests are not directly interchangeable.";
+const PROFILE_BEFORE =
+  "These values are calibration starting points. They are not guaranteed settings, maxima, manufacturer specifications, or proof that a print is safe.";
+const PROFILE_AFTER =
+  "Tune for the exact filament, printer, nozzle, geometry, moisture condition, chamber, cooling, and required part performance.";
 const LIMITATIONS = [
   "Exact filament formulations differ. Check the relevant product TDS and SDS before use.",
   "Geometry, moisture, load, print orientation, annealing, chamber conditions, cooling, and process history can change printed-part behavior.",
@@ -145,11 +148,16 @@ const LIMITATIONS = [
   "This material-selection information is not an engineering safety certification.",
 ] as const;
 
-function fail(code: "DETAIL_CLAIM_MISSING" | "DETAIL_CLAIM_DUPLICATE" | "DETAIL_MATERIAL_DUPLICATE"): never {
+function fail(
+  code: "DETAIL_CLAIM_MISSING" | "DETAIL_CLAIM_DUPLICATE" | "DETAIL_MATERIAL_DUPLICATE",
+): never {
   throw new Error(code);
 }
 
-function compareMaterial(left: AtlasV1["materials"][number], right: AtlasV1["materials"][number]): number {
+function compareMaterial(
+  left: AtlasV1["materials"][number],
+  right: AtlasV1["materials"][number],
+): number {
   return left.displayOrder - right.displayOrder || left.id.localeCompare(right.id, "en");
 }
 
@@ -182,12 +190,17 @@ export function buildMaterialDetailModels(
   if (ids.size !== atlas.materials.length || slugs.size !== atlas.materials.length) {
     fail("DETAIL_MATERIAL_DUPLICATE");
   }
-  const relationshipIdsByMaterial = new Map(atlas.materials.map(({ id }) => [
-    id,
-    relationships
-      .filter((lane) => lane.candidateMaterialIds.includes(id) || lane.indeterminateMaterialIds.includes(id))
-      .map(({ id: laneId }) => laneId),
-  ]));
+  const relationshipIdsByMaterial = new Map(
+    atlas.materials.map(({ id }) => [
+      id,
+      relationships
+        .filter(
+          (lane) =>
+            lane.candidateMaterialIds.includes(id) || lane.indeterminateMaterialIds.includes(id),
+        )
+        .map(({ id: laneId }) => laneId),
+    ]),
+  );
   const routeAvailability = buildSelectorRouteAvailability(base, registry, {
     materials: atlas.materials.map(({ id, slug }) => ({
       id,
@@ -196,8 +209,12 @@ export function buildMaterialDetailModels(
     })),
     lanes: relationships.map(({ id, label }) => ({ id, label })),
   });
-  const routeByMaterialId = new Map(routeAvailability.materials.map((route) => [route.materialId, route]));
-  const routeByLaneId = new Map(routeAvailability.decisionMaps.map(({ laneId, action }) => [laneId, action]));
+  const routeByMaterialId = new Map(
+    routeAvailability.materials.map((route) => [route.materialId, route]),
+  );
+  const routeByLaneId = new Map(
+    routeAvailability.decisionMaps.map(({ laneId, action }) => [laneId, action]),
+  );
   const unavailableDecisionMap = Object.freeze({
     kind: "unavailable" as const,
     label: "Decision map is not available yet",
@@ -207,14 +224,16 @@ export function buildMaterialDetailModels(
 
   const models = [...atlas.materials].sort(compareMaterial).map((material) => {
     const materialEvidence = buildMaterialEvidenceModel(atlas, material, evidenceIndex);
-    const evidenceRecordById = new Map(materialEvidence.records.map((record) => [recordId(record.target), record]));
+    const evidenceRecordById = new Map(
+      materialEvidence.records.map((record) => [recordId(record.target), record]),
+    );
     const enumerated = enumerateMaterialClaims(material);
     const claimIds = new Set(enumerated.map(({ claimId }) => claimId));
     if (claimIds.size !== enumerated.length) fail("DETAIL_CLAIM_DUPLICATE");
 
     const claims = enumerated.map((claim): MaterialDetailClaim => {
       const edges = materialEvidence.records.flatMap(({ edges }) =>
-        edges.filter(({ claimId }) => claimId === claim.claimId)
+        edges.filter(({ claimId }) => claimId === claim.claimId),
       );
       const evidence = edges.map(({ target, scope }) => {
         const record = evidenceRecordById.get(recordId(target));
@@ -247,7 +266,10 @@ export function buildMaterialDetailModels(
       return matches[0]!;
     };
     const namedObservations = enumerated
-      .filter((claim): claim is Extract<EnumeratedMaterialClaim, { kind: "named-thermal-observation" }> => claim.kind === "named-thermal-observation")
+      .filter(
+        (claim): claim is Extract<EnumeratedMaterialClaim, { kind: "named-thermal-observation" }> =>
+          claim.kind === "named-thermal-observation",
+      )
       .map((claim): MaterialThermalObservationDetail => {
         const detail = claims.find(({ claimId }) => claimId === claim.claimId);
         if (!detail) return fail("DETAIL_CLAIM_MISSING");
@@ -256,7 +278,9 @@ export function buildMaterialDetailModels(
           kind: "named-thermal-observation",
           metric: claim.observation.metric,
           metricLabel: claim.observation.metricLabel,
-          ...(claim.observation.method === undefined ? {} : { method: { ...claim.observation.method } }),
+          ...(claim.observation.method === undefined
+            ? {}
+            : { method: { ...claim.observation.method } }),
         };
       });
     const evidenceRecords = materialEvidence.records.map((record) => ({
@@ -267,46 +291,58 @@ export function buildMaterialDetailModels(
         claimId: claim.claimId,
         claimAnchor: claim.claimAnchor,
         label: claim.label,
-        href: internalFragmentHref(base, { id: "material", slug: material.slug }, claim.claimAnchor),
+        href: internalFragmentHref(
+          base,
+          { id: "material", slug: material.slug },
+          claim.claimAnchor,
+        ),
       })),
     }));
     const materialRelationships = relationships.flatMap((lane) => {
       const state = lane.candidateMaterialIds.includes(material.id)
-        ? "candidate" as const
+        ? ("candidate" as const)
         : lane.indeterminateMaterialIds.includes(material.id)
-          ? "indeterminate" as const
+          ? ("indeterminate" as const)
           : undefined;
-      return state === undefined ? [] : [{
-        laneId: lane.id,
-        label: lane.label,
-        state,
-        processGateIds: lane.processGates.map(({ id }) => id),
-        visualizationIds: lane.visualizations.map(({ id }) => id),
-        action: routeByLaneId.get(lane.id) ?? unavailableDecisionMap,
-      }];
+      return state === undefined
+        ? []
+        : [
+            {
+              laneId: lane.id,
+              label: lane.label,
+              state,
+              processGateIds: lane.processGates.map(({ id }) => id),
+              visualizationIds: lane.visualizations.map(({ id }) => id),
+              action: routeByLaneId.get(lane.id) ?? unavailableDecisionMap,
+            },
+          ];
     });
-    const relatedById = new Map<MaterialId, {
-      id: MaterialId;
-      slug: string;
-      name: string;
-      state: "candidate" | "indeterminate";
-      details: RouteAction;
-      sharedLanes: {
-        id: DecisionLaneId;
-        label: string;
-        currentState: "candidate" | "indeterminate";
-        relatedState: "candidate" | "indeterminate";
-      }[];
-    }>();
+    const relatedById = new Map<
+      MaterialId,
+      {
+        id: MaterialId;
+        slug: string;
+        name: string;
+        state: "candidate" | "indeterminate";
+        details: RouteAction;
+        sharedLanes: {
+          id: DecisionLaneId;
+          label: string;
+          currentState: "candidate" | "indeterminate";
+          relatedState: "candidate" | "indeterminate";
+        }[];
+      }
+    >();
     for (const lane of relationships) {
       const currentState = lane.candidateMaterialIds.includes(material.id)
-        ? "candidate" as const
+        ? ("candidate" as const)
         : lane.indeterminateMaterialIds.includes(material.id)
-          ? "indeterminate" as const
+          ? ("indeterminate" as const)
           : undefined;
       if (currentState === undefined) continue;
       for (const relatedState of ["candidate", "indeterminate"] as const) {
-        const relatedIds = relatedState === "candidate" ? lane.candidateMaterialIds : lane.indeterminateMaterialIds;
+        const relatedIds =
+          relatedState === "candidate" ? lane.candidateMaterialIds : lane.indeterminateMaterialIds;
         for (const relatedId of relatedIds) {
           if (relatedId === material.id) continue;
           const relatedMaterial = materialById.get(relatedId);
@@ -315,14 +351,22 @@ export function buildMaterialDetailModels(
           const existing = relatedById.get(relatedId);
           if (existing) {
             if (!existing.sharedLanes.some(({ id }) => id === lane.id)) {
-              existing.sharedLanes.push({ id: lane.id, label: lane.label, currentState, relatedState });
+              existing.sharedLanes.push({
+                id: lane.id,
+                label: lane.label,
+                currentState,
+                relatedState,
+              });
             }
           } else {
             relatedById.set(relatedId, {
               id: relatedId,
               slug: relatedMaterial.slug,
               name: relatedMaterial.name,
-              state: currentState === "candidate" && relatedState === "candidate" ? "candidate" : "indeterminate",
+              state:
+                currentState === "candidate" && relatedState === "candidate"
+                  ? "candidate"
+                  : "indeterminate",
               details: route.details,
               sharedLanes: [{ id: lane.id, label: lane.label, currentState, relatedState }],
             });
@@ -333,20 +377,26 @@ export function buildMaterialDetailModels(
     const relatedMaterials = [...relatedById.values()]
       .map((related) => ({
         ...related,
-        state: related.sharedLanes.every(({ currentState, relatedState }) =>
-          currentState === "candidate" && relatedState === "candidate"
-        ) ? "candidate" as const : "indeterminate" as const,
-        sharedLanes: related.sharedLanes.sort((left, right) =>
-          (laneOrder.get(left.id) ?? Number.MAX_SAFE_INTEGER) - (laneOrder.get(right.id) ?? Number.MAX_SAFE_INTEGER)
+        state: related.sharedLanes.every(
+          ({ currentState, relatedState }) =>
+            currentState === "candidate" && relatedState === "candidate",
+        )
+          ? ("candidate" as const)
+          : ("indeterminate" as const),
+        sharedLanes: related.sharedLanes.sort(
+          (left, right) =>
+            (laneOrder.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+            (laneOrder.get(right.id) ?? Number.MAX_SAFE_INTEGER),
         ),
       }))
-      .sort((left, right) =>
-        (left.state === "candidate" ? 0 : 1) - (right.state === "candidate" ? 0 : 1)
-        || (laneOrder.get(left.sharedLanes[0]!.id) ?? Number.MAX_SAFE_INTEGER)
-          - (laneOrder.get(right.sharedLanes[0]!.id) ?? Number.MAX_SAFE_INTEGER)
-        || (materialById.get(left.id)?.displayOrder ?? Number.MAX_SAFE_INTEGER)
-          - (materialById.get(right.id)?.displayOrder ?? Number.MAX_SAFE_INTEGER)
-        || left.id.localeCompare(right.id, "en")
+      .sort(
+        (left, right) =>
+          (left.state === "candidate" ? 0 : 1) - (right.state === "candidate" ? 0 : 1) ||
+          (laneOrder.get(left.sharedLanes[0]!.id) ?? Number.MAX_SAFE_INTEGER) -
+            (laneOrder.get(right.sharedLanes[0]!.id) ?? Number.MAX_SAFE_INTEGER) ||
+          (materialById.get(left.id)?.displayOrder ?? Number.MAX_SAFE_INTEGER) -
+            (materialById.get(right.id)?.displayOrder ?? Number.MAX_SAFE_INTEGER) ||
+          left.id.localeCompare(right.id, "en"),
       );
     const serviceGuidance = one("service-temperature");
     const profileSettings = claims.filter(({ group }) => group === "profile");
@@ -367,7 +417,9 @@ export function buildMaterialDetailModels(
         costTier: one("relative-cost-tier"),
       },
       thermal: { notice: THERMAL_NOTICE, serviceGuidance, namedObservations },
-      properties: claims.filter(({ group }) => ["mechanical", "environment", "outcome"].includes(group)),
+      properties: claims.filter(({ group }) =>
+        ["mechanical", "environment", "outcome"].includes(group),
+      ),
       process: claims.filter(({ group }) => group === "process"),
       usesTradeoffs: {
         recommendedUses: one("recommended-uses"),

@@ -31,7 +31,10 @@ const navigation = [
   canonicalPath={mapHref}
   homeHref={homeHref}
   navigation={navigation}
-  breadcrumbs={[{ label: "Home", href: homeHref }, { label: "Decision maps", current: true }]}
+  breadcrumbs={[
+    { label: "Home", href: homeHref },
+    { label: "Decision maps", current: true },
+  ]}
   footerLinks={navigation.map(({ label, href }) => ({ label, href }))}
 >
   <article class="map-page">
@@ -39,7 +42,9 @@ const navigation = [
       <p class="technical-eyebrow">Material decision maps</p>
       <h1>Trace material choices through properties and process gates</h1>
       <p class="map-hero__lede">
-        Follow a use need to the properties, live material candidates, and process checks that require verification. Then inspect selected scientific relationships without combining unlike measurements.
+        Follow a use need to the properties, live material candidates, and process checks that
+        require verification. Then inspect selected scientific relationships without combining
+        unlike measurements.
       </p>
     </header>
 
@@ -47,17 +52,36 @@ const navigation = [
       <span class="map-caution__mark" aria-hidden="true">!</span>
       <div>
         <h2 id="map-caution-heading">Read paths and plots as guidance</h2>
-        <p>Candidate status means that a material satisfies the published lane rule. It is not a universal recommendation, safety approval, or engineering certification.</p>
+        <p>
+          Candidate status means that a material satisfies the published lane rule. It is not a
+          universal recommendation, safety approval, or engineering certification.
+        </p>
       </div>
     </aside>
 
     <nav class="map-mode-index" aria-label="Explore visualization modes">
       <p class="map-index-label">Explore visualization modes</p>
       <ol>
-        <li><a href={projection.modeFragments["decision-paths"]}><span aria-hidden="true">01</span>Decision paths</a></li>
-        <li><a href={projection.modeFragments["thermal-ranges"]}><span aria-hidden="true">02</span>Thermal guidance</a></li>
-        <li><a href={projection.modeFragments["process-gates"]}><span aria-hidden="true">03</span>Process gates</a></li>
-        <li><a href={projection.modeFragments["impact-flex-space"]}><span aria-hidden="true">04</span>Impact + flexibility</a></li>
+        <li>
+          <a href={projection.modeFragments["decision-paths"]}
+            ><span aria-hidden="true">01</span>Decision paths</a
+          >
+        </li>
+        <li>
+          <a href={projection.modeFragments["thermal-ranges"]}
+            ><span aria-hidden="true">02</span>Thermal guidance</a
+          >
+        </li>
+        <li>
+          <a href={projection.modeFragments["process-gates"]}
+            ><span aria-hidden="true">03</span>Process gates</a
+          >
+        </li>
+        <li>
+          <a href={projection.modeFragments["impact-flex-space"]}
+            ><span aria-hidden="true">04</span>Impact + flexibility</a
+          >
+        </li>
       </ol>
     </nav>
 
@@ -65,26 +89,40 @@ const navigation = [
       <header>
         <p class="technical-eyebrow">Decision paths</p>
         <h2>Decision paths</h2>
-        <p>Choose one of eight needs to inspect the canonical rule, all live candidates, and every linked process gate.</p>
+        <p>
+          Choose one of eight needs to inspect the canonical rule, all live candidates, and every
+          linked process gate.
+        </p>
       </header>
       <ol>
-        {projection.lanes.map((lane, index) => (
-          <li>
-            <a href={lane.href}>
-              <span class="map-lane-directory__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
-              <span class="map-lane-directory__copy">
-                <strong>{lane.label}</strong>
-                <small>{lane.candidates.length} candidates · {lane.processGates.length} gates</small>
-              </span>
-              <span class="map-lane-directory__arrow" aria-hidden="true">→</span>
-            </a>
-          </li>
-        ))}
+        {
+          projection.lanes.map((lane, index) => (
+            <li>
+              <a href={lane.href}>
+                <span class="map-lane-directory__number" aria-hidden="true">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span class="map-lane-directory__copy">
+                  <strong>{lane.label}</strong>
+                  <small>
+                    {lane.candidates.length} candidates · {lane.processGates.length} gates
+                  </small>
+                </span>
+                <span class="map-lane-directory__arrow" aria-hidden="true">
+                  →
+                </span>
+              </a>
+            </li>
+          ))
+        }
       </ol>
     </nav>
 
     <noscript>
-      <p class="map-noscript">Interactive highlighting is unavailable. All decision paths and structured visualization data remain readable below.</p>
+      <p class="map-noscript">
+        Interactive highlighting is unavailable. All decision paths and structured visualization
+        data remain readable below.
+      </p>
     </noscript>
 
     <MapExplorerIsland projection={projection} client:visible={{ rootMargin: "200px" }} />
@@ -92,7 +130,11 @@ const navigation = [
     <footer class="map-method-note">
       <p class="technical-eyebrow">Interpretation boundary</p>
       <h2>Keep measurements in context</h2>
-      <p>Thermal metrics, qualitative property guidance, and process gates answer different questions. Review definitions, evidence conventions, and limitations before making a consequential choice.</p>
+      <p>
+        Thermal metrics, qualitative property guidance, and process gates answer different
+        questions. Review definitions, evidence conventions, and limitations before making a
+        consequential choice.
+      </p>
       <a href={projection.methodHref}>Review method and thermal definitions</a>
     </footer>
   </article>

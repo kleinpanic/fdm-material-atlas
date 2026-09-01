@@ -30,7 +30,11 @@ describe("selector client model codec", () => {
     const reorder = (value: unknown): unknown => {
       if (Array.isArray(value)) return value.map(reorder);
       if (value !== null && typeof value === "object") {
-        return Object.fromEntries(Object.entries(value).reverse().map(([key, child]) => [key, reorder(child)]));
+        return Object.fromEntries(
+          Object.entries(value)
+            .reverse()
+            .map(([key, child]) => [key, reorder(child)]),
+        );
       }
       return value;
     };
@@ -39,16 +43,17 @@ describe("selector client model codec", () => {
     );
   });
 
-  it.each([
-    null,
-    [],
-    [2, [], [0]],
-    [1, ["secret-rejected-value"], [99]],
-    [1, ["x"], [1, 2]],
-  ])("rejects malformed transport with one data-free code", (input) => {
-    let error: unknown;
-    try { decodeSelectorClientModel(input as never); } catch (caught) { error = caught; }
-    expect(error).toEqual(new Error("SELECTOR_CLIENT_MODEL_INVALID"));
-    expect(String(error)).not.toContain("secret-rejected-value");
-  });
+  it.each([null, [], [2, [], [0]], [1, ["secret-rejected-value"], [99]], [1, ["x"], [1, 2]]])(
+    "rejects malformed transport with one data-free code",
+    (input) => {
+      let error: unknown;
+      try {
+        decodeSelectorClientModel(input as never);
+      } catch (caught) {
+        error = caught;
+      }
+      expect(error).toEqual(new Error("SELECTOR_CLIENT_MODEL_INVALID"));
+      expect(String(error)).not.toContain("secret-rejected-value");
+    },
+  );
 });

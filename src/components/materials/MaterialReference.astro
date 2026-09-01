@@ -3,7 +3,9 @@ import StateMarker, { type StateMarkerVariant } from "../data/StateMarker.astro"
 import type { DisplayFact } from "../../lib/presentation/labels.ts";
 import type { MaterialDetailModel } from "../../features/materials/detail-model.ts";
 
-interface Props { model: MaterialDetailModel }
+interface Props {
+  model: MaterialDetailModel;
+}
 const { model } = Astro.props;
 
 function marker(state: DisplayFact<unknown>["state"]): StateMarkerVariant {
@@ -34,10 +36,15 @@ function factDetail(fact: DisplayFact<unknown>): string | undefined {
   return undefined;
 }
 const sections = [
-  ["overview", "Overview"], ["thermal", "Thermal guidance"], ["properties", "Properties"],
-  ["process", "Process requirements"], ["uses-tradeoffs", "Uses and tradeoffs"],
-  ["starting-profile", "Starting profile"], ["evidence", "Evidence"],
-  ["limitations", "Limitations"], ["relationships", "Relationships"],
+  ["overview", "Overview"],
+  ["thermal", "Thermal guidance"],
+  ["properties", "Properties"],
+  ["process", "Process requirements"],
+  ["uses-tradeoffs", "Uses and tradeoffs"],
+  ["starting-profile", "Starting profile"],
+  ["evidence", "Evidence"],
+  ["limitations", "Limitations"],
+  ["relationships", "Relationships"],
 ] as const;
 ---
 
@@ -51,14 +58,53 @@ const sections = [
   <div class="material-reference__layout">
     <nav class="material-reference__rail" aria-label="On this page">
       <h2>On this page</h2>
-      <ol>{sections.map(([id, label]) => <li><a href={`#${id}`}>{label}</a></li>)}</ol>
+      <ol>
+        {
+          sections.map(([id, label]) => (
+            <li>
+              <a href={`#${id}`}>{label}</a>
+            </li>
+          ))
+        }
+      </ol>
     </nav>
 
     <div class="material-reference__sections">
       <section id="overview" tabindex="-1">
         <h2>Overview</h2>
         <div class="material-fact-list">
-          {[model.overview.familyOrFill, model.overview.serviceGuidance, model.overview.printDifficulty, model.overview.density, model.overview.costTier].map((claim) => <div class="material-fact" id={claim.anchor} data-fact-state={claim.fact.state}><h3>{claim.label}</h3><StateMarker variant={marker(claim.fact.state)} label={claim.fact.label} />{factValue(claim.fact) && <p class="material-fact__value">{factValue(claim.fact)}</p>}{factDetail(claim.fact) && <p>{factDetail(claim.fact)}</p>}{claim.qualification && <p><strong>Qualification:</strong> {claim.qualification}</p>}<p><strong>Evidence scope:</strong> {claim.scopes.join(", ")}</p><ul class="claim-evidence">{claim.evidence.map((basis) => <li><a href={basis.href}>{basis.label}</a> — {basis.scope}</li>)}</ul></div>)}
+          {
+            [
+              model.overview.familyOrFill,
+              model.overview.serviceGuidance,
+              model.overview.printDifficulty,
+              model.overview.density,
+              model.overview.costTier,
+            ].map((claim) => (
+              <div class="material-fact" id={claim.anchor} data-fact-state={claim.fact.state}>
+                <StateMarker variant={marker(claim.fact.state)} label={claim.fact.label} />
+                {factValue(claim.fact) && (
+                  <p class="material-fact__value">{factValue(claim.fact)}</p>
+                )}
+                {factDetail(claim.fact) && <p>{factDetail(claim.fact)}</p>}
+                {claim.qualification && (
+                  <p>
+                    <strong>Qualification:</strong> {claim.qualification}
+                  </p>
+                )}
+                <p>
+                  <strong>Evidence scope:</strong> {claim.scopes.join(", ")}
+                </p>
+                <ul class="claim-evidence">
+                  {claim.evidence.map((basis) => (
+                    <li>
+                      <a href={basis.href}>{basis.label}</a> — {basis.scope}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          }
         </div>
       </section>
 
@@ -66,113 +112,354 @@ const sections = [
         <h2>Thermal guidance</h2>
         <p class="material-caution" data-state="information">{model.thermal.notice}</p>
         <h3>Practical service-temperature guidance</h3>
-        {[model.thermal.serviceGuidance].map((claim) => <div class="material-fact" id={claim.anchor} data-fact-state={claim.fact.state}><h3>{claim.label}</h3><StateMarker variant={marker(claim.fact.state)} label={claim.fact.label} />{factValue(claim.fact) && <p class="material-fact__value">{factValue(claim.fact)}</p>}{claim.qualification && <p><strong>Qualification:</strong> {claim.qualification}</p>}<p><strong>Evidence scope:</strong> {claim.scopes.join(", ")}</p><ul class="claim-evidence">{claim.evidence.map((basis) => <li><a href={basis.href}>{basis.label}</a> — {basis.scope}</li>)}</ul></div>)}
+        {
+          [model.thermal.serviceGuidance].map((claim) => (
+            <div class="material-fact" id={claim.anchor} data-fact-state={claim.fact.state}>
+              <StateMarker variant={marker(claim.fact.state)} label={claim.fact.label} />
+              {factValue(claim.fact) && <p class="material-fact__value">{factValue(claim.fact)}</p>}
+              {claim.qualification && (
+                <p>
+                  <strong>Qualification:</strong> {claim.qualification}
+                </p>
+              )}
+              <p>
+                <strong>Evidence scope:</strong> {claim.scopes.join(", ")}
+              </p>
+              <ul class="claim-evidence">
+                {claim.evidence.map((basis) => (
+                  <li>
+                    <a href={basis.href}>{basis.label}</a> — {basis.scope}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        }
         <h3>Named thermal observations</h3>
-        {model.thermal.namedObservations.length === 0 ? <p data-state="missing">No named thermal observation is reported.</p> : model.thermal.namedObservations.map((claim) => (
-          <div class="thermal-observation">
-            <p><strong>{claim.metricLabel}</strong></p>
-            <div class="material-fact" id={claim.anchor} data-fact-state={claim.fact.state}><StateMarker variant={marker(claim.fact.state)} label={claim.fact.label} />{factValue(claim.fact) && <p class="material-fact__value">{factValue(claim.fact)}</p>}{factDetail(claim.fact) && <p>{factDetail(claim.fact)}</p>}{claim.qualification && <p><strong>Qualification:</strong> {claim.qualification}</p>}<p><strong>Evidence scope:</strong> {claim.scopes.join(", ")}</p><ul class="claim-evidence">{claim.evidence.map((basis) => <li><a href={basis.href}>{basis.label}</a> — {basis.scope}</li>)}</ul></div>
-            {claim.method && <dl class="thermal-method">{Object.entries(claim.method).map(([key, value]) => <div><dt>{key}</dt><dd>{formatValue(value)}</dd></div>)}</dl>}
-          </div>
-        ))}
+        {
+          model.thermal.namedObservations.length === 0 ? (
+            <p data-state="missing">No named thermal observation is reported.</p>
+          ) : (
+            model.thermal.namedObservations.map((claim) => (
+              <div class="thermal-observation">
+                <p>
+                  <strong>{claim.metricLabel}</strong>
+                </p>
+                <div class="material-fact" id={claim.anchor} data-fact-state={claim.fact.state}>
+                  <StateMarker variant={marker(claim.fact.state)} label={claim.fact.label} />
+                  {factValue(claim.fact) && (
+                    <p class="material-fact__value">{factValue(claim.fact)}</p>
+                  )}
+                  {factDetail(claim.fact) && <p>{factDetail(claim.fact)}</p>}
+                  {claim.qualification && (
+                    <p>
+                      <strong>Qualification:</strong> {claim.qualification}
+                    </p>
+                  )}
+                  <p>
+                    <strong>Evidence scope:</strong> {claim.scopes.join(", ")}
+                  </p>
+                  <ul class="claim-evidence">
+                    {claim.evidence.map((basis) => (
+                      <li>
+                        <a href={basis.href}>{basis.label}</a> — {basis.scope}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                {claim.method && (
+                  <dl class="thermal-method">
+                    {Object.entries(claim.method).map(([key, value]) => (
+                      <div>
+                        <dt>{key}</dt>
+                        <dd>{formatValue(value)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+              </div>
+            ))
+          )
+        }
       </section>
 
-      <section id="properties" tabindex="-1"><h2>Properties</h2><div class="material-fact-list">{model.properties.map((claim) => <div class="material-fact" id={claim.anchor} data-fact-state={claim.fact.state}><h3>{claim.label}</h3><StateMarker variant={marker(claim.fact.state)} label={claim.fact.label} />{factValue(claim.fact) && <p class="material-fact__value">{factValue(claim.fact)}</p>}{factDetail(claim.fact) && <p>{factDetail(claim.fact)}</p>}{claim.qualification && <p><strong>Qualification:</strong> {claim.qualification}</p>}<p><strong>Evidence scope:</strong> {claim.scopes.join(", ")}</p><ul class="claim-evidence">{claim.evidence.map((basis) => <li><a href={basis.href}>{basis.label}</a> — {basis.scope}</li>)}</ul></div>)}</div></section>
-      <section id="process" tabindex="-1"><h2>Process requirements</h2><p>These requirements describe the material process. They do not claim that your equipment can meet them.</p><div class="material-fact-list">{model.process.map((claim) => <div class="material-fact" id={claim.anchor} data-fact-state={claim.fact.state}><h3>{claim.label}</h3><StateMarker variant={marker(claim.fact.state)} label={claim.fact.label} />{factValue(claim.fact) && <p class="material-fact__value">{factValue(claim.fact)}</p>}{factDetail(claim.fact) && <p>{factDetail(claim.fact)}</p>}{claim.qualification && <p><strong>Qualification:</strong> {claim.qualification}</p>}<p><strong>Evidence scope:</strong> {claim.scopes.join(", ")}</p><ul class="claim-evidence">{claim.evidence.map((basis) => <li><a href={basis.href}>{basis.label}</a> — {basis.scope}</li>)}</ul></div>)}</div></section>
-      <section id="uses-tradeoffs" tabindex="-1"><h2>Uses and tradeoffs</h2><div class="material-fact-list">{[model.usesTradeoffs.recommendedUses, model.usesTradeoffs.tradeoffs, model.usesTradeoffs.coolingFit].map((claim) => <div class="material-fact" id={claim.anchor} data-fact-state={claim.fact.state}><h3>{claim.label}</h3><StateMarker variant={marker(claim.fact.state)} label={claim.fact.label} />{factValue(claim.fact) && <p class="material-fact__value">{factValue(claim.fact)}</p>}{factDetail(claim.fact) && <p>{factDetail(claim.fact)}</p>}{claim.qualification && <p><strong>Qualification:</strong> {claim.qualification}</p>}<p><strong>Evidence scope:</strong> {claim.scopes.join(", ")}</p><ul class="claim-evidence">{claim.evidence.map((basis) => <li><a href={basis.href}>{basis.label}</a> — {basis.scope}</li>)}</ul></div>)}</div></section>
+      <section id="properties" tabindex="-1">
+        <h2>Properties</h2><div class="material-fact-list">
+          {
+            model.properties.map((claim) => (
+              <div class="material-fact" id={claim.anchor} data-fact-state={claim.fact.state}>
+                <StateMarker variant={marker(claim.fact.state)} label={claim.fact.label} />
+                {factValue(claim.fact) && (
+                  <p class="material-fact__value">{factValue(claim.fact)}</p>
+                )}
+                {factDetail(claim.fact) && <p>{factDetail(claim.fact)}</p>}
+                {claim.qualification && (
+                  <p>
+                    <strong>Qualification:</strong> {claim.qualification}
+                  </p>
+                )}
+                <p>
+                  <strong>Evidence scope:</strong> {claim.scopes.join(", ")}
+                </p>
+                <ul class="claim-evidence">
+                  {claim.evidence.map((basis) => (
+                    <li>
+                      <a href={basis.href}>{basis.label}</a> — {basis.scope}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          }
+        </div>
+      </section>
+      <section id="process" tabindex="-1">
+        <h2>Process requirements</h2><p>
+          These requirements describe the material process. They do not claim that your equipment
+          can meet them.
+        </p><div class="material-fact-list">
+          {
+            model.process.map((claim) => (
+              <div class="material-fact" id={claim.anchor} data-fact-state={claim.fact.state}>
+                <StateMarker variant={marker(claim.fact.state)} label={claim.fact.label} />
+                {factValue(claim.fact) && (
+                  <p class="material-fact__value">{factValue(claim.fact)}</p>
+                )}
+                {factDetail(claim.fact) && <p>{factDetail(claim.fact)}</p>}
+                {claim.qualification && (
+                  <p>
+                    <strong>Qualification:</strong> {claim.qualification}
+                  </p>
+                )}
+                <p>
+                  <strong>Evidence scope:</strong> {claim.scopes.join(", ")}
+                </p>
+                <ul class="claim-evidence">
+                  {claim.evidence.map((basis) => (
+                    <li>
+                      <a href={basis.href}>{basis.label}</a> — {basis.scope}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          }
+        </div>
+      </section>
+      <section id="uses-tradeoffs" tabindex="-1">
+        <h2>Uses and tradeoffs</h2><div class="material-fact-list">
+          {
+            [
+              model.usesTradeoffs.recommendedUses,
+              model.usesTradeoffs.tradeoffs,
+              model.usesTradeoffs.coolingFit,
+            ].map((claim) => (
+              <div class="material-fact" id={claim.anchor} data-fact-state={claim.fact.state}>
+                <StateMarker variant={marker(claim.fact.state)} label={claim.fact.label} />
+                {factValue(claim.fact) && (
+                  <p class="material-fact__value">{factValue(claim.fact)}</p>
+                )}
+                {factDetail(claim.fact) && <p>{factDetail(claim.fact)}</p>}
+                {claim.qualification && (
+                  <p>
+                    <strong>Qualification:</strong> {claim.qualification}
+                  </p>
+                )}
+                <p>
+                  <strong>Evidence scope:</strong> {claim.scopes.join(", ")}
+                </p>
+                <ul class="claim-evidence">
+                  {claim.evidence.map((basis) => (
+                    <li>
+                      <a href={basis.href}>{basis.label}</a> — {basis.scope}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          }
+        </div>
+      </section>
 
       <section id="starting-profile" tabindex="-1">
         <h2>{model.startingProfile.label}</h2>
         <p class="material-caution" data-state="verify">{model.startingProfile.cautionBefore}</p>
-        <div class="material-fact-list">{model.startingProfile.settings.map((claim) => <div class="material-fact" id={claim.anchor} data-fact-state={claim.fact.state}><h3>{claim.label}</h3><StateMarker variant={marker(claim.fact.state)} label={claim.fact.label} />{factValue(claim.fact) && <p class="material-fact__value">{factValue(claim.fact)}</p>}{factDetail(claim.fact) && <p>{factDetail(claim.fact)}</p>}{claim.qualification && <p><strong>Qualification:</strong> {claim.qualification}</p>}<p><strong>Evidence scope:</strong> {claim.scopes.join(", ")}</p><ul class="claim-evidence">{claim.evidence.map((basis) => <li><a href={basis.href}>{basis.label}</a> — {basis.scope}</li>)}</ul></div>)}</div>
+        <div class="material-fact-list">
+          {
+            model.startingProfile.settings.map((claim) => (
+              <div class="material-fact" id={claim.anchor} data-fact-state={claim.fact.state}>
+                <StateMarker variant={marker(claim.fact.state)} label={claim.fact.label} />
+                {factValue(claim.fact) && (
+                  <p class="material-fact__value">{factValue(claim.fact)}</p>
+                )}
+                {factDetail(claim.fact) && <p>{factDetail(claim.fact)}</p>}
+                {claim.qualification && (
+                  <p>
+                    <strong>Qualification:</strong> {claim.qualification}
+                  </p>
+                )}
+                <p>
+                  <strong>Evidence scope:</strong> {claim.scopes.join(", ")}
+                </p>
+                <ul class="claim-evidence">
+                  {claim.evidence.map((basis) => (
+                    <li>
+                      <a href={basis.href}>{basis.label}</a> — {basis.scope}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          }
+        </div>
         <p class="material-caution" data-state="verify">{model.startingProfile.cautionAfter}</p>
       </section>
 
       <section id="evidence" tabindex="-1">
         <h2>Evidence</h2>
-        <p>{model.evidence.edgeCount} claim-to-evidence links across {model.evidence.scopes.length} evidence scopes.</p>
-        <ol class="evidence-records">{model.evidence.records.map(({ record, href, scopes, supportedClaims }) => (
-          <li id={record.id}>
-            <h3><a href={href}>{record.label}</a></h3>
-            <p>Scopes: {scopes.join(", ")}</p>
-            {record.kind === "source" && <p><a href={record.externalUrl} target="_blank" rel="noopener noreferrer">External source — {record.publisher}</a></p>}
-            {record.kind === "method" && <><p>{record.description}</p>{record.limitations.length > 0 && <ul>{record.limitations.map((limitation) => <li>{limitation}</li>)}</ul>}</>}
-            <p>Supports: {supportedClaims.map((claim) => <a href={claim.href}>{claim.label}</a>)}</p>
-          </li>
-        ))}</ol>
+        <p>
+          {model.evidence.edgeCount} claim-to-evidence links across {model.evidence.scopes.length} evidence
+          scopes.
+        </p>
+        <ol class="evidence-records">
+          {
+            model.evidence.records.map(({ record, href, scopes, supportedClaims }) => (
+              <li id={record.id}>
+                <h3>
+                  <a href={href}>{record.label}</a>
+                </h3>
+                <p>Scopes: {scopes.join(", ")}</p>
+                {record.kind === "source" && (
+                  <p>
+                    <a href={record.externalUrl} target="_blank" rel="noopener noreferrer">
+                      External source — {record.publisher}
+                    </a>
+                  </p>
+                )}
+                {record.kind === "method" && (
+                  <>
+                    <p>{record.description}</p>
+                    {record.limitations.length > 0 && (
+                      <ul>
+                        {record.limitations.map((limitation) => (
+                          <li>{limitation}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                )}
+                <p>
+                  Supports:{" "}
+                  {supportedClaims.map((claim) => (
+                    <a href={claim.href}>{claim.label}</a>
+                  ))}
+                </p>
+              </li>
+            ))
+          }
+        </ol>
       </section>
 
-      <section id="limitations" tabindex="-1"><h2>Limitations</h2><ul class="material-limitations">{model.limitations.map((limitation) => <li>{limitation}</li>)}</ul></section>
+      <section id="limitations" tabindex="-1">
+        <h2>Limitations</h2><ul class="material-limitations">
+          {model.limitations.map((limitation) => <li>{limitation}</li>)}
+        </ul>
+      </section>
       <section id="relationships" tabindex="-1">
         <h2>Relationships</h2>
-        <p>These connections come from the reported decision lanes. They are not a universal material ranking.</p>
+        <p>
+          These connections come from the reported decision lanes. They are not a universal material
+          ranking.
+        </p>
 
-        {model.continuity.compare.kind === "link" && model.continuity.relatedMaterials.length > 0 ? (
-          <form class="material-compare-form" method="get" action={model.continuity.compare.href}>
-            <input type="hidden" name="material" value={model.continuity.currentMaterialId} />
-            <label for="related-material">Compare {model.name} with</label>
-            <select id="related-material" name="material" required>
-              <option value="" selected disabled>Select a related material</option>
-              {model.continuity.relatedMaterials.map((related) => (
-                <option value={related.id}>{related.name}</option>
-              ))}
-            </select>
-            <button type="submit">Add to comparison</button>
-          </form>
-        ) : (
-          <p class="material-continuity-status">
-            {model.continuity.relatedMaterials.length === 0
-              ? "No shared decision-lane relationship is currently reported, so no comparison pair is suggested."
-              : model.continuity.compare.label}
-          </p>
-        )}
+        {
+          model.continuity.compare.kind === "link" &&
+          model.continuity.relatedMaterials.length > 0 ? (
+            <form class="material-compare-form" method="get" action={model.continuity.compare.href}>
+              <input type="hidden" name="material" value={model.continuity.currentMaterialId} />
+              <label for="related-material">Compare {model.name} with</label>
+              <select id="related-material" name="material" required>
+                <option value="" selected disabled>
+                  Select a related material
+                </option>
+                {model.continuity.relatedMaterials.map((related) => (
+                  <option value={related.id}>{related.name}</option>
+                ))}
+              </select>
+              <button type="submit">Add to comparison</button>
+            </form>
+          ) : (
+            <p class="material-continuity-status">
+              {model.continuity.relatedMaterials.length === 0
+                ? "No shared decision-lane relationship is currently reported, so no comparison pair is suggested."
+                : model.continuity.compare.label}
+            </p>
+          )
+        }
 
-        {model.continuity.relatedMaterials.length > 0 && (
-          <div class="material-related">
-            <h3>Related through decision lanes</h3>
-            <ul>
-              {model.continuity.relatedMaterials.map((related) => (
+        {
+          model.continuity.relatedMaterials.length > 0 && (
+            <div class="material-related">
+              <h3>Related through decision lanes</h3>
+              <ul>
+                {model.continuity.relatedMaterials.map((related) => (
+                  <li>
+                    <p>
+                      {related.details.kind === "link" ? (
+                        <a href={related.details.href}>{related.name}</a>
+                      ) : (
+                        <strong>{related.name}</strong>
+                      )}
+                      {" — "}
+                      {related.state === "candidate" ? "Candidate" : "Needs verification"}
+                    </p>
+                    <p class="material-related__context">
+                      Shared {related.sharedLanes.length === 1 ? "lane" : "lanes"}:
+                    </p>
+                    <ul class="material-related__lanes">
+                      {related.sharedLanes.map((lane) => (
+                        <li>
+                          {lane.label} — {model.name}{" "}
+                          {lane.currentState === "candidate"
+                            ? "is a candidate"
+                            : "needs verification"}
+                          ; {related.name}{" "}
+                          {lane.relatedState === "candidate"
+                            ? "is a candidate"
+                            : "needs verification"}
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        }
+
+        <h3>Reported lane membership</h3>
+        {
+          model.relationships.length === 0 ? (
+            <p>No decision-lane relationship is currently reported.</p>
+          ) : (
+            <ul class="material-relationships">
+              {model.relationships.map((relationship) => (
                 <li>
-                  <p>
-                    {related.details.kind === "link"
-                      ? <a href={related.details.href}>{related.name}</a>
-                      : <strong>{related.name}</strong>}
-                    {" — "}{related.state === "candidate" ? "Candidate" : "Needs verification"}
-                  </p>
-                  <p class="material-related__context">
-                    Shared {related.sharedLanes.length === 1 ? "lane" : "lanes"}:
-                  </p>
-                  <ul class="material-related__lanes">
-                    {related.sharedLanes.map((lane) => (
-                      <li>
-                        {lane.label} — {model.name} {lane.currentState === "candidate" ? "is a candidate" : "needs verification"}; {related.name} {lane.relatedState === "candidate" ? "is a candidate" : "needs verification"}
-                      </li>
-                    ))}
-                  </ul>
+                  {relationship.action.kind === "link" ? (
+                    <a href={relationship.action.href}>{relationship.label}</a>
+                  ) : (
+                    <strong>{relationship.label}</strong>
+                  )}
+                  {" — "}
+                  {relationship.state === "candidate" ? "Candidate" : "Needs verification"}
+                  {relationship.action.kind === "unavailable" && (
+                    <span class="material-continuity-status"> — {relationship.action.label}</span>
+                  )}
                 </li>
               ))}
             </ul>
-          </div>
-        )}
-
-        <h3>Reported lane membership</h3>
-        {model.relationships.length === 0 ? (
-          <p>No decision-lane relationship is currently reported.</p>
-        ) : (
-          <ul class="material-relationships">
-            {model.relationships.map((relationship) => (
-              <li>
-                {relationship.action.kind === "link"
-                  ? <a href={relationship.action.href}>{relationship.label}</a>
-                  : <strong>{relationship.label}</strong>}
-                {" — "}{relationship.state === "candidate" ? "Candidate" : "Needs verification"}
-                {relationship.action.kind === "unavailable" && (
-                  <span class="material-continuity-status"> — {relationship.action.label}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
+          )
+        }
       </section>
     </div>
   </div>

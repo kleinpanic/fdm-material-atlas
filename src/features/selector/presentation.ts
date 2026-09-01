@@ -10,10 +10,7 @@ import {
 import type { SelectorCriterionId } from "../../domain/selector/types.ts";
 import type { RouteAction } from "../../lib/public-route-registry.ts";
 import { SELECTOR_COPY } from "./copy.ts";
-import type {
-  SelectorMaterialDisplay,
-  SelectorRuntimePageModel,
-} from "./client-model.ts";
+import type { SelectorMaterialDisplay, SelectorRuntimePageModel } from "./client-model.ts";
 
 type SelectedCriterionPresentation = Readonly<{
   criterionId: SelectorCriterionId;
@@ -112,10 +109,7 @@ type ErrorPresentation = Readonly<{
 }>;
 
 export type SelectorPresentation =
-  | RankedPresentation
-  | NoCompatiblePresentation
-  | EmptyPresentation
-  | ErrorPresentation;
+  RankedPresentation | NoCompatiblePresentation | EmptyPresentation | ErrorPresentation;
 
 const EMPTY_PRESENTATION: EmptyPresentation = Object.freeze({
   kind: "empty",
@@ -144,19 +138,25 @@ function presentSelection(
   pageModel: SelectorRuntimePageModel,
   selection: readonly NormalizedSelectionEntry[],
 ): readonly SelectedCriterionPresentation[] {
-  return Object.freeze(selection.map((entry) => {
-    const { criterion, option } = criterionAndOption(pageModel, entry.criterionId, entry.optionId);
-    return Object.freeze({
-      criterionId: entry.criterionId,
-      criterionLabel: criterion.label,
-      optionId: entry.optionId,
-      optionLabel: option.label,
-      role: entry.role,
-      ...(option.preferenceRule === undefined
-        ? { scoringNote: "Not scored for alignment" as const }
-        : {}),
-    });
-  }));
+  return Object.freeze(
+    selection.map((entry) => {
+      const { criterion, option } = criterionAndOption(
+        pageModel,
+        entry.criterionId,
+        entry.optionId,
+      );
+      return Object.freeze({
+        criterionId: entry.criterionId,
+        criterionLabel: criterion.label,
+        optionId: entry.optionId,
+        optionLabel: option.label,
+        role: entry.role,
+        ...(option.preferenceRule === undefined
+          ? { scoringNote: "Not scored for alignment" as const }
+          : {}),
+      });
+    }),
+  );
 }
 
 function materialContext(pageModel: SelectorRuntimePageModel, materialId: MaterialId) {
@@ -179,48 +179,65 @@ function presentContributions(
   pageModel: SelectorRuntimePageModel,
   records: readonly ContributionRecord[],
 ): readonly ContributionPresentation[] {
-  return Object.freeze(records.map((record) => {
-    const { criterion, option } = criterionAndOption(pageModel, record.criterionId, record.optionId);
-    return Object.freeze({
-      record,
-      visualState: record.awardedPoints > 0 ? "positive" as const : "zero" as const,
-      pointsLabel: record.awardedPoints > 0
-        ? `+${record.awardedPoints} alignment ${record.awardedPoints === 1 ? "point" : "points"}`
-        : "0 points for this criterion",
-      criterionLabel: criterion.label,
-      optionLabel: option.label,
-      explanation: resolveExplanationToken(pageModel.projection, record.explanationToken),
-    });
-  }));
+  return Object.freeze(
+    records.map((record) => {
+      const { criterion, option } = criterionAndOption(
+        pageModel,
+        record.criterionId,
+        record.optionId,
+      );
+      return Object.freeze({
+        record,
+        visualState: record.awardedPoints > 0 ? ("positive" as const) : ("zero" as const),
+        pointsLabel:
+          record.awardedPoints > 0
+            ? `+${record.awardedPoints} alignment ${record.awardedPoints === 1 ? "point" : "points"}`
+            : "0 points for this criterion",
+        criterionLabel: criterion.label,
+        optionLabel: option.label,
+        explanation: resolveExplanationToken(pageModel.projection, record.explanationToken),
+      });
+    }),
+  );
 }
 
 function presentEliminated(
   pageModel: SelectorRuntimePageModel,
   records: readonly EliminatedMaterialResult[],
 ): readonly EliminatedPresentation[] {
-  return Object.freeze(records.map((material) => {
-    const context = materialContext(pageModel, material.materialId);
-    const reasons = Object.freeze(material.exclusions.map((record) => {
-      const { criterion, option } = criterionAndOption(pageModel, record.criterionId, record.optionId);
+  return Object.freeze(
+    records.map((material) => {
+      const context = materialContext(pageModel, material.materialId);
+      const reasons = Object.freeze(
+        material.exclusions.map((record) => {
+          const { criterion, option } = criterionAndOption(
+            pageModel,
+            record.criterionId,
+            record.optionId,
+          );
+          return Object.freeze({
+            record,
+            visualState:
+              record.outcome === "incompatible" ? ("blocked" as const) : ("indeterminate" as const),
+            criterionLabel: criterion.label,
+            optionLabel: option.label,
+            stateLabel:
+              record.outcome === "incompatible"
+                ? SELECTOR_COPY.confirmedExclusion
+                : SELECTOR_COPY.indeterminateExclusion,
+            explanation: resolveExplanationToken(pageModel.projection, record.explanationToken),
+          });
+        }),
+      );
       return Object.freeze({
-        record,
-        visualState: record.outcome === "incompatible" ? "blocked" as const : "indeterminate" as const,
-        criterionLabel: criterion.label,
-        optionLabel: option.label,
-        stateLabel: record.outcome === "incompatible"
-          ? SELECTOR_COPY.confirmedExclusion
-          : SELECTOR_COPY.indeterminateExclusion,
-        explanation: resolveExplanationToken(pageModel.projection, record.explanationToken),
+        materialId: material.materialId,
+        materialLabel: material.materialLabel,
+        familyOrFill: context.display.familyOrFill,
+        reasons,
+        routes: context.routes,
       });
-    }));
-    return Object.freeze({
-      materialId: material.materialId,
-      materialLabel: material.materialLabel,
-      familyOrFill: context.display.familyOrFill,
-      reasons,
-      routes: context.routes,
-    });
-  }));
+    }),
+  );
 }
 
 /**
@@ -256,25 +273,29 @@ export function presentSelectorOutcome(
       });
     }
 
-    const compatible = Object.freeze(outcome.compatible.map((material, index) => {
-      const context = materialContext(pageModel, material.materialId);
-      const summaryToken = material.explanationTokens.find((token) => token.kind === "alignment-summary");
-      if (!summaryToken) throw new Error("SELECTOR_PRESENTATION_SUMMARY_MISSING");
-      return Object.freeze({
-        materialId: material.materialId,
-        materialLabel: material.materialLabel,
-        familyOrFill: context.display.familyOrFill,
-        rank: material.rank,
-        score: material.score,
-        applicableMaximum: material.applicableMaximum,
-        scoreLabel: `${material.score} of ${material.applicableMaximum} alignment points`,
-        compatibilityLabel: SELECTOR_COPY.compatibleState,
-        ...(index === 0 ? { highestAlignment: SELECTOR_COPY.highestAlignment } : {}),
-        summaryExplanation: resolveExplanationToken(pageModel.projection, summaryToken),
-        contributions: presentContributions(pageModel, material.contributions),
-        routes: context.routes,
-      });
-    }));
+    const compatible = Object.freeze(
+      outcome.compatible.map((material, index) => {
+        const context = materialContext(pageModel, material.materialId);
+        const summaryToken = material.explanationTokens.find(
+          (token) => token.kind === "alignment-summary",
+        );
+        if (!summaryToken) throw new Error("SELECTOR_PRESENTATION_SUMMARY_MISSING");
+        return Object.freeze({
+          materialId: material.materialId,
+          materialLabel: material.materialLabel,
+          familyOrFill: context.display.familyOrFill,
+          rank: material.rank,
+          score: material.score,
+          applicableMaximum: material.applicableMaximum,
+          scoreLabel: `${material.score} of ${material.applicableMaximum} alignment points`,
+          compatibilityLabel: SELECTOR_COPY.compatibleState,
+          ...(index === 0 ? { highestAlignment: SELECTOR_COPY.highestAlignment } : {}),
+          summaryExplanation: resolveExplanationToken(pageModel.projection, summaryToken),
+          contributions: presentContributions(pageModel, material.contributions),
+          routes: context.routes,
+        });
+      }),
+    );
 
     return Object.freeze({
       kind: "ranked",

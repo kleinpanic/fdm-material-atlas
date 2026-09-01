@@ -1,13 +1,18 @@
 ---
 import type { GetStaticPaths } from "astro";
 import MaterialReference from "../../components/materials/MaterialReference.astro";
-import { buildMaterialDetailModels, type MaterialDetailModel } from "../../features/materials/detail-model.ts";
+import {
+  buildMaterialDetailModels,
+  type MaterialDetailModel,
+} from "../../features/materials/detail-model.ts";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { loadPublicAtlas } from "../../lib/public-atlas.ts";
 import { internalHref } from "../../lib/routes.ts";
 import "../../styles/material-reference.css";
 
-interface Props { model: MaterialDetailModel }
+interface Props {
+  model: MaterialDetailModel;
+}
 export const getStaticPaths = (() => {
   const base = import.meta.env.BASE_URL;
   const models = buildMaterialDetailModels(loadPublicAtlas(), base);
@@ -30,7 +35,11 @@ const navigation = [
   { label: "Data", href: dataHref, current: false },
   { label: "Method", href: methodHref, current: false },
 ] as const;
-const breadcrumbs = [{ label: "Home", href: homeHref }, { label: "Materials", href: materialsHref }, { label: model.name, current: true }] as const;
+const breadcrumbs = [
+  { label: "Home", href: homeHref },
+  { label: "Materials", href: materialsHref },
+  { label: model.name, current: true },
+] as const;
 const footerLinks = navigation.map(({ label, href }) => ({ label, href }));
 ---
 

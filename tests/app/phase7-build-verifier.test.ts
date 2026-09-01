@@ -7,7 +7,11 @@ import { Phase7BuildError, verifyPhase7Build } from "../../tools/verify-phase7-b
 
 const roots: string[] = [];
 
-function island(component: "CompareIsland" | "DataExplorerIsland", componentUrl: string, props: object): string {
+function island(
+  component: "CompareIsland" | "DataExplorerIsland",
+  componentUrl: string,
+  props: object,
+): string {
   const assetBase = componentUrl.slice(0, componentUrl.lastIndexOf("/"));
   return `<astro-island component-url="${componentUrl}" component-export="${component}" renderer-url="${assetBase}/client.js" props='${JSON.stringify(props)}' ssr client="load"><section><h2>${component} static fallback</h2></section><!--astro:end--></astro-island>`;
 }
@@ -17,13 +21,28 @@ async function writeMode(root: string, base: string): Promise<void> {
   await mkdir(join(root, "compare"), { recursive: true });
   await mkdir(join(root, "data"), { recursive: true });
   await mkdir(join(root, "_astro"), { recursive: true });
-  await writeFile(join(root, "index.html"), `<!doctype html><link rel="canonical" href="https://atlas.example${base}"><p>Comparison is not available yet</p>`);
-  await writeFile(join(root, "compare/index.html"), `<!doctype html><link rel="canonical" href="https://atlas.example${prefix}/compare/"><a href="${base}">Selector</a>${island("CompareIsland", `${prefix}/_astro/compare.js`, { model: { materials: [] }, base })}`);
-  await writeFile(join(root, "data/index.html"), `<!doctype html><link rel="canonical" href="https://atlas.example${prefix}/data/"><a href="${prefix}/compare/">Compare</a>${island("DataExplorerIsland", `${prefix}/_astro/data.js`, { model: { materials: [], fields: [], groups: [], thermalMetrics: [] } })}`);
+  await writeFile(
+    join(root, "index.html"),
+    `<!doctype html><link rel="canonical" href="https://atlas.example${base}"><p>Comparison is not available yet</p>`,
+  );
+  await writeFile(
+    join(root, "compare/index.html"),
+    `<!doctype html><link rel="canonical" href="https://atlas.example${prefix}/compare/"><a href="${base}">Selector</a>${island("CompareIsland", `${prefix}/_astro/compare.js`, { model: { materials: [] }, base })}`,
+  );
+  await writeFile(
+    join(root, "data/index.html"),
+    `<!doctype html><link rel="canonical" href="https://atlas.example${prefix}/data/"><a href="${prefix}/compare/">Compare</a>${island("DataExplorerIsland", `${prefix}/_astro/data.js`, { model: { materials: [], fields: [], groups: [], thermalMetrics: [] } })}`,
+  );
   await writeFile(join(root, "_astro/client.js"), "export const hydrate = true;");
   await writeFile(join(root, "_astro/shared.js"), "export const shared = true;");
-  await writeFile(join(root, "_astro/compare.js"), "import './shared.js'; export const CompareIsland = true;");
-  await writeFile(join(root, "_astro/data.js"), "import './shared.js'; export const DataExplorerIsland = true;");
+  await writeFile(
+    join(root, "_astro/compare.js"),
+    "import './shared.js'; export const CompareIsland = true;",
+  );
+  await writeFile(
+    join(root, "_astro/data.js"),
+    "import './shared.js'; export const DataExplorerIsland = true;",
+  );
 }
 
 async function fixture(): Promise<{ root: string; repository: string }> {
@@ -53,15 +72,48 @@ describe("Phase 7 emitted build verifier", () => {
     });
     expect(report).toMatchObject({ ok: true, routeCount: 2 });
     expect(report.modes.map(({ mode }) => mode)).toEqual(["root", "repository"]);
-    expect(report.modes.every(({ compareGzipBytes, dataGzipBytes }) => compareGzipBytes > 0 && dataGzipBytes > 0)).toBe(true);
+    expect(
+      report.modes.every(
+        ({ compareGzipBytes, dataGzipBytes }) => compareGzipBytes > 0 && dataGzipBytes > 0,
+      ),
+    ).toBe(true);
   });
 
   it.each([
-    ["SOURCE_MAP_FORBIDDEN", async (outputs: Awaited<ReturnType<typeof fixture>>) => writeFile(join(outputs.root, "_astro/leak.js.map"), "{}")],
-    ["CLIENT_PRIVATE_PATTERN_FORBIDDEN", async (outputs: Awaited<ReturnType<typeof fixture>>) => writeFile(join(outputs.root, "_astro/compare.js"), "export const value='private-fixture-sentinel'")],
-    ["CLIENT_REQUEST_FORBIDDEN", async (outputs: Awaited<ReturnType<typeof fixture>>) => writeFile(join(outputs.root, "_astro/data.js"), "fetch('/public-data.json')")],
-    ["ROUTE_LINK_INVALID", async (outputs: Awaited<ReturnType<typeof fixture>>) => writeFile(join(outputs.repository, "data/index.html"), "<!doctype html><link rel=\"canonical\" href=\"https://atlas.example/atlas-preview/data/\"><a href=\"/compare/\">Broken base</a>")],
-    ["PROPS_BOUNDARY_VIOLATION", async (outputs: Awaited<ReturnType<typeof fixture>>) => writeFile(join(outputs.root, "compare/index.html"), `<!doctype html><link rel="canonical" href="https://atlas.example/compare/">${island("CompareIsland", "/_astro/compare.js", { model: { atlas: {} }, base: "/" })}`)],
+    [
+      "SOURCE_MAP_FORBIDDEN",
+      async (outputs: Awaited<ReturnType<typeof fixture>>) =>
+        writeFile(join(outputs.root, "_astro/leak.js.map"), "{}"),
+    ],
+    [
+      "CLIENT_PRIVATE_PATTERN_FORBIDDEN",
+      async (outputs: Awaited<ReturnType<typeof fixture>>) =>
+        writeFile(
+          join(outputs.root, "_astro/compare.js"),
+          "export const value='private-fixture-sentinel'",
+        ),
+    ],
+    [
+      "CLIENT_REQUEST_FORBIDDEN",
+      async (outputs: Awaited<ReturnType<typeof fixture>>) =>
+        writeFile(join(outputs.root, "_astro/data.js"), "fetch('/public-data.json')"),
+    ],
+    [
+      "ROUTE_LINK_INVALID",
+      async (outputs: Awaited<ReturnType<typeof fixture>>) =>
+        writeFile(
+          join(outputs.repository, "data/index.html"),
+          '<!doctype html><link rel="canonical" href="https://atlas.example/atlas-preview/data/"><a href="/compare/">Broken base</a>',
+        ),
+    ],
+    [
+      "PROPS_BOUNDARY_VIOLATION",
+      async (outputs: Awaited<ReturnType<typeof fixture>>) =>
+        writeFile(
+          join(outputs.root, "compare/index.html"),
+          `<!doctype html><link rel="canonical" href="https://atlas.example/compare/">${island("CompareIsland", "/_astro/compare.js", { model: { atlas: {} }, base: "/" })}`,
+        ),
+    ],
   ])("fails closed with %s", async (code, mutate) => {
     const outputs = await fixture();
     await mutate(outputs);

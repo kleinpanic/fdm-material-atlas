@@ -50,10 +50,13 @@ function validateCanonicalInventory(atlas: AtlasV1): void {
   if (!uniqueIds(atlas.materials, EXPECTED_COUNTS.materials)) return fail();
   if (!uniqueIds(atlas.decisionLanes, EXPECTED_COUNTS.lanes)) return fail();
   if (!uniqueIds(atlas.processGates, EXPECTED_COUNTS.gates)) return fail();
-  if (!uniqueIds(atlas.visualizationReferences, EXPECTED_COUNTS.visualizationReferences)) return fail();
+  if (!uniqueIds(atlas.visualizationReferences, EXPECTED_COUNTS.visualizationReferences))
+    return fail();
 }
 
-function compactImpactRecord(record: ReturnType<typeof buildImpactFlexModel>["records"]["all"][number]): MapImpactFlexRecord {
+function compactImpactRecord(
+  record: ReturnType<typeof buildImpactFlexModel>["records"]["all"][number],
+): MapImpactFlexRecord {
   return {
     material: record.material,
     ...(record.impact === undefined ? {} : { impact: record.impact }),
@@ -78,21 +81,25 @@ function compile(atlas: AtlasV1, base: string | undefined): MapProjection {
   validateCanonicalInventory(atlas);
 
   const lanes = buildDecisionPaths(atlas, base);
-  const service = buildServiceGuidanceModel(atlas.materials, base, { query: "", sort: "canonical" });
+  const service = buildServiceGuidanceModel(atlas.materials, base, {
+    query: "",
+    sort: "canonical",
+  });
   const thermal = buildNamedThermalModel(atlas.materials, base);
   const processGates = buildProcessGateMap(atlas, base);
   const impact = buildImpactFlexModel(atlas, base, { encodeDifficultyShapes: true });
 
   if (
-    lanes.length !== EXPECTED_COUNTS.lanes
-    || service.domain === undefined
-    || service.records.all.length !== EXPECTED_COUNTS.materials
-    || thermal.groups.length !== EXPECTED_COUNTS.thermalGroups
-    || processGates.lanes.length !== EXPECTED_COUNTS.lanes
-    || processGates.gates.length !== EXPECTED_COUNTS.gates
-    || processGates.relationships.length !== EXPECTED_COUNTS.lanes * EXPECTED_COUNTS.gates
-    || impact.records.all.length !== EXPECTED_COUNTS.materials
-  ) return fail();
+    lanes.length !== EXPECTED_COUNTS.lanes ||
+    service.domain === undefined ||
+    service.records.all.length !== EXPECTED_COUNTS.materials ||
+    thermal.groups.length !== EXPECTED_COUNTS.thermalGroups ||
+    processGates.lanes.length !== EXPECTED_COUNTS.lanes ||
+    processGates.gates.length !== EXPECTED_COUNTS.gates ||
+    processGates.relationships.length !== EXPECTED_COUNTS.lanes * EXPECTED_COUNTS.gates ||
+    impact.records.all.length !== EXPECTED_COUNTS.materials
+  )
+    return fail();
 
   const projection: MapProjection = {
     lanes,
@@ -103,7 +110,8 @@ function compile(atlas: AtlasV1, base: string | undefined): MapProjection {
     },
     thermalGroups: thermal.groups.map((group) => {
       const selected = buildNamedThermalModel(atlas.materials, base, group.id).selectedRecords;
-      if (selected === undefined || selected.all.length !== EXPECTED_COUNTS.materials) return fail();
+      if (selected === undefined || selected.all.length !== EXPECTED_COUNTS.materials)
+        return fail();
       return { ...group, records: selected.all };
     }),
     processGates,

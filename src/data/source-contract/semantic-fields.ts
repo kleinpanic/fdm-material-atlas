@@ -38,4 +38,3 @@ export const MATERIAL_SEMANTIC_FIELDS = [
 
 export const MaterialSemanticFieldPathSchema = z.enum(MATERIAL_SEMANTIC_FIELDS);
 export type MaterialSemanticFieldPath = z.infer<typeof MaterialSemanticFieldPathSchema>;
-

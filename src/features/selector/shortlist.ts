@@ -1,7 +1,4 @@
-import {
-  MaterialIdSchema,
-  type MaterialId,
-} from "../../data/schema/ids.ts";
+import { MaterialIdSchema, type MaterialId } from "../../data/schema/ids.ts";
 
 export const SHORTLIST_LIMIT = 4;
 export const SHORTLIST_LIMIT_ANNOUNCEMENT =
@@ -57,10 +54,7 @@ const parseMaterialId = (value: unknown): MaterialId | null => {
  * Apply one finite shortlist transition. The caller owns the returned state in
  * route-local component memory; this module has no browser or persistence API.
  */
-export function reduceShortlist(
-  ids: ShortlistState,
-  action: ShortlistAction,
-): ShortlistTransition {
+export function reduceShortlist(ids: ShortlistState, action: ShortlistAction): ShortlistTransition {
   switch (action.type) {
     case "add": {
       const materialId = parseMaterialId(action.materialId);
@@ -93,11 +87,12 @@ export function reduceShortlist(
       return {
         ids: remainingIds,
         announcement: "Material removed from shortlist.",
-        focusIntent: remainingIds.length === 0
-          ? { kind: "results" }
-          : currentResultIds.has(materialId)
-          ? { kind: "result-shortlist-control", materialId }
-          : { kind: "shortlist-heading" },
+        focusIntent:
+          remainingIds.length === 0
+            ? { kind: "results" }
+            : currentResultIds.has(materialId)
+              ? { kind: "result-shortlist-control", materialId }
+              : { kind: "shortlist-heading" },
       };
     }
 

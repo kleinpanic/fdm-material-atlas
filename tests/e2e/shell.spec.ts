@@ -33,8 +33,9 @@ const baseURL = new URL(basePath, origin).href;
 const outputRoot = resolve(`dist-test/${mode}`);
 
 function generatedTracerPath(): string {
-  const material = readdirSync(resolve(outputRoot, "materials"), { withFileTypes: true })
-    .find((entry) => entry.isDirectory());
+  const material = readdirSync(resolve(outputRoot, "materials"), { withFileTypes: true }).find(
+    (entry) => entry.isDirectory(),
+  );
   expect(material?.name).toBeTruthy();
   return `${basePath}materials/${material!.name}/`;
 }
@@ -51,22 +52,30 @@ function attachNetworkGate(page: Page): () => void {
   page.on("requestfailed", (request: { url(): string }) => {
     if (new URL(request.url()).origin === origin) failures.push("request-failed");
   });
-  page.on("response", (response: { url(): string; ok(): boolean; request(): { resourceType(): string } }) => {
-    const url = new URL(response.url());
-    if (url.origin !== origin) {
-      failures.push("remote-request");
-      return;
-    }
-    if (!response.ok()) failures.push("response-failed");
-    if (!url.pathname.startsWith(basePath)) {
-      failures.push("base-path-missing");
-      return;
-    }
-    const logical = url.pathname.slice(basePath.length);
-    const relativeFile = logical === "" || logical.endsWith("/") ? `${logical}index.html` : logical;
-    if (!existsSync(resolve(outputRoot, relativeFile))) failures.push("inventory-miss");
-  });
-  return () => expect(failures, "all browser requests must be local, successful, static, and inventoried").toEqual([]);
+  page.on(
+    "response",
+    (response: { url(): string; ok(): boolean; request(): { resourceType(): string } }) => {
+      const url = new URL(response.url());
+      if (url.origin !== origin) {
+        failures.push("remote-request");
+        return;
+      }
+      if (!response.ok()) failures.push("response-failed");
+      if (!url.pathname.startsWith(basePath)) {
+        failures.push("base-path-missing");
+        return;
+      }
+      const logical = url.pathname.slice(basePath.length);
+      const relativeFile =
+        logical === "" || logical.endsWith("/") ? `${logical}index.html` : logical;
+      if (!existsSync(resolve(outputRoot, relativeFile))) failures.push("inventory-miss");
+    },
+  );
+  return () =>
+    expect(
+      failures,
+      "all browser requests must be local, successful, static, and inventoried",
+    ).toEqual([]);
 }
 
 async function expectFocusedAndVisible(page: Page): Promise<void> {
@@ -81,8 +90,13 @@ async function expectFocusedAndVisible(page: Page): Promise<void> {
     );
     return {
       visible:
-        rect.width > 0 && rect.height > 0 && rect.left >= 0 && rect.top >= 0 &&
-        rect.right <= innerWidth && rect.bottom <= innerHeight && center !== null &&
+        rect.width > 0 &&
+        rect.height > 0 &&
+        rect.left >= 0 &&
+        rect.top >= 0 &&
+        rect.right <= innerWidth &&
+        rect.bottom <= innerHeight &&
+        center !== null &&
         (center === element || element.contains(center) || center.contains(element)),
       outline: style.outlineWidth,
       rect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
@@ -94,23 +108,26 @@ async function expectFocusedAndVisible(page: Page): Promise<void> {
   expect(result.outline).toBe("3px");
 }
 
-test("home and tracer remain complete semantic documents without JavaScript", async ({ browser }) => {
+test("home and tracer remain complete semantic documents without JavaScript", async ({
+  browser,
+}) => {
   const home = await openNoScriptPage(browser, "./");
   const homeTitle = await home.title();
   await expect(home.locator(".site-header")).toHaveCount(1);
   await expect(home.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(1);
-  await expect(home.getByRole("link", { name: "View source on GitHub (opens in a new tab)" })).toHaveAttribute(
-    "href",
-    "https://github.com/kleinpanic/fdm-material-atlas",
-  );
-  await expect(home.getByRole("link", { name: "View source on GitHub (opens in a new tab)" })).toHaveAttribute(
-    "rel",
-    "noopener noreferrer",
-  );
+  await expect(
+    home.getByRole("link", { name: "View source on GitHub (opens in a new tab)" }),
+  ).toHaveAttribute("href", "https://github.com/kleinpanic/fdm-material-atlas");
+  await expect(
+    home.getByRole("link", { name: "View source on GitHub (opens in a new tab)" }),
+  ).toHaveAttribute("rel", "noopener noreferrer");
   await expect(home.getByRole("main")).toHaveCount(1);
   await expect(home.locator("footer")).toHaveCount(1);
   await expect(home.locator("h1:visible")).toHaveCount(1);
-  await expect(home.getByRole("link", { name: "Material selector" }).first()).toHaveAttribute("aria-current", "page");
+  await expect(home.getByRole("link", { name: "Material selector" }).first()).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
   await expect(home.getByRole("button", { name: "View recommendations" })).toBeDisabled();
 
   const tracer = await openNoScriptPage(browser, new URL(generatedTracerPath(), origin).href);
@@ -122,12 +139,16 @@ test("home and tracer remain complete semantic documents without JavaScript", as
       .getByRole("navigation", { name: "Primary navigation" })
       .getByRole("link", { name: "Material atlas", exact: true }),
   ).toHaveAttribute("aria-current", "page");
-  await expect(tracer.getByRole("link", { name: "Return to the complete material atlas" })).toBeVisible();
+  await expect(
+    tracer.getByRole("link", { name: "Return to the complete material atlas" }),
+  ).toBeVisible();
   await home.context().close();
   await tracer.context().close();
 });
 
-test("skip navigation and focus order work at wide, compact, and reflow sizes", async ({ page }) => {
+test("skip navigation and focus order work at wide, compact, and reflow sizes", async ({
+  page,
+}) => {
   for (const viewport of [
     { width: 1280, height: 800, zoom: "100%" },
     { width: 320, height: 720, zoom: "100%" },
@@ -135,22 +156,32 @@ test("skip navigation and focus order work at wide, compact, and reflow sizes", 
   ]) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto("./");
-    await page.evaluate((zoom: string) => { document.documentElement.style.zoom = zoom; }, viewport.zoom);
+    await page.evaluate((zoom: string) => {
+      document.documentElement.style.zoom = zoom;
+    }, viewport.zoom);
     await page.keyboard.press("Tab");
     await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
     await expectFocusedAndVisible(page);
     await page.keyboard.press("Enter");
     await expect(page.getByRole("main")).toBeFocused();
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Choose a material that fits your process");
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Choose a material that fits your process",
+    );
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
     expect(overflow).toBeLessThanOrEqual(1);
   }
 });
 
-test("the decision map and repository action reflow without document overflow", async ({ page }) => {
+test("the decision map and repository action reflow without document overflow", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("map/");
-  await expect(page.getByRole("link", { name: "View source on GitHub (opens in a new tab)" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "View source on GitHub (opens in a new tab)" }),
+  ).toBeVisible();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Trace material choices through properties and process gates",
   );
@@ -160,12 +191,16 @@ test("the decision map and repository action reflow without document overflow", 
   expect(overflow).toBeLessThanOrEqual(1);
 });
 
-test("the header remains bounded and keyboard-operable across the full responsive range", async ({ page }) => {
+test("the header remains bounded and keyboard-operable across the full responsive range", async ({
+  page,
+}) => {
   for (const width of [390, 640, 768, 1023, 1024, 1280, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("./");
     const header = page.locator(".site-header");
-    const repository = page.getByRole("link", { name: "View source on GitHub (opens in a new tab)" });
+    const repository = page.getByRole("link", {
+      name: "View source on GitHub (opens in a new tab)",
+    });
     await expect(header).toBeVisible();
     await expect(repository).toBeVisible();
     const measurements = await page.evaluate(() => {
@@ -190,7 +225,9 @@ test("the header remains bounded and keyboard-operable across the full responsiv
   await expectFocusedAndVisible(page);
 });
 
-test("home and a generated tracer load only successful inventoried same-origin resources", async ({ page }) => {
+test("home and a generated tracer load only successful inventoried same-origin resources", async ({
+  page,
+}) => {
   const assertNetwork = attachNetworkGate(page);
   await page.goto("./");
   await page.goto(generatedTracerPath());

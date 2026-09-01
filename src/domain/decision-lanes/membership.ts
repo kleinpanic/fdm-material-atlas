@@ -1,5 +1,10 @@
 import type { AtlasV1 } from "../../data/schema/atlas.ts";
-import type { DecisionLaneId, MaterialId, ProcessGateId, VisualizationId } from "../../data/schema/ids.ts";
+import type {
+  DecisionLaneId,
+  MaterialId,
+  ProcessGateId,
+  VisualizationId,
+} from "../../data/schema/ids.ts";
 import type { ProcessGateCapability } from "../../data/schema/process-gate.ts";
 import type { SelectorField } from "../../data/schema/selector.ts";
 import type { VisualizationKind, VisualizationTargetRef } from "../../data/schema/visualization.ts";
@@ -27,7 +32,13 @@ export type DecisionLaneMembership = {
   }[];
 };
 
-function fail(code: "RELATIONSHIP_LANE_DUPLICATE" | "RELATIONSHIP_GATE_MISSING" | "RELATIONSHIP_VISUALIZATION_MISSING" | "RELATIONSHIP_RULE_INVALID"): never {
+function fail(
+  code:
+    | "RELATIONSHIP_LANE_DUPLICATE"
+    | "RELATIONSHIP_GATE_MISSING"
+    | "RELATIONSHIP_VISUALIZATION_MISSING"
+    | "RELATIONSHIP_RULE_INVALID",
+): never {
   throw new Error(code);
 }
 
@@ -61,56 +72,62 @@ export function deriveDecisionLaneMembership(atlas: AtlasV1): readonly DecisionL
     }
   }
 
-  const models = [...atlas.decisionLanes].sort((left, right) => compareId(left.id, right.id)).map((lane) => {
-    let predicate;
-    try {
-      predicate = compilePredicate(lane.candidateRule);
-    } catch {
-      return fail("RELATIONSHIP_RULE_INVALID");
-    }
-    const candidateMaterialIds: MaterialId[] = [];
-    const indeterminateMaterialIds: MaterialId[] = [];
-    for (const material of [...atlas.materials].sort((left, right) => compareId(left.id, right.id))) {
-      let outcome;
+  const models = [...atlas.decisionLanes]
+    .sort((left, right) => compareId(left.id, right.id))
+    .map((lane) => {
+      let predicate;
       try {
-        outcome = evaluateCompiledPredicate(
-          predicate,
-          (field) => resolveSelectorField(material, field, atlas.vocabularies),
-        );
+        predicate = compilePredicate(lane.candidateRule);
       } catch {
         return fail("RELATIONSHIP_RULE_INVALID");
       }
-      if (outcome === "match") candidateMaterialIds.push(material.id);
-      if (outcome === "indeterminate") indeterminateMaterialIds.push(material.id);
-    }
-    const processGates = [...lane.processGateIds].sort(compareId).map((gateId) => {
-      const gate = gates.get(gateId);
-      if (!gate) return fail("RELATIONSHIP_GATE_MISSING");
+      const candidateMaterialIds: MaterialId[] = [];
+      const indeterminateMaterialIds: MaterialId[] = [];
+      for (const material of [...atlas.materials].sort((left, right) =>
+        compareId(left.id, right.id),
+      )) {
+        let outcome;
+        try {
+          outcome = evaluateCompiledPredicate(predicate, (field) =>
+            resolveSelectorField(material, field, atlas.vocabularies),
+          );
+        } catch {
+          return fail("RELATIONSHIP_RULE_INVALID");
+        }
+        if (outcome === "match") candidateMaterialIds.push(material.id);
+        if (outcome === "indeterminate") indeterminateMaterialIds.push(material.id);
+      }
+      const processGates = [...lane.processGateIds].sort(compareId).map((gateId) => {
+        const gate = gates.get(gateId);
+        if (!gate) return fail("RELATIONSHIP_GATE_MISSING");
+        return {
+          id: gate.id,
+          label: gate.label,
+          capability: gate.capability,
+          requirement: gate.requirement,
+          verification: gate.verification,
+        };
+      });
+      const visualizations = atlas.visualizationReferences
+        .filter((reference) =>
+          [reference.subject, ...reference.related].some(
+            (target) => targetLaneId(target) === lane.id,
+          ),
+        )
+        .sort((left, right) => compareId(left.id, right.id))
+        .map(({ id, kind }) => ({ id, kind }));
       return {
-        id: gate.id,
-        label: gate.label,
-        capability: gate.capability,
-        requirement: gate.requirement,
-        verification: gate.verification,
+        id: lane.id,
+        label: lane.label,
+        need: lane.need,
+        propertyChecks: [...lane.propertyChecks],
+        verification: [...lane.verification],
+        processGates,
+        candidateMaterialIds,
+        indeterminateMaterialIds,
+        visualizations,
       };
     });
-    const visualizations = atlas.visualizationReferences
-      .filter((reference) => [reference.subject, ...reference.related]
-        .some((target) => targetLaneId(target) === lane.id))
-      .sort((left, right) => compareId(left.id, right.id))
-      .map(({ id, kind }) => ({ id, kind }));
-    return {
-      id: lane.id,
-      label: lane.label,
-      need: lane.need,
-      propertyChecks: [...lane.propertyChecks],
-      verification: [...lane.verification],
-      processGates,
-      candidateMaterialIds,
-      indeterminateMaterialIds,
-      visualizations,
-    };
-  });
 
   return deepFreeze(models);
 }

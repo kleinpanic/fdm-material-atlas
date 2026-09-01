@@ -45,21 +45,29 @@ function outputPath(href: string): string {
 
 function denyPrivateRuntimeRequests(page: PlaywrightTestArgs["page"]): string[] {
   const blocked: string[] = [];
-  page.route("**/*", async (route: {
-    request(): { url(): string };
-    abort(errorCode?: string): Promise<void>;
-    continue(): Promise<void>;
-  }) => {
-    const url = new URL(route.request().url());
-    const logical = url.pathname.startsWith(basePath) ? url.pathname.slice(basePath.length) : url.pathname;
-    const sensitive = /(?:^|\/)(?:data|source|sources|trusted|credential|credentials|private)(?:\/|$)|\.json(?:$|\?)/iu.test(logical);
-    if (sensitive) {
-      blocked.push("blocked-private-runtime-request");
-      await route.abort("blockedbyclient");
-      return;
-    }
-    await route.continue();
-  });
+  page.route(
+    "**/*",
+    async (route: {
+      request(): { url(): string };
+      abort(errorCode?: string): Promise<void>;
+      continue(): Promise<void>;
+    }) => {
+      const url = new URL(route.request().url());
+      const logical = url.pathname.startsWith(basePath)
+        ? url.pathname.slice(basePath.length)
+        : url.pathname;
+      const sensitive =
+        /(?:^|\/)(?:data|source|sources|trusted|credential|credentials|private)(?:\/|$)|\.json(?:$|\?)/iu.test(
+          logical,
+        );
+      if (sensitive) {
+        blocked.push("blocked-private-runtime-request");
+        await route.abort("blockedbyclient");
+        return;
+      }
+      await route.continue();
+    },
+  );
   return blocked;
 }
 
@@ -69,7 +77,9 @@ async function openMap(page: PlaywrightTestArgs["page"]): Promise<void> {
     "Trace material choices through properties and process gates",
   );
   await page.locator(".map-explorer").scrollIntoViewIfNeeded();
-  await expect(page.getByText("Interactive map controls are ready.", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Interactive map controls are ready.", { exact: true }),
+  ).toBeVisible();
   await page.evaluate(() => scrollTo(0, 0));
 }
 
@@ -79,19 +89,24 @@ async function exposeEverySelectorResult(page: PlaywrightTestArgs["page"]): Prom
   await page.getByRole("radio", { name: "High heat or sustained load" }).check();
   await page.getByLabel("Maximum print difficulty").selectOption("option-difficulty-expert");
   await page.getByLabel("Enclosure capability").selectOption("option-enclosure-available");
-  await page.getByLabel("Wear-resistant nozzle capability").selectOption("option-hardened-nozzle-available");
+  await page
+    .getByLabel("Wear-resistant nozzle capability")
+    .selectOption("option-hardened-nozzle-available");
   await page.getByLabel("Dryer or drybox capability").selectOption("option-dryer-available");
   await page.getByLabel("Cooling-shrink tolerance").selectOption("option-shrink-any");
   await page.getByLabel("Ventilation capability").selectOption("option-ventilation-engineered");
   await page.getByRole("button", { name: "Show all 23 compatible materials" }).click();
 }
 
-test("selector exposes every exact lane handoff and all four-stage paths retain canonical parity", async ({ page }) => {
+test("selector exposes every exact lane handoff and all four-stage paths retain canonical parity", async ({
+  page,
+}) => {
   test.setTimeout(60_000);
   const blocked = denyPrivateRuntimeRequests(page);
   await exposeEverySelectorResult(page);
   const expectedActions = selectorModel.routes.materials.flatMap(({ decisionMaps }) =>
-    decisionMaps.flatMap(({ action }) => action.kind === "link" ? [action] : []));
+    decisionMaps.flatMap(({ action }) => (action.kind === "link" ? [action] : [])),
+  );
   for (const lane of projection.lanes) {
     const action = expectedActions.find(({ href }) => href === lane.href);
     expect(action).toBeDefined();
@@ -100,27 +115,40 @@ test("selector exposes every exact lane handoff and all four-stage paths retain 
   }
   for (const lane of projection.lanes) {
     await page.goto(lane.href);
-    await expect(page).toHaveURL(new RegExp(`${lane.href.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, "u"));
+    await expect(page).toHaveURL(
+      new RegExp(`${lane.href.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, "u"),
+    );
     await expect(page.locator(":target")).toHaveAttribute("data-lane-id", lane.id);
   }
 
   await openMap(page);
-  await expect(page.getByRole("navigation", { name: "Decision lane index" }).getByRole("listitem")).toHaveCount(8);
+  await expect(
+    page.getByRole("navigation", { name: "Decision lane index" }).getByRole("listitem"),
+  ).toHaveCount(8);
   for (const lane of projection.lanes) {
     const path = page.locator(`[data-lane-id="${lane.id}"][data-decision-lane="true"]`);
     await expect(path.getByRole("heading", { level: 3, name: lane.label })).toBeVisible();
     await expect(path.locator("[data-decision-stage]")).toHaveCount(4);
     await expect(path.locator("[data-candidate-control]")).toHaveCount(lane.candidates.length);
     for (const candidate of lane.candidates) {
-      await expect(path.locator(`a[href="${candidate.href}"]`).filter({ hasText: "Open material reference" })).toHaveCount(1);
+      await expect(
+        path.locator(`a[href="${candidate.href}"]`).filter({ hasText: "Open material reference" }),
+      ).toHaveCount(1);
       expect(existsSync(outputPath(candidate.href))).toBe(true);
     }
-    for (const gate of lane.processGates) await expect(path.getByRole("link", { name: gate.label, exact: true })).toHaveAttribute("href", gate.href);
+    for (const gate of lane.processGates)
+      await expect(path.getByRole("link", { name: gate.label, exact: true })).toHaveAttribute(
+        "href",
+        gate.href,
+      );
   }
   expect(blocked).toEqual([]);
 });
 
-test("decision controls preserve keyboard, pointer, hover, clear, and touch parity", async ({ browser, page }) => {
+test("decision controls preserve keyboard, pointer, hover, clear, and touch parity", async ({
+  browser,
+  page,
+}) => {
   await openMap(page);
   const lane = projection.lanes[0]!;
   const laneControl = page.getByRole("button", { name: `Highlight ${lane.label}` });
@@ -128,15 +156,26 @@ test("decision controls preserve keyboard, pointer, hover, clear, and touch pari
   await laneControl.press("Enter");
   await expect(laneControl).toHaveAttribute("aria-pressed", "true");
   const candidate = lane.candidates[0]!;
-  const candidateControl = page.getByRole("button", { name: new RegExp(`^Highlight ${candidate.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")} in`, "u") });
+  const candidateControl = page.getByRole("button", {
+    name: new RegExp(
+      `^Highlight ${candidate.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")} in`,
+      "u",
+    ),
+  });
   const hoverCandidate = lane.candidates[1]!;
-  const hoverControl = page.getByRole("button", { name: new RegExp(`^Highlight ${hoverCandidate.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")} in`, "u") });
+  const hoverControl = page.getByRole("button", {
+    name: new RegExp(
+      `^Highlight ${hoverCandidate.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")} in`,
+      "u",
+    ),
+  });
   await candidateControl.focus();
   await expect(candidateControl).toHaveAttribute("aria-pressed", "false");
   await expect(candidateControl).toHaveAttribute("data-previewed", "true");
   await hoverControl.hover();
   await expect(hoverControl).toHaveAttribute("data-previewed", "true");
-  await page.locator(`[data-decision-lane="true"][data-lane-id="${lane.id}"]`)
+  await page
+    .locator(`[data-decision-lane="true"][data-lane-id="${lane.id}"]`)
     .getByRole("heading", { name: lane.label, exact: true })
     .hover();
   await expect(candidateControl).toHaveAttribute("data-previewed", "true");
@@ -150,11 +189,16 @@ test("decision controls preserve keyboard, pointer, hover, clear, and touch pari
   await page.getByRole("button", { name: "Clear lane highlight" }).click();
   await expect(laneControl).toHaveAttribute("aria-pressed", "false");
 
-  const context = await browser.newContext({ hasTouch: true, viewport: { width: 390, height: 844 } });
+  const context = await browser.newContext({
+    hasTouch: true,
+    viewport: { width: 390, height: 844 },
+  });
   const touchPage = await context.newPage();
   await touchPage.goto(mapPath());
   await touchPage.locator(".map-explorer").scrollIntoViewIfNeeded();
-  await expect(touchPage.getByText("Interactive map controls are ready.", { exact: true })).toBeVisible();
+  await expect(
+    touchPage.getByText("Interactive map controls are ready.", { exact: true }),
+  ).toBeVisible();
   const touchLane = touchPage.getByRole("button", { name: `Highlight ${lane.label}` });
   await touchLane.tap();
   await expect(touchLane).toHaveAttribute("aria-pressed", "true");
@@ -163,32 +207,56 @@ test("decision controls preserve keyboard, pointer, hover, clear, and touch pari
 
 test("thermal views keep service guidance separate from exact named groups", async ({ page }) => {
   await openMap(page);
-  await expect(page.getByRole("row", { name: /Practical service guidance/u })).toHaveCount(projection.serviceGuidance.records.length);
+  await expect(page.getByRole("row", { name: /Practical service guidance/u })).toHaveCount(
+    projection.serviceGuidance.records.length,
+  );
   const firstService = projection.serviceGuidance.records[0]!;
-  const serviceControl = page.locator(`[data-service-control][data-material-id="${firstService.material.id}"]`);
+  const serviceControl = page.locator(
+    `[data-service-control][data-material-id="${firstService.material.id}"]`,
+  );
   await serviceControl.click();
-  await expect(page.getByRole("heading", { name: firstService.material.name, exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: firstService.material.name, exact: true }),
+  ).toBeVisible();
   const search = page.getByLabel("Find a material in this thermal view");
   await search.fill(firstService.material.name);
   await expect(search).toBeFocused();
-  await expect(page.locator("[data-service-row]")).toHaveCount(projection.serviceGuidance.records.length);
+  await expect(page.locator("[data-service-row]")).toHaveCount(
+    projection.serviceGuidance.records.length,
+  );
   await page.getByLabel("Service guidance order").selectOption("low-endpoint");
   await page.getByRole("radio", { name: "Named thermal observations" }).check();
-  await expect(page.getByRole("heading", { name: "Choose a named metric and method group to inspect its records." })).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: "Choose a named metric and method group to inspect its records.",
+    }),
+  ).toBeVisible();
   const normalizedQuery = firstService.material.name.normalize("NFC").toLocaleLowerCase("en-US");
-  const matchingMaterialIds = new Set(projection.serviceGuidance.records
-    .filter(({ material }) => `${material.name}\u0000${material.id}`
-      .normalize("NFC").toLocaleLowerCase("en-US").includes(normalizedQuery))
-    .map(({ material }) => material.id));
+  const matchingMaterialIds = new Set(
+    projection.serviceGuidance.records
+      .filter(({ material }) =>
+        `${material.name}\u0000${material.id}`
+          .normalize("NFC")
+          .toLocaleLowerCase("en-US")
+          .includes(normalizedQuery),
+      )
+      .map(({ material }) => material.id),
+  );
   for (const group of projection.thermalGroups) {
     await page.getByLabel("Named metric and method group", { exact: true }).selectOption(group.id);
     await expect(page.locator("[data-named-control]")).toHaveCount(matchingMaterialIds.size);
-    const expectedMarks = group.members.filter(({ material }) => matchingMaterialIds.has(material.id)).length;
+    const expectedMarks = group.members.filter(({ material }) =>
+      matchingMaterialIds.has(material.id),
+    ).length;
     await expect(page.locator("[data-named-mark]")).toHaveCount(expectedMarks);
     await expect(page.getByText(/filtered from the diagram and controls/u)).toBeVisible();
-    await expect(page.locator("[data-named-row]")).toHaveCount(projection.serviceGuidance.records.length);
+    await expect(page.locator("[data-named-row]")).toHaveCount(
+      projection.serviceGuidance.records.length,
+    );
   }
-  await expect(page.getByRole("link", { name: "Review method and thermal definitions" }).last()).toHaveAttribute("href", projection.methodHref);
+  await expect(
+    page.getByRole("link", { name: "Review method and thermal definitions" }).last(),
+  ).toHaveAttribute("href", projection.methodHref);
 });
 
 test("process gates retain all 64 direct relationships and selected context", async ({ page }) => {
@@ -202,7 +270,9 @@ test("process gates retain all 64 direct relationships and selected context", as
   for (const linkedGate of projection.processGates.gates) {
     const href = linkedGate.href;
     await page.locator(`a[href="${href}"]`).first().click();
-    await expect(page).toHaveURL(new RegExp(`${href.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, "u"));
+    await expect(page).toHaveURL(
+      new RegExp(`${href.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, "u"),
+    );
     const target = page.locator(":target");
     await expect(target).toHaveCount(1);
     await expect(target).toHaveAttribute("id", linkedGate.id);
@@ -212,28 +282,58 @@ test("process gates retain all 64 direct relationships and selected context", as
   await expect(page.getByText("Selected decision lane", { exact: true }).last()).toBeVisible();
   await page.getByLabel("Highlight a process gate").selectOption(gate.id);
   await expect(page.getByText("Selected process gate", { exact: true })).toBeVisible();
-  const cell = page.getByRole("button", { name: new RegExp(`${gate.label.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}.*Highlight this process gate`, "u") }).first();
+  const cell = page
+    .getByRole("button", {
+      name: new RegExp(
+        `${gate.label.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}.*Highlight this process gate`,
+        "u",
+      ),
+    })
+    .first();
   await cell.click({ force: true });
   await expect(cell).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Clear gate highlight" }).click();
   await expect(page.getByLabel("Highlight a process gate")).toHaveValue("");
 });
 
-test("impact and flexibility filters preserve all records, selected-outside state, and a zero-result view", async ({ page }) => {
+test("impact and flexibility filters preserve all records, selected-outside state, and a zero-result view", async ({
+  page,
+}) => {
   await openMap(page);
   await expect(page.locator("[data-impact-cell]")).toHaveCount(20);
   await expect(page.locator("[data-impact-row]")).toHaveCount(projection.impactFlex.records.length);
-  const expert = projection.impactFlex.records.find(({ printDifficulty }) => printDifficulty === "expert");
+  const expert = projection.impactFlex.records.find(
+    ({ printDifficulty }) => printDifficulty === "expert",
+  );
   if (expert === undefined) throw new Error("MAP_EXPERT_RECORD_MISSING");
-  const materialControl = page.getByRole("button", { name: new RegExp(`^Highlight ${expert.material.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}\.`, "u") }).last();
+  const materialControl = page
+    .getByRole("button", {
+      name: new RegExp(
+        `^Highlight ${expert.material.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}\.`,
+        "u",
+      ),
+    })
+    .last();
   await materialControl.click();
   await page.getByLabel("Maximum print difficulty").last().selectOption("easy");
-  await expect(page.getByText("Selected record is outside the current diagram filter.", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Selected record is outside the current diagram filter.", { exact: true }),
+  ).toBeVisible();
   await page.getByLabel("Encode print difficulty with mark shape").check();
-  for (const term of projection.impactFlex.difficultyTerms) await expect(page.getByLabel("Impact-flex mark legend").getByText(term.label, { exact: true })).toBeVisible();
+  for (const term of projection.impactFlex.difficultyTerms)
+    await expect(
+      page.getByLabel("Impact-flex mark legend").getByText(term.label, { exact: true }),
+    ).toBeVisible();
   const search = page.getByLabel("Find a material in the impact-flex view");
   await search.fill("no material has this controlled browser query");
-  await expect(page.getByText(new RegExp(`0 plotted; ${projection.impactFlex.records.length} filtered from the diagram`, "u"))).toBeVisible();
+  await expect(
+    page.getByText(
+      new RegExp(
+        `0 plotted; ${projection.impactFlex.records.length} filtered from the diagram`,
+        "u",
+      ),
+    ),
+  ).toBeVisible();
   await expect(page.locator("[data-impact-row]")).toHaveCount(projection.impactFlex.records.length);
   await page.getByRole("button", { name: "Clear property-space filters" }).click();
   await expect(search).toHaveValue("");

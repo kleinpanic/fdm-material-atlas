@@ -1,6 +1,6 @@
 import type { EvidenceScope } from "../../data/schema/evidence.ts";
 import type { FactState } from "../../data/schema/fact-state.ts";
-import type { MaterialId, } from "../../data/schema/ids.ts";
+import type { MaterialId } from "../../data/schema/ids.ts";
 import type { ThermalMethod, ThermalMetricKind } from "../../data/schema/material.ts";
 import type { MaterialSemanticKey } from "../materials/claim-registry.ts";
 import type { DataAttributeGroupKey, DataAttributeValueKind } from "../data-explorer/contracts.ts";
@@ -84,8 +84,18 @@ export type ComparisonModel = Readonly<{
 }>;
 
 export type ComparedValue =
-  | Readonly<{ kind: "value"; materialId: MaterialId; materialName: string; cell: ComparisonValueCell }>
-  | Readonly<{ kind: "thermal"; materialId: MaterialId; materialName: string; member: ComparisonThermalMember }>
+  | Readonly<{
+      kind: "value";
+      materialId: MaterialId;
+      materialName: string;
+      cell: ComparisonValueCell;
+    }>
+  | Readonly<{
+      kind: "thermal";
+      materialId: MaterialId;
+      materialName: string;
+      member: ComparisonThermalMember;
+    }>
   | Readonly<{
       kind: "no-comparable-observation";
       materialId: MaterialId;

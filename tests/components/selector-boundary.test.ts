@@ -8,7 +8,9 @@ import { decodeSelectorClientModel } from "../../src/features/selector/client-mo
 import { evaluateSelectorSafely } from "../../src/features/selector/safe-engine.ts";
 import { resolveCompareShortlistAction } from "../../src/components/selector/SelectorResults.tsx";
 
-const pageModel = decodeSelectorClientModel(buildSelectorPageModel(loadPublicAtlas(), "/", PUBLIC_ROUTE_REGISTRY));
+const pageModel = decodeSelectorClientModel(
+  buildSelectorPageModel(loadPublicAtlas(), "/", PUBLIC_ROUTE_REGISTRY),
+);
 
 describe("evaluateSelectorSafely", () => {
   it("returns the current successful outcome for canonical selections", () => {
@@ -45,9 +47,18 @@ describe("evaluateSelectorSafely", () => {
 });
 
 describe("selector component boundary", () => {
-  const controls = readFileSync(new URL("../../src/components/selector/SelectorControls.tsx", import.meta.url), "utf8");
-  const results = readFileSync(new URL("../../src/components/selector/SelectorResults.tsx", import.meta.url), "utf8");
-  const island = readFileSync(new URL("../../src/components/selector/SelectorIsland.tsx", import.meta.url), "utf8");
+  const controls = readFileSync(
+    new URL("../../src/components/selector/SelectorControls.tsx", import.meta.url),
+    "utf8",
+  );
+  const results = readFileSync(
+    new URL("../../src/components/selector/SelectorResults.tsx", import.meta.url),
+    "utf8",
+  );
+  const island = readFileSync(
+    new URL("../../src/components/selector/SelectorIsland.tsx", import.meta.url),
+    "utf8",
+  );
   const componentSource = `${controls}\n${results}`;
   const allSource = `${componentSource}\n${island}`;
 
@@ -80,13 +91,15 @@ describe("selector component boundary", () => {
     expect(results).toContain("data-exclusion-state");
     expect(results).toContain("data-shortlist-status");
     expect(results).toContain("data-alignment");
-    expect(results).not.toMatch(/\.sort\s*\(|\.reduce\s*\(|awardedPoints\s*[+*-]|internalHref|fragmentHref/);
+    expect(results).not.toMatch(
+      /\.sort\s*\(|\.reduce\s*\(|awardedPoints\s*[+*-]|internalHref|fragmentHref/,
+    );
   });
 
   it("renders shortlist, reveal, no-match, and controlled recovery states", () => {
     expect(results).toContain("Show all");
     expect(results).toContain("Now eliminated by current constraints");
-    expect(results).toContain("role=\"alert\"");
+    expect(results).toContain('role="alert"');
     expect(island).toContain("reduceShortlist");
     expect(island).toContain("presentShortlist");
   });
@@ -107,9 +120,11 @@ describe("selector component boundary", () => {
       href: `/compare/?material=${first}&material=${second}#comparison-matrix`,
       label: "Compare shortlisted",
     });
-    expect(resolveCompareShortlistAction(capability, [second!, first!])).toEqual(expect.objectContaining({
-      href: `/compare/?material=${second}&material=${first}#comparison-matrix`,
-    }));
+    expect(resolveCompareShortlistAction(capability, [second!, first!])).toEqual(
+      expect.objectContaining({
+        href: `/compare/?material=${second}&material=${first}#comparison-matrix`,
+      }),
+    );
     for (const invalid of [
       [],
       [first!],
@@ -125,7 +140,9 @@ describe("selector component boundary", () => {
   });
 
   it("prohibits network, persistence, routing, raw HTML, and browser logging", () => {
-    expect(allSource).not.toMatch(/fetch\s*\(|XMLHttpRequest|localStorage|sessionStorage|indexedDB|dangerouslySetInnerHTML|console\.|window\.location|history\.(?:push|replace)State/);
+    expect(allSource).not.toMatch(
+      /fetch\s*\(|XMLHttpRequest|localStorage|sessionStorage|indexedDB|dangerouslySetInnerHTML|console\.|window\.location|history\.(?:push|replace)State/,
+    );
   });
 
   it("imports the one shared comparison encoder and does not build query strings locally", () => {

@@ -26,10 +26,7 @@ export type MapModeFragment = (typeof mapModeFragments)[number];
 export type MapLaneFragment = (typeof mapLaneFragments)[number];
 export type MapFragment = MapModeFragment | MapLaneFragment;
 
-const MAP_FRAGMENTS = new Set<string>([
-  ...mapModeFragments,
-  ...mapLaneFragments,
-]);
+const MAP_FRAGMENTS = new Set<string>([...mapModeFragments, ...mapLaneFragments]);
 
 export type RouteTarget =
   | { readonly id: "home" }
@@ -125,10 +122,7 @@ export function routePath(target: RouteTarget): string {
 }
 
 /** Prefix an internal route exactly once with the validated deployment base. */
-export function internalHref(
-  base: string | undefined,
-  target: RouteTarget,
-): string {
+export function internalHref(base: string | undefined, target: RouteTarget): string {
   const prefix = normalizedBase(base);
   const path = routePath(target);
   if (prefix === "/") return path;
@@ -167,10 +161,7 @@ export function mapFragmentHref(fragment: MapFragment): string {
 }
 
 /** Compose the closed map target and one closed map fragment exactly once. */
-export function internalMapFragmentHref(
-  base: string | undefined,
-  fragment: MapFragment,
-): string {
+export function internalMapFragmentHref(base: string | undefined, fragment: MapFragment): string {
   if (typeof fragment !== "string" || !MAP_FRAGMENTS.has(fragment)) {
     return fail("MAP_FRAGMENT_INVALID");
   }

@@ -20,13 +20,14 @@
   align-items: center;
 }
 
-.map-page :where(
-  .map-mode-index li,
-  .map-lane-directory li,
-  .decision-lane-index li,
-  .decision-path__stages > li,
-  .map-controls label
-) {
+.map-page
+  :where(
+    .map-mode-index li,
+    .map-lane-directory li,
+    .decision-lane-index li,
+    .decision-path__stages > li,
+    .map-controls label
+  ) {
   min-inline-size: 0;
 }
 
@@ -602,15 +603,33 @@
   background: transparent;
 }
 
-.map-mark--circle { border-radius: 50%; }
-.map-mark--diamond { rotate: 45deg; }
-.map-mark--triangle { border-inline-color: transparent; }
+.map-mark--circle {
+  border-radius: 50%;
+}
+.map-mark--diamond {
+  rotate: 45deg;
+}
+.map-mark--triangle {
+  border-inline-color: transparent;
+}
 
-.map-mark--thermal-glass-transition { border-color: var(--color-thermal-tg); border-radius: 50%; }
-.map-mark--thermal-heat-deflection { border-color: var(--color-thermal-hdt); }
-.map-mark--thermal-vicat-softening { border-color: var(--color-thermal-vicat); rotate: 45deg; }
-.map-mark--thermal-melting { border-color: var(--color-thermal-melting); }
-.map-mark--thermal-other { border-color: var(--color-thermal-other); }
+.map-mark--thermal-glass-transition {
+  border-color: var(--color-thermal-tg);
+  border-radius: 50%;
+}
+.map-mark--thermal-heat-deflection {
+  border-color: var(--color-thermal-hdt);
+}
+.map-mark--thermal-vicat-softening {
+  border-color: var(--color-thermal-vicat);
+  rotate: 45deg;
+}
+.map-mark--thermal-melting {
+  border-color: var(--color-thermal-melting);
+}
+.map-mark--thermal-other {
+  border-color: var(--color-thermal-other);
+}
 
 .thermal-service-diagram,
 .thermal-named-diagram,
@@ -827,7 +846,21 @@
 }
 
 @media (forced-colors: active) {
-  .map-page :where(.map-hero, .map-caution, .map-mode-index a, .map-lane-directory a, .decision-path, .map-controls, .map-horizontal-scroll, .map-material-controls, .map-omissions, .map-structured-alternative, .map-selected-record, .map-method-note) {
+  .map-page
+    :where(
+      .map-hero,
+      .map-caution,
+      .map-mode-index a,
+      .map-lane-directory a,
+      .decision-path,
+      .map-controls,
+      .map-horizontal-scroll,
+      .map-material-controls,
+      .map-omissions,
+      .map-structured-alternative,
+      .map-selected-record,
+      .map-method-note
+    ) {
     border-color: CanvasText;
     color: CanvasText;
     background: Canvas;

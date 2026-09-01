@@ -104,7 +104,8 @@ function validateTarget(
       if (!indexes.laneIds.has(target.decisionLaneId)) fail("DECISION_PATH_VISUALIZATION_MISSING");
       return;
     case "selector-criterion-id":
-      if (!indexes.criterionIds.has(target.selectorCriterionId)) fail("DECISION_PATH_VISUALIZATION_MISSING");
+      if (!indexes.criterionIds.has(target.selectorCriterionId))
+        fail("DECISION_PATH_VISUALIZATION_MISSING");
       return;
     case "claim-id":
       // Claim referential integrity is enforced at the canonical Atlas boundary.
@@ -125,10 +126,12 @@ function validateVisualizationReferences(atlas: AtlasV1): void {
     reference.related.forEach((target) => validateTarget(target, indexes));
   }
   for (const laneId of decisionLaneIds) {
-    const references = atlas.visualizationReferences.filter((reference) =>
-      reference.kind === "decision-path"
-      && reference.subject.kind === "decision-lane-id"
-      && reference.subject.decisionLaneId === laneId);
+    const references = atlas.visualizationReferences.filter(
+      (reference) =>
+        reference.kind === "decision-path" &&
+        reference.subject.kind === "decision-lane-id" &&
+        reference.subject.decisionLaneId === laneId,
+    );
     if (references.length !== 1) fail("DECISION_PATH_VISUALIZATION_MISSING");
   }
 }
@@ -179,15 +182,15 @@ export function buildDecisionPaths(
   validateLaneSet(atlas);
   validateVisualizationReferences(atlas);
 
-  const memberships = new Map(
-    deriveDecisionLaneMembership(atlas).map((lane) => [lane.id, lane]),
-  );
+  const memberships = new Map(deriveDecisionLaneMembership(atlas).map((lane) => [lane.id, lane]));
   const paths = decisionLaneIds.map((laneId): MapDecisionLane => {
     const lane = memberships.get(laneId as DecisionLaneId);
     if (lane === undefined) return fail("DECISION_PATH_LANE_MISSING");
     const candidates = lane.candidateMaterialIds
       .map((materialId) => materialReference(atlas, materialId, base))
-      .sort((left, right) => left.displayOrder - right.displayOrder || compareText(left.id, right.id));
+      .sort(
+        (left, right) => left.displayOrder - right.displayOrder || compareText(left.id, right.id),
+      );
     return {
       id: lane.id,
       label: lane.label,

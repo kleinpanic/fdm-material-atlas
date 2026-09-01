@@ -7,4 +7,3 @@ export function mutateAtlas(mutator: (atlas: MinimalAtlas) => void): MinimalAtla
 }
 
 export const privateLookingSyntheticMarker = "synthetic-sensitive-marker-never-print";
-

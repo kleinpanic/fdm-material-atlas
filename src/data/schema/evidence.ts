@@ -1,12 +1,7 @@
 import * as z from "zod";
 
 import { factStateSchema, NormalizedTextSchema, type FactState } from "./fact-state.ts";
-import {
-  ClaimIdSchema,
-  MethodIdSchema,
-  SourceIdSchema,
-  type ClaimId,
-} from "./ids.ts";
+import { ClaimIdSchema, MethodIdSchema, SourceIdSchema, type ClaimId } from "./ids.ts";
 
 const LOCAL_DNS_SUFFIXES = [
   "localhost",
@@ -103,7 +98,8 @@ function isPublicHttpsUrl(value: string): boolean {
     const url = new URL(value);
     if (url.protocol !== "https:" || url.username !== "" || url.password !== "") return false;
     const hostname = url.hostname.toLowerCase().replace(/\.$/u, "");
-    if (hostname === "" || LOCAL_DNS_SUFFIXES.some((suffix) => hostname.endsWith(suffix))) return false;
+    if (hostname === "" || LOCAL_DNS_SUFFIXES.some((suffix) => hostname.endsWith(suffix)))
+      return false;
 
     const ipv4 = parseIpv4(hostname);
     if (ipv4) return isPublicIpv4(ipv4);

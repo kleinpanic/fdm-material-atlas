@@ -37,13 +37,23 @@ function isSentenceCase(label: string): boolean {
   return words.every((word) => !/^\p{Lu}\p{Ll}/u.test(word));
 }
 
-type ClaimLike = { id: string; value: { state: string }; basis: BasisRef[]; qualification?: string | undefined };
+type ClaimLike = {
+  id: string;
+  value: { state: string };
+  basis: BasisRef[];
+  qualification?: string | undefined;
+};
 
 function materialClaims(material: Material): ClaimLike[] {
   return [
     material.familyOrFill,
     material.serviceTemperature,
-    ...material.thermalObservations.map(({ id, measurement: value, basis, qualification }) => ({ id, value, basis, qualification })),
+    ...material.thermalObservations.map(({ id, measurement: value, basis, qualification }) => ({
+      id,
+      value,
+      basis,
+      qualification,
+    })),
     ...Object.values(material.properties),
     ...Object.values(material.process),
     ...Object.values(material.guidance),
@@ -55,44 +65,81 @@ function materialClaims(material: Material): ClaimLike[] {
   ];
 }
 
-function resolveSemanticField(material: Material, field: (typeof MATERIAL_SEMANTIC_FIELDS)[number]): unknown {
+function resolveSemanticField(
+  material: Material,
+  field: (typeof MATERIAL_SEMANTIC_FIELDS)[number],
+): unknown {
   switch (field) {
-    case "name": return material.name;
-    case "familyOrFill": return material.familyOrFill;
+    case "name":
+      return material.name;
+    case "familyOrFill":
+      return material.familyOrFill;
     case "serviceTemperature.minimum":
-      return material.serviceTemperature.value.state === "known" && material.serviceTemperature.value.value.shape === "range"
-        ? material.serviceTemperature.value.value.min : undefined;
+      return material.serviceTemperature.value.state === "known" &&
+        material.serviceTemperature.value.value.shape === "range"
+        ? material.serviceTemperature.value.value.min
+        : undefined;
     case "serviceTemperature.maximum":
-      return material.serviceTemperature.value.state === "known" && material.serviceTemperature.value.value.shape === "range"
-        ? material.serviceTemperature.value.value.max : undefined;
-    case "thermalObservations.metric": return material.thermalObservations.map(({ metric }) => metric);
-    case "thermalObservations.measurement": return material.thermalObservations.map(({ measurement }) => measurement);
-    case "properties.wearAbrasion": return material.properties.wearAbrasion;
-    case "properties.impactResistance": return material.properties.impactResistance;
-    case "properties.creepSustainedLoad": return material.properties.creepSustainedLoad;
-    case "properties.outdoorUv": return material.properties.outdoorUv;
-    case "properties.moistureSensitivity": return material.properties.moistureSensitivity;
-    case "process.printDifficulty": return material.process.printDifficulty;
-    case "process.nozzleTemperature": return material.process.nozzleTemperature;
-    case "process.bedTemperature": return material.process.bedTemperature;
-    case "process.enclosure": return material.process.enclosure;
-    case "process.hardenedNozzle": return material.process.hardenedNozzle;
-    case "properties.warpTendency": return material.properties.warpTendency;
-    case "properties.flexibility": return material.properties.flexibility;
-    case "properties.chemicalResistance": return material.properties.chemicalResistance;
-    case "properties.density": return material.properties.density;
-    case "guidance.bestSuitedFor": return material.guidance.bestSuitedFor;
-    case "guidance.tradeoffs": return material.guidance.tradeoffs;
-    case "properties.coolingShrinkRisk": return material.properties.coolingShrinkRisk;
-    case "properties.dimensionalStability": return material.properties.dimensionalStability;
-    case "guidance.coolingFit": return material.guidance.coolingFit;
-    case "process.dryingPriority": return material.process.dryingPriority;
-    case "process.ventilation": return material.process.ventilation;
-    case "costTier": return material.costTier;
-    case "startingProfile.printSpeed": return material.startingProfile.printSpeed;
-    case "startingProfile.partCoolingFan": return material.startingProfile.partCoolingFan;
-    case "startingProfile.bridgeSpeed": return material.startingProfile.bridgeSpeed;
-    case "startingProfile.bridgeFan": return material.startingProfile.bridgeFan;
+      return material.serviceTemperature.value.state === "known" &&
+        material.serviceTemperature.value.value.shape === "range"
+        ? material.serviceTemperature.value.value.max
+        : undefined;
+    case "thermalObservations.metric":
+      return material.thermalObservations.map(({ metric }) => metric);
+    case "thermalObservations.measurement":
+      return material.thermalObservations.map(({ measurement }) => measurement);
+    case "properties.wearAbrasion":
+      return material.properties.wearAbrasion;
+    case "properties.impactResistance":
+      return material.properties.impactResistance;
+    case "properties.creepSustainedLoad":
+      return material.properties.creepSustainedLoad;
+    case "properties.outdoorUv":
+      return material.properties.outdoorUv;
+    case "properties.moistureSensitivity":
+      return material.properties.moistureSensitivity;
+    case "process.printDifficulty":
+      return material.process.printDifficulty;
+    case "process.nozzleTemperature":
+      return material.process.nozzleTemperature;
+    case "process.bedTemperature":
+      return material.process.bedTemperature;
+    case "process.enclosure":
+      return material.process.enclosure;
+    case "process.hardenedNozzle":
+      return material.process.hardenedNozzle;
+    case "properties.warpTendency":
+      return material.properties.warpTendency;
+    case "properties.flexibility":
+      return material.properties.flexibility;
+    case "properties.chemicalResistance":
+      return material.properties.chemicalResistance;
+    case "properties.density":
+      return material.properties.density;
+    case "guidance.bestSuitedFor":
+      return material.guidance.bestSuitedFor;
+    case "guidance.tradeoffs":
+      return material.guidance.tradeoffs;
+    case "properties.coolingShrinkRisk":
+      return material.properties.coolingShrinkRisk;
+    case "properties.dimensionalStability":
+      return material.properties.dimensionalStability;
+    case "guidance.coolingFit":
+      return material.guidance.coolingFit;
+    case "process.dryingPriority":
+      return material.process.dryingPriority;
+    case "process.ventilation":
+      return material.process.ventilation;
+    case "costTier":
+      return material.costTier;
+    case "startingProfile.printSpeed":
+      return material.startingProfile.printSpeed;
+    case "startingProfile.partCoolingFan":
+      return material.startingProfile.partCoolingFan;
+    case "startingProfile.bridgeSpeed":
+      return material.startingProfile.bridgeSpeed;
+    case "startingProfile.bridgeFan":
+      return material.startingProfile.bridgeFan;
   }
 }
 
@@ -112,7 +159,8 @@ describe("sanitized canonical baseline", () => {
       for (const field of MATERIAL_SEMANTIC_FIELDS) {
         const value = resolveSemanticField(material, field);
         expect(value, `${material.id} must resolve ${field}`).not.toBeUndefined();
-        if (Array.isArray(value)) expect(value, `${material.id} must populate ${field}`).not.toHaveLength(0);
+        if (Array.isArray(value))
+          expect(value, `${material.id} must populate ${field}`).not.toHaveLength(0);
       }
     }
   });
@@ -122,7 +170,9 @@ describe("sanitized canonical baseline", () => {
       ...atlas.materials.flatMap(materialClaims).flatMap(({ basis }) => basis),
       ...atlas.processGates.flatMap(({ basis }) => basis),
     ];
-    const referencedSources = new Set(basis.filter((reference) => reference.kind === "source").map(({ sourceId }) => sourceId));
+    const referencedSources = new Set(
+      basis.filter((reference) => reference.kind === "source").map(({ sourceId }) => sourceId),
+    );
     const scopes = new Set(basis.map(({ scope }) => scope));
 
     expect([...referencedSources].sort()).toEqual(atlas.sources.map(({ id }) => id).sort());
@@ -137,8 +187,14 @@ describe("sanitized canonical baseline", () => {
   });
 
   it("keeps service guidance separate from every named thermal observation", () => {
-    const thermalKinds = new Set(atlas.materials.flatMap(({ thermalObservations }) => thermalObservations.map(({ metric }) => metric)));
-    expect(thermalKinds).toEqual(new Set(["glass-transition", "heat-deflection", "melting-point", "vicat-softening"]));
+    const thermalKinds = new Set(
+      atlas.materials.flatMap(({ thermalObservations }) =>
+        thermalObservations.map(({ metric }) => metric),
+      ),
+    );
+    expect(thermalKinds).toEqual(
+      new Set(["glass-transition", "heat-deflection", "melting-point", "vicat-softening"]),
+    );
 
     for (const material of atlas.materials) {
       expect(material.thermalObservations.length).toBeGreaterThan(0);
@@ -146,15 +202,22 @@ describe("sanitized canonical baseline", () => {
         expect(observation.id).not.toBe(material.serviceTemperature.id);
         expect(observation.qualification.toLowerCase()).toContain("representative");
       }
-      expect(material.serviceTemperature.qualification?.toLowerCase()).toContain("not interchangeable");
+      expect(material.serviceTemperature.qualification?.toLowerCase()).toContain(
+        "not interchangeable",
+      );
     }
 
-    expect(atlas.methods.find(({ id }) => id === "method-thermal-metric-identity")?.description.toLowerCase())
-      .toContain("not interchangeable");
+    expect(
+      atlas.methods
+        .find(({ id }) => id === "method-thermal-metric-identity")
+        ?.description.toLowerCase(),
+    ).toContain("not interchangeable");
   });
 
   it("routes all 23 thermal-range references through service and named thermal claims", () => {
-    const thermalRanges = atlas.visualizationReferences.filter(({ kind }) => kind === "thermal-range");
+    const thermalRanges = atlas.visualizationReferences.filter(
+      ({ kind }) => kind === "thermal-range",
+    );
     expect(thermalRanges).toHaveLength(23);
 
     for (const reference of thermalRanges) {
@@ -162,19 +225,24 @@ describe("sanitized canonical baseline", () => {
       if (reference.subject.kind !== "claim-id") continue;
       const subjectClaimId = reference.subject.claimId;
 
-      const owner = atlas.materials.find(({ serviceTemperature }) =>
-        serviceTemperature.id === subjectClaimId,
+      const owner = atlas.materials.find(
+        ({ serviceTemperature }) => serviceTemperature.id === subjectClaimId,
       );
       expect(owner, `${reference.id} must use one material's service guidance`).toBeDefined();
       if (!owner) continue;
 
       const namedThermalIds = new Set(owner.thermalObservations.map(({ id }) => id));
-      expect(reference.related.length, `${reference.id} must define a relationship`).toBeGreaterThan(0);
+      expect(
+        reference.related.length,
+        `${reference.id} must define a relationship`,
+      ).toBeGreaterThan(0);
       for (const related of reference.related) {
         expect(related.kind, `${reference.id} related target must be a claim`).toBe("claim-id");
         if (related.kind === "claim-id") {
-          expect(namedThermalIds.has(related.claimId), `${reference.id} must use the owner's named observation`)
-            .toBe(true);
+          expect(
+            namedThermalIds.has(related.claimId),
+            `${reference.id} must use the owner's named observation`,
+          ).toBe(true);
         }
       }
     }
@@ -192,8 +260,12 @@ describe("sanitized canonical baseline", () => {
         material.startingProfile.bridgeFan,
       ]) {
         expect(profileClaim.basis.length).toBeGreaterThan(0);
-        expect(profileClaim.basis.every(({ scope }) => scope === "starting-profile-guidance")).toBe(true);
-        expect(profileClaim.qualification?.toLowerCase()).toMatch(/starting|calibration|bridge-test/);
+        expect(profileClaim.basis.every(({ scope }) => scope === "starting-profile-guidance")).toBe(
+          true,
+        );
+        expect(profileClaim.qualification?.toLowerCase()).toMatch(
+          /starting|calibration|bridge-test/,
+        );
       }
     }
   });

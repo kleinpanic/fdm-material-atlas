@@ -14,11 +14,7 @@ export const sourceLogicalRoles = [
   "decision-map",
 ] as const;
 
-const NormalizedScalarSchema = z.union([
-  NormalizedTextSchema,
-  z.number().finite(),
-  z.boolean(),
-]);
+const NormalizedScalarSchema = z.union([NormalizedTextSchema, z.number().finite(), z.boolean()]);
 
 export const NormalizedSourceValueSchema = z.union([
   NormalizedScalarSchema,
@@ -85,4 +81,3 @@ export const SourceWorkbookDtoSchema = z.strictObject({
 });
 
 export type SourceWorkbookDto = z.infer<typeof SourceWorkbookDtoSchema>;
-

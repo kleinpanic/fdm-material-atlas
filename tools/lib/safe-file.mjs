@@ -1,33 +1,33 @@
-import { constants } from 'node:fs';
-import { open } from 'node:fs/promises';
+import { constants } from "node:fs";
+import { open } from "node:fs/promises";
 
 export class SafeFileError extends Error {
   constructor(ruleId) {
     super(`Safe file read failed: ${ruleId}`);
-    this.name = 'SafeFileError';
+    this.name = "SafeFileError";
     this.ruleId = ruleId;
   }
 }
 
 /** Bind validation and reading to one no-follow descriptor. */
-export async function readStableFile(path, {
-  maximumBytes,
-  openFile = open,
-  noFollowFlag = constants.O_NOFOLLOW,
-} = {}) {
+export async function readStableFile(
+  path,
+  { maximumBytes, openFile = open, noFollowFlag = constants.O_NOFOLLOW } = {},
+) {
   let handle;
   try {
     const limit = maximumBytes ?? 64 * 1024 * 1024;
-    if (!Number.isSafeInteger(limit) || limit < 0) throw new SafeFileError('file-inspection-failed');
+    if (!Number.isSafeInteger(limit) || limit < 0)
+      throw new SafeFileError("file-inspection-failed");
     if (!Number.isInteger(noFollowFlag) || noFollowFlag <= 0) {
-      throw new SafeFileError('file-inspection-unsupported');
+      throw new SafeFileError("file-inspection-unsupported");
     }
     const flags = constants.O_RDONLY | noFollowFlag;
     handle = await openFile(path, flags);
     const before = await handle.stat();
-    if (!before.isFile()) throw new SafeFileError('not-regular-file');
+    if (!before.isFile()) throw new SafeFileError("not-regular-file");
     if (before.size > limit) {
-      throw new SafeFileError('input-too-large');
+      throw new SafeFileError("input-too-large");
     }
     const chunks = [];
     let total = 0;
@@ -39,7 +39,7 @@ export async function readStableFile(path, {
       if (bytesRead === 0) break;
       chunks.push(chunk.subarray(0, bytesRead));
       total += bytesRead;
-      if (total > limit) throw new SafeFileError('input-too-large');
+      if (total > limit) throw new SafeFileError("input-too-large");
     }
     const bytes = Buffer.concat(chunks, total);
     const after = await handle.stat();
@@ -51,12 +51,12 @@ export async function readStableFile(path, {
       before.ctimeMs !== after.ctimeMs ||
       bytes.length !== after.size
     ) {
-      throw new SafeFileError('file-changed-during-read');
+      throw new SafeFileError("file-changed-during-read");
     }
     return { bytes, stat: after };
   } catch (error) {
     if (error instanceof SafeFileError) throw error;
-    throw new SafeFileError('file-inspection-failed');
+    throw new SafeFileError("file-inspection-failed");
   } finally {
     await handle?.close().catch(() => {});
   }

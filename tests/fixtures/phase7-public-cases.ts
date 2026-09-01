@@ -17,7 +17,8 @@ export const PHASE7_FACT_STATES = Object.freeze({
   unknown: { state: "unknown", reason: "Synthetic evidence does not report this value." },
   conditional: {
     state: "conditional",
-    condition: "Use only after the synthetic specimen is dried, annealed, and conditioned for the stated test method.",
+    condition:
+      "Use only after the synthetic specimen is dried, annealed, and conditioned for the stated test method.",
     value: 0,
   },
   notApplicable: { state: "not-applicable", reason: "This synthetic property does not apply." },
@@ -33,13 +34,12 @@ function scopeBasis(scope: EvidenceScope, index: number): BasisRef {
   } as unknown as BasisRef;
 }
 
-export const PHASE7_SCOPE_BASIS = Object.freeze(
-  PHASE7_EVIDENCE_SCOPES.map(scopeBasis),
-);
+export const PHASE7_SCOPE_BASIS = Object.freeze(PHASE7_EVIDENCE_SCOPES.map(scopeBasis));
 
 export function createPhase7OverflowMaterial(): Material {
   const material = structuredClone(createMinimalMaterial()) as unknown as Material;
-  material.name = "Synthetic carbon-fiber-filled engineering polymer with a deliberately long public display label";
+  material.name =
+    "Synthetic carbon-fiber-filled engineering polymer with a deliberately long public display label";
   material.properties.density.value = {
     state: "conditional",
     condition: PHASE7_FACT_STATES.conditional.condition,
@@ -66,8 +66,13 @@ export function createPhase7OverflowMaterial(): Material {
   return material;
 }
 
-export function createIncompatibleThermalObservations(): readonly [ThermalObservation, ThermalObservation] {
-  const first = structuredClone(createMinimalMaterial().thermalObservations[0]!) as ThermalObservation;
+export function createIncompatibleThermalObservations(): readonly [
+  ThermalObservation,
+  ThermalObservation,
+] {
+  const first = structuredClone(
+    createMinimalMaterial().thermalObservations[0]!,
+  ) as ThermalObservation;
   const second = structuredClone(first);
   second.id = "claim-synthetic-phase-seven-thermal-second" as ThermalObservation["id"];
   second.method = { ...second.method, annealed: true };

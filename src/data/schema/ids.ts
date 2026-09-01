@@ -21,7 +21,8 @@ export const ClaimIdSchema = namespacedIdSchema("claim").brand<"ClaimId">();
 export const SourceIdSchema = namespacedIdSchema("source").brand<"SourceId">();
 export const MethodIdSchema = namespacedIdSchema("method").brand<"MethodId">();
 export const DecisionLaneIdSchema = namespacedIdSchema("lane").brand<"DecisionLaneId">();
-export const SelectorCriterionIdSchema = namespacedIdSchema("selector").brand<"SelectorCriterionId">();
+export const SelectorCriterionIdSchema =
+  namespacedIdSchema("selector").brand<"SelectorCriterionId">();
 export const SelectorOptionIdSchema = namespacedIdSchema("option").brand<"SelectorOptionId">();
 export const ProcessGateIdSchema = namespacedIdSchema("gate").brand<"ProcessGateId">();
 export const VisualizationIdSchema = namespacedIdSchema("visualization").brand<"VisualizationId">();

@@ -118,10 +118,11 @@ function mapStructuralIssues(input: unknown, issues: readonly z.core.$ZodIssue[]
       ...(entityId === undefined ? {} : { entityId }),
     };
   });
-  return safe.sort((left, right) =>
-    left.pointer.localeCompare(right.pointer) ||
-    left.code.localeCompare(right.code) ||
-    (left.entityId ?? "").localeCompare(right.entityId ?? ""),
+  return safe.sort(
+    (left, right) =>
+      left.pointer.localeCompare(right.pointer) ||
+      left.code.localeCompare(right.code) ||
+      (left.entityId ?? "").localeCompare(right.entityId ?? ""),
   );
 }
 

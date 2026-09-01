@@ -3,16 +3,11 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import type {
-  VocabularyDefinition,
-} from "../../src/data/schema/atlas.ts";
+import type { VocabularyDefinition } from "../../src/data/schema/atlas.ts";
 import type { FactState } from "../../src/data/schema/fact-state.ts";
 import type { VocabularyId } from "../../src/data/schema/ids.ts";
 import type { Material } from "../../src/data/schema/material.ts";
-import {
-  selectorFieldValues,
-  type SelectorField,
-} from "../../src/data/schema/selector.ts";
+import { selectorFieldValues, type SelectorField } from "../../src/data/schema/selector.ts";
 import { parseAtlas } from "../../src/data/schema/parse-atlas.ts";
 import {
   containsNormalizedSelectorLiteral,
@@ -75,9 +70,7 @@ const baseExpected = {
   "process.ventilation": "standard-room",
   costTier: "low",
   "guidance.bestSuitedFor": ["prototypes, rigid indoor fixtures, models"],
-  "guidance.tradeoffs": [
-    "low heat resistance; brittle under impact; creeps under sustained load",
-  ],
+  "guidance.tradeoffs": ["low heat resistance; brittle under impact; creeps under sustained load"],
   ...orderExpected,
 } as const satisfies Record<SelectorField, string | number | readonly string[]>;
 
@@ -150,7 +143,9 @@ describe("selector field resolver", () => {
     { state: "missing", reason: "Missing" },
   ] as const)("treats $state canonical facts as indeterminate", (fact) => {
     const material = cloneMaterial();
-    material.costTier.value = fact as FactState<Material["costTier"]["value"] extends FactState<infer T> ? T : never>;
+    material.costTier.value = fact as FactState<
+      Material["costTier"]["value"] extends FactState<infer T> ? T : never
+    >;
 
     expect(resolveSelectorField(material, "costTier", atlas.vocabularies)).toEqual({
       field: "costTier",
@@ -170,7 +165,9 @@ describe("selector field resolver", () => {
       state: "known",
       value: { shape: "range", min: 0, max: 0, unit: "degC" },
     };
-    expect(resolveSelectorField(material, "serviceTemperature.minimum", atlas.vocabularies)).toMatchObject({
+    expect(
+      resolveSelectorField(material, "serviceTemperature.minimum", atlas.vocabularies),
+    ).toMatchObject({
       state: "resolved",
       value: 0,
     });
@@ -183,7 +180,9 @@ describe("selector field resolver", () => {
         { field: "properties.outdoorUv", state: "resolved", value: false },
       ],
     };
-    expect(resolveSelectorField(projected, "serviceTemperature.minimum")).toMatchObject({ value: 0 });
+    expect(resolveSelectorField(projected, "serviceTemperature.minimum")).toMatchObject({
+      value: 0,
+    });
     expect(resolveSelectorField(projected, "properties.outdoorUv")).toMatchObject({ value: false });
   });
 
@@ -198,8 +197,12 @@ describe("selector field resolver", () => {
       value: { shape: "range", min: 400, max: 500, unit: "degC" },
     };
 
-    expect(resolveSelectorField(material, "serviceTemperature.minimum", atlas.vocabularies)).toMatchObject({ value: 73 });
-    expect(resolveSelectorField(material, "serviceTemperature.maximum", atlas.vocabularies)).toMatchObject({ value: 73 });
+    expect(
+      resolveSelectorField(material, "serviceTemperature.minimum", atlas.vocabularies),
+    ).toMatchObject({ value: 73 });
+    expect(
+      resolveSelectorField(material, "serviceTemperature.maximum", atlas.vocabularies),
+    ).toMatchObject({ value: 73 });
   });
 
   it("normalizes text lists and matches case-insensitive literal substrings without regex", () => {
@@ -262,7 +265,12 @@ describe("ordered selector field configuration", () => {
 
   it("rejects a missing vocabulary", () => {
     expectConfigurationCode(
-      () => resolveSelectorField(pla, field, atlas.vocabularies.filter(({ id }) => id !== vocabularyId)),
+      () =>
+        resolveSelectorField(
+          pla,
+          field,
+          atlas.vocabularies.filter(({ id }) => id !== vocabularyId),
+        ),
       "SELECTOR_VOCABULARY_MISSING",
     );
   });

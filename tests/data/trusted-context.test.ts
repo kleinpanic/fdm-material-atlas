@@ -33,7 +33,9 @@ function run(
 }
 
 afterEach(async () => {
-  await Promise.all(temporaryPaths.splice(0).map((path) => rm(path, { recursive: true, force: true })));
+  await Promise.all(
+    temporaryPaths.splice(0).map((path) => rm(path, { recursive: true, force: true })),
+  );
 });
 
 describe("trusted external context preflight", () => {
@@ -79,7 +81,10 @@ describe("trusted external context preflight", () => {
     const publication = run("--publication", directory);
 
     expect(JSON.parse(audit.stderr)).toEqual({ ok: false, code: "TRUSTED_INPUT_TYPE_INVALID" });
-    expect(JSON.parse(publication.stderr)).toEqual({ ok: false, code: "TRUSTED_INPUT_TYPE_INVALID" });
+    expect(JSON.parse(publication.stderr)).toEqual({
+      ok: false,
+      code: "TRUSTED_INPUT_TYPE_INVALID",
+    });
     expect(`${audit.stdout}${audit.stderr}`).not.toContain(file);
     expect(`${publication.stdout}${publication.stderr}`).not.toContain(directory);
   });
@@ -90,14 +95,20 @@ describe("trusted external context preflight", () => {
     temporaryPaths.push(inside);
 
     const direct = run("--audit", inside);
-    expect(JSON.parse(direct.stderr)).toEqual({ ok: false, code: "TRUSTED_INPUT_INSIDE_REPOSITORY" });
+    expect(JSON.parse(direct.stderr)).toEqual({
+      ok: false,
+      code: "TRUSTED_INPUT_INSIDE_REPOSITORY",
+    });
     expect(`${direct.stdout}${direct.stderr}`).not.toContain(inside);
 
     const outside = await temporaryDirectory();
     const link = join(outside, "linked-audit");
     await symlink(inside, link);
     const linked = run("--audit", link);
-    expect(JSON.parse(linked.stderr)).toEqual({ ok: false, code: "TRUSTED_INPUT_INSIDE_REPOSITORY" });
+    expect(JSON.parse(linked.stderr)).toEqual({
+      ok: false,
+      code: "TRUSTED_INPUT_INSIDE_REPOSITORY",
+    });
     expect(`${linked.stdout}${linked.stderr}`).not.toContain(link);
   });
 

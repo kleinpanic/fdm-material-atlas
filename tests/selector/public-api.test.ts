@@ -50,10 +50,12 @@ describe("selector public API boundary", () => {
     expect(files.some((file) => file.endsWith("/engine.ts"))).toBe(true);
     expect(files.some((file) => file.endsWith("/projection.ts"))).toBe(true);
     expect(files.some((file) => file.endsWith("/explanations.ts"))).toBe(true);
-    expect(files).not.toEqual(expect.arrayContaining([
-      expect.stringMatching(/\.(?:astro|tsx|jsx)$/u),
-      expect.stringMatching(/(?:private|source-adapter|worksheet|workbook)/iu),
-    ]));
+    expect(files).not.toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/\.(?:astro|tsx|jsx)$/u),
+        expect.stringMatching(/(?:private|source-adapter|worksheet|workbook)/iu),
+      ]),
+    );
     expect(sources).not.toMatch(/(?:from\s+["'](?:astro|preact|react)|\bdocument\.|\bwindow\.)/u);
     expect(sources).not.toMatch(/\b(?:eval|Function)\s*\(/u);
   });
@@ -62,9 +64,9 @@ describe("selector public API boundary", () => {
     const files = runtimeDependencies(projectedEntry);
     const sources = files.map((file) => readFileSync(file, "utf8")).join("\n");
     expect(sources).not.toMatch(/atlas\.v1\.json/u);
-    expect(files).not.toEqual(expect.arrayContaining([
-      expect.stringMatching(/src\/data\/public/u),
-    ]));
+    expect(files).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/src\/data\/public/u)]),
+    );
   });
 
   it("contains only one evaluator and one finalization path", () => {
@@ -73,14 +75,14 @@ describe("selector public API boundary", () => {
     expect(engine.match(/export function selectMaterials\s*\(/gu)).toHaveLength(1);
     expect(engine.match(/function finalizeCompatible\s*\(/gu)).toHaveLength(1);
     expect(engine.match(/function finalizeEliminated\s*\(/gu)).toHaveLength(1);
-    expect(engine).not.toMatch(/function\s+(?:score|rank|evaluateMaterials|selectAtlasMaterials)\s*\(/u);
+    expect(engine).not.toMatch(
+      /function\s+(?:score|rank|evaluateMaterials|selectAtlasMaterials)\s*\(/u,
+    );
   });
 
   it("makes the Atlas convenience body compile and delegate without calculation", () => {
     const engine = readFileSync(projectedEntry, "utf8");
-    const adapter = engine.match(
-      /export function selectMaterials[\s\S]*?\{([\s\S]*?)\n\}/u,
-    )?.[1];
+    const adapter = engine.match(/export function selectMaterials[\s\S]*?\{([\s\S]*?)\n\}/u)?.[1];
     expect(adapter).toBeDefined();
     expect(adapter?.replace(/\s+/gu, " ").trim()).toBe(
       "return selectProjectedMaterials(compileSelectorProjection(atlas), input);",

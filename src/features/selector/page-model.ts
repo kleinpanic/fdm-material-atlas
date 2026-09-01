@@ -2,10 +2,7 @@ import type { AtlasV1 } from "../../data/schema/atlas.ts";
 import type { SelectorOptionId } from "../../data/schema/ids.ts";
 import { compileSelectorProjection } from "../../domain/selector/index.ts";
 import { resolveSelectorField } from "../../domain/selector/field-resolver.ts";
-import {
-  compilePredicate,
-  evaluatePredicate,
-} from "../../domain/selector/predicate.ts";
+import { compilePredicate, evaluatePredicate } from "../../domain/selector/predicate.ts";
 import {
   buildSelectorRouteAvailability,
   type PublicRouteRegistry,
@@ -19,8 +16,7 @@ import {
 } from "./client-model.ts";
 
 type FamilyDisplay =
-  | Readonly<{ state: "known" | "conditional"; label: string }>
-  | Readonly<{ state: "unavailable" }>;
+  Readonly<{ state: "known" | "conditional"; label: string }> | Readonly<{ state: "unavailable" }>;
 
 type SelectorPageModelErrorCode =
   | "SELECTOR_PAGE_EMPTY_MATERIALS"
@@ -46,17 +42,16 @@ function projectFamily(material: AtlasV1["materials"][number]): FamilyDisplay {
   return Object.freeze({ state: "unavailable" });
 }
 
-function compileDecisionMapLaneIds(
-  atlas: AtlasV1,
-  material: AtlasV1["materials"][number],
-) {
+function compileDecisionMapLaneIds(atlas: AtlasV1, material: AtlasV1["materials"][number]) {
   return Object.freeze(
     [...atlas.decisionLanes]
       .sort((left, right) => compareAscii(left.id, right.id))
-      .filter((lane) => evaluatePredicate(
-        compilePredicate(lane.candidateRule),
-        (field) => resolveSelectorField(material, field, atlas.vocabularies),
-      ) === "match")
+      .filter(
+        (lane) =>
+          evaluatePredicate(compilePredicate(lane.candidateRule), (field) =>
+            resolveSelectorField(material, field, atlas.vocabularies),
+          ) === "match",
+      )
       .map(({ id }) => id),
   );
 }
@@ -79,29 +74,39 @@ export function buildSelectorPageModel(
     fail("SELECTOR_PAGE_DEFINITIONS_MISSING");
   }
 
-  const defaults = Object.freeze(Object.fromEntries(
-    projection.criteria.map((criterion) => [criterion.id, criterion.defaultOptionId]),
-  ) as Record<string, SelectorOptionId>);
+  const defaults = Object.freeze(
+    Object.fromEntries(
+      projection.criteria.map((criterion) => [criterion.id, criterion.defaultOptionId]),
+    ) as Record<string, SelectorOptionId>,
+  );
 
   const materials = Object.freeze(
     [...atlas.materials]
       .sort((left, right) => compareAscii(left.id, right.id))
-      .map((material): SelectorMaterialDisplay => Object.freeze({
-        id: material.id,
-        label: material.name,
-        familyOrFill: projectFamily(material),
-      })),
+      .map((material): SelectorMaterialDisplay =>
+        Object.freeze({
+          id: material.id,
+          label: material.name,
+          familyOrFill: projectFamily(material),
+        }),
+      ),
   );
 
   let routes: SelectorRouteAvailability;
   try {
     routes = buildSelectorRouteAvailability(base, registry, {
-      materials: Object.freeze(atlas.materials.map((material) => Object.freeze({
-        id: material.id,
-        slug: material.slug,
-        decisionMapLaneIds: compileDecisionMapLaneIds(atlas, material),
-      }))),
-      lanes: Object.freeze(atlas.decisionLanes.map(({ id, label }) => Object.freeze({ id, label }))),
+      materials: Object.freeze(
+        atlas.materials.map((material) =>
+          Object.freeze({
+            id: material.id,
+            slug: material.slug,
+            decisionMapLaneIds: compileDecisionMapLaneIds(atlas, material),
+          }),
+        ),
+      ),
+      lanes: Object.freeze(
+        atlas.decisionLanes.map(({ id, label }) => Object.freeze({ id, label })),
+      ),
     });
   } catch {
     return fail("SELECTOR_PAGE_ROUTE_REGISTRY_INVALID");

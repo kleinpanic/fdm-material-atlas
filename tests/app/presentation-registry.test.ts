@@ -58,7 +58,9 @@ describe("shared scientific presentation registry", () => {
       "starting-profile-guidance",
       "derived-selector-logic",
     ]);
-    expect(sortedKeys(EVIDENCE_SCOPE_PRESENTATION)).toEqual([...EvidenceScopeSchema.options].sort());
+    expect(sortedKeys(EVIDENCE_SCOPE_PRESENTATION)).toEqual(
+      [...EvidenceScopeSchema.options].sort(),
+    );
     expect(EVIDENCE_SCOPE_ORDER.map(evidenceScopeLabel)).toEqual([
       "Product-specific",
       "Representative product",
@@ -73,8 +75,12 @@ describe("shared scientific presentation registry", () => {
   });
 
   it("exhaustively labels thermal kinds, source kinds, and typed public units", () => {
-    expect(sortedKeys(THERMAL_KIND_PRESENTATION)).toEqual([...ThermalMetricKindSchema.options].sort());
-    expect(sortedKeys(SOURCE_KIND_PRESENTATION)).toEqual([...EvidenceSourceKindSchema.options].sort());
+    expect(sortedKeys(THERMAL_KIND_PRESENTATION)).toEqual(
+      [...ThermalMetricKindSchema.options].sort(),
+    );
+    expect(sortedKeys(SOURCE_KIND_PRESENTATION)).toEqual(
+      [...EvidenceSourceKindSchema.options].sort(),
+    );
     expect(sortedKeys(UNIT_PRESENTATION)).toEqual(["degC", "g/cm3", "mm/s", "percent"]);
     expect(Object.values(UNIT_PRESENTATION).map(({ label }) => label)).toEqual([
       "°C",
@@ -120,11 +126,11 @@ describe("typed measurement presentation", () => {
 
   it("retains complete named thermal identity separately from its measurement", () => {
     expect(
-      formatThermalMeasurement(
-        "heat-deflection",
-        "Heat deflection temperature at 0.45 MPa",
-        { shape: "exact", value: 72, unit: "degC" },
-      ),
+      formatThermalMeasurement("heat-deflection", "Heat deflection temperature at 0.45 MPa", {
+        shape: "exact",
+        value: 72,
+        unit: "degC",
+      }),
     ).toEqual({
       metric: "heat-deflection",
       metricLabel: "Heat deflection temperature at 0.45 MPa",

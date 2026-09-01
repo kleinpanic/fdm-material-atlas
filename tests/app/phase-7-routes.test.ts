@@ -4,10 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { internalHref, routePath, type RouteTarget } from "../../src/lib/routes.ts";
 
-const TARGETS = [
-  { id: "compare" },
-  { id: "data" },
-] as const satisfies readonly RouteTarget[];
+const TARGETS = [{ id: "compare" }, { id: "data" }] as const satisfies readonly RouteTarget[];
 
 describe("phase 7 route boundary", () => {
   it.each([
@@ -19,7 +16,9 @@ describe("phase 7 route boundary", () => {
   });
 
   it("has one directory-index source for each emitted target", async () => {
-    await expect(readFile("src/pages/compare/index.astro", "utf8")).resolves.toMatch(/<BaseLayout/u);
+    await expect(readFile("src/pages/compare/index.astro", "utf8")).resolves.toMatch(
+      /<BaseLayout/u,
+    );
     await expect(readFile("src/pages/data/index.astro", "utf8")).resolves.toMatch(/<BaseLayout/u);
   });
 

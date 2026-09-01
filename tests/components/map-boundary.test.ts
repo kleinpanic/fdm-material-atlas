@@ -35,7 +35,9 @@ describe("map explorer island boundary", () => {
       "map-mode--impact-flex",
     ];
 
-    expect(html).toContain("Interactive map controls are preparing. Every path and structured table is already available.");
+    expect(html).toContain(
+      "Interactive map controls are preparing. Every path and structured table is already available.",
+    );
     expect(count(html, 'role="status"')).toBe(1);
     expect(html).not.toContain("Selected record");
     expect(count(islandSource, /role=\{/g)).toBe(1);
@@ -51,9 +53,16 @@ describe("map explorer island boundary", () => {
     expect(islandSource).toContain("createInitialMapState");
     expect(islandSource).toContain("createSafeMapReducer");
     expect(islandSource).toContain('{ type: "hydration-ready" }');
-    expect(islandSource).not.toMatch(/\buseState\s*\(|\buseRef\s*\(|\buseMemo\s*\(|\.focus\s*\(|querySelector/);
+    expect(islandSource).not.toMatch(
+      /\buseState\s*\(|\buseRef\s*\(|\buseMemo\s*\(|\.focus\s*\(|querySelector/,
+    );
 
-    for (const renderer of ["DecisionPaths", "ThermalGuidance", "ProcessGateMatrix", "ImpactFlexMatrix"]) {
+    for (const renderer of [
+      "DecisionPaths",
+      "ThermalGuidance",
+      "ProcessGateMatrix",
+      "ImpactFlexMatrix",
+    ]) {
       expect(islandSource).toContain(`<${renderer}`);
     }
     expect(count(islandSource, /view=\{view\}/g)).toBe(4);
@@ -62,9 +71,13 @@ describe("map explorer island boundary", () => {
   });
 
   it("uses one bounded live message and a controlled recovery reset without focus movement", () => {
-    expect(islandSource).toContain('role={view.status.recovery === undefined ? "status" : "alert"}');
+    expect(islandSource).toContain(
+      'role={view.status.recovery === undefined ? "status" : "alert"}',
+    );
     expect(islandSource).toContain("view.status.announcement");
-    expect(islandSource).toContain('aria-live={view.status.recovery === undefined ? "polite" : "assertive"}');
+    expect(islandSource).toContain(
+      'aria-live={view.status.recovery === undefined ? "polite" : "assertive"}',
+    );
     expect(islandSource).toContain('{ type: "reset-view", mode: "all" }');
     expect(islandSource).not.toMatch(/autoFocus|tabIndex=\{-1\}|document\.|window\./);
 

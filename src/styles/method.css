@@ -64,15 +64,26 @@
 }
 
 @media (max-width: 63.999rem) {
-  .method-reference { grid-template-columns: minmax(0, 1fr); }
-  .method-orientation { grid-column: auto; }
+  .method-reference {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .method-orientation {
+    grid-column: auto;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .method-reference * { scroll-behavior: auto; transition-duration: 0.01ms; }
+  .method-reference * {
+    scroll-behavior: auto;
+    transition-duration: 0.01ms;
+  }
 }
 
 @media (forced-colors: active) {
-  .method-orientation { border-inline-start-color: CanvasText; }
-  .method-reference :focus-visible { outline-color: Highlight; }
+  .method-orientation {
+    border-inline-start-color: CanvasText;
+  }
+  .method-reference :focus-visible {
+    outline-color: Highlight;
+  }
 }

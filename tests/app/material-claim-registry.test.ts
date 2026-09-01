@@ -43,7 +43,9 @@ describe("material claim registry", () => {
     const independentlyWalked = atlas.materials.flatMap(independentClaimIds);
 
     expect(enumerated).toHaveLength(667);
-    expect(enumerated.map(({ claimId }) => claimId).sort()).toEqual([...independentlyWalked].sort());
+    expect(enumerated.map(({ claimId }) => claimId).sort()).toEqual(
+      [...independentlyWalked].sort(),
+    );
     expect(new Set(enumerated.map(({ claimId }) => claimId)).size).toBe(667);
     expect(enumerated.every(({ anchor }) => /^[a-z][a-z0-9-]*$/u.test(anchor))).toBe(true);
   });
@@ -58,9 +60,11 @@ describe("material claim registry", () => {
     expect(service?.kind).toBe("service-guidance");
     expect(service?.semanticKeys).toEqual(["service-temperature-low", "service-temperature-high"]);
     expect(observations).toHaveLength(material!.thermalObservations.length);
-    expect(observations.every(({ semanticKeys }) =>
-      semanticKeys.join("|") === "thermal-metric|thermal-value"
-    )).toBe(true);
+    expect(
+      observations.every(
+        ({ semanticKeys }) => semanticKeys.join("|") === "thermal-metric|thermal-value",
+      ),
+    ).toBe(true);
   });
 
   it("supports held-out materials with zero or many thermal observations without array-order identity", () => {
@@ -96,14 +100,18 @@ describe("material claim registry", () => {
     material.displayOrder = 0;
     material.name = "Changed display text";
 
-    expect(enumerateMaterialClaims(material).map(({ claimId, anchor, displayOrder }) => ({
-      claimId,
-      anchor,
-      displayOrder,
-    }))).toEqual(original.map(({ claimId, anchor, displayOrder }) => ({
-      claimId,
-      anchor,
-      displayOrder,
-    })));
+    expect(
+      enumerateMaterialClaims(material).map(({ claimId, anchor, displayOrder }) => ({
+        claimId,
+        anchor,
+        displayOrder,
+      })),
+    ).toEqual(
+      original.map(({ claimId, anchor, displayOrder }) => ({
+        claimId,
+        anchor,
+        displayOrder,
+      })),
+    );
   });
 });

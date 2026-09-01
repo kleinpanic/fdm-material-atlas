@@ -4,10 +4,7 @@ import { AtlasV1Schema } from "../../src/data/schema/atlas.ts";
 import { parseAtlas } from "../../src/data/schema/parse-atlas.ts";
 import { validateAtlasInvariants } from "../../src/data/schema/invariants.ts";
 import { createMinimalAtlas } from "../fixtures/atlas-minimal.valid.ts";
-import {
-  mutateAtlas,
-  privateLookingSyntheticMarker,
-} from "../fixtures/atlas-invalid-cases.ts";
+import { mutateAtlas, privateLookingSyntheticMarker } from "../fixtures/atlas-invalid-cases.ts";
 
 describe("AtlasV1 strict parse boundary", () => {
   it("accepts the synthetic fixture and every canonical root collection", () => {
@@ -59,7 +56,9 @@ describe("AtlasV1 strict parse boundary", () => {
       expect(rendered).not.toContain(privateLookingSyntheticMarker);
       if (!result.success) {
         for (const issue of result.issues) {
-          expect(Object.keys(issue).every((key) => ["code", "pointer", "entityId"].includes(key))).toBe(true);
+          expect(
+            Object.keys(issue).every((key) => ["code", "pointer", "entityId"].includes(key)),
+          ).toBe(true);
           expect(issue.pointer.startsWith("/")).toBe(true);
         }
       }
@@ -102,34 +101,58 @@ function thermalIssues(candidate: unknown) {
 
 describe("AtlasV1 cross-record invariants", () => {
   it.each([
-    ["material ID", (atlas: ReturnType<typeof createMinimalAtlas>) => {
-      atlas.materials.push(structuredClone(atlas.materials[0]!));
-      Reflect.set(atlas.materials[1]!, "slug", "synthetic-beta");
-    }],
-    ["material slug", (atlas: ReturnType<typeof createMinimalAtlas>) => {
-      const second = structuredClone(atlas.materials[0]!);
-      Reflect.set(second, "id", "material-synthetic-beta");
-      atlas.materials.push(second);
-    }],
-    ["source ID", (atlas: ReturnType<typeof createMinimalAtlas>) => {
-      atlas.sources.push(structuredClone(atlas.sources[0]!));
-    }],
-    ["method ID", (atlas: ReturnType<typeof createMinimalAtlas>) => {
-      atlas.methods.push(structuredClone(atlas.methods[0]!));
-    }],
-    ["vocabulary ID", (atlas: ReturnType<typeof createMinimalAtlas>) => {
-      atlas.vocabularies.push(structuredClone(atlas.vocabularies[0]!));
-    }],
-    ["claim ID", (atlas: ReturnType<typeof createMinimalAtlas>) => {
-      atlas.materials[0]!.properties.impactResistance.id =
-        atlas.materials[0]!.properties.wearAbrasion.id;
-    }],
-    ["process gate ID", (atlas: ReturnType<typeof createMinimalAtlas>) => {
-      atlas.processGates.push(structuredClone(atlas.processGates[0]!));
-    }],
-    ["visualization ID", (atlas: ReturnType<typeof createMinimalAtlas>) => {
-      atlas.visualizationReferences.push(structuredClone(atlas.visualizationReferences[0]!));
-    }],
+    [
+      "material ID",
+      (atlas: ReturnType<typeof createMinimalAtlas>) => {
+        atlas.materials.push(structuredClone(atlas.materials[0]!));
+        Reflect.set(atlas.materials[1]!, "slug", "synthetic-beta");
+      },
+    ],
+    [
+      "material slug",
+      (atlas: ReturnType<typeof createMinimalAtlas>) => {
+        const second = structuredClone(atlas.materials[0]!);
+        Reflect.set(second, "id", "material-synthetic-beta");
+        atlas.materials.push(second);
+      },
+    ],
+    [
+      "source ID",
+      (atlas: ReturnType<typeof createMinimalAtlas>) => {
+        atlas.sources.push(structuredClone(atlas.sources[0]!));
+      },
+    ],
+    [
+      "method ID",
+      (atlas: ReturnType<typeof createMinimalAtlas>) => {
+        atlas.methods.push(structuredClone(atlas.methods[0]!));
+      },
+    ],
+    [
+      "vocabulary ID",
+      (atlas: ReturnType<typeof createMinimalAtlas>) => {
+        atlas.vocabularies.push(structuredClone(atlas.vocabularies[0]!));
+      },
+    ],
+    [
+      "claim ID",
+      (atlas: ReturnType<typeof createMinimalAtlas>) => {
+        atlas.materials[0]!.properties.impactResistance.id =
+          atlas.materials[0]!.properties.wearAbrasion.id;
+      },
+    ],
+    [
+      "process gate ID",
+      (atlas: ReturnType<typeof createMinimalAtlas>) => {
+        atlas.processGates.push(structuredClone(atlas.processGates[0]!));
+      },
+    ],
+    [
+      "visualization ID",
+      (atlas: ReturnType<typeof createMinimalAtlas>) => {
+        atlas.visualizationReferences.push(structuredClone(atlas.visualizationReferences[0]!));
+      },
+    ],
   ] as const)("rejects a duplicate %s", (_label, mutate) => {
     const atlas = createMinimalAtlas();
     mutate(atlas);
@@ -137,36 +160,93 @@ describe("AtlasV1 cross-record invariants", () => {
   });
 
   it.each([
-    ["claim method", (atlas: ReturnType<typeof createMinimalAtlas>) => {
-      Reflect.set(atlas.materials[0]!.properties.density.basis[0]!, "methodId", "method-missing-review");
-    }],
-    ["gate basis", (atlas: ReturnType<typeof createMinimalAtlas>) => {
-      Reflect.set(atlas.processGates[0]!.basis[0]!, "methodId", "method-missing-review");
-    }],
-    ["selector gate", (atlas: ReturnType<typeof createMinimalAtlas>) => {
-      Reflect.set(atlas.selector.criteria[0]!.options[0]!.hardGates[0]!, "processGateId", "gate-missing-capability");
-    }],
-    ["lane gate", (atlas: ReturnType<typeof createMinimalAtlas>) => {
-      atlas.decisionLanes[0]!.processGateIds = ["gate-missing-capability"];
-    }],
-    ["visualization material", (atlas: ReturnType<typeof createMinimalAtlas>) => {
-      Reflect.set(atlas.visualizationReferences[0]!, "subject", { kind: "material-id", materialId: "material-missing-alpha" });
-    }],
-    ["visualization claim", (atlas: ReturnType<typeof createMinimalAtlas>) => {
-      Reflect.set(atlas.visualizationReferences[0]!.related[0]!, "claimId", "claim-missing-density");
-    }],
-    ["visualization lane", (atlas: ReturnType<typeof createMinimalAtlas>) => {
-      Reflect.set(atlas.visualizationReferences[0]!.related[1]!, "decisionLaneId", "lane-missing-route");
-    }],
-    ["visualization criterion", (atlas: ReturnType<typeof createMinimalAtlas>) => {
-      Reflect.set(atlas.visualizationReferences[0]!.related[2]!, "selectorCriterionId", "selector-missing-goal");
-    }],
-    ["visualization gate", (atlas: ReturnType<typeof createMinimalAtlas>) => {
-      Reflect.set(atlas.visualizationReferences[0]!.related[3]!, "processGateId", "gate-missing-capability");
-    }],
-    ["visualization route", (atlas: ReturnType<typeof createMinimalAtlas>) => {
-      Reflect.set(atlas.visualizationReferences[0]!.related[4]!, "slug", "missing-route");
-    }],
+    [
+      "claim method",
+      (atlas: ReturnType<typeof createMinimalAtlas>) => {
+        Reflect.set(
+          atlas.materials[0]!.properties.density.basis[0]!,
+          "methodId",
+          "method-missing-review",
+        );
+      },
+    ],
+    [
+      "gate basis",
+      (atlas: ReturnType<typeof createMinimalAtlas>) => {
+        Reflect.set(atlas.processGates[0]!.basis[0]!, "methodId", "method-missing-review");
+      },
+    ],
+    [
+      "selector gate",
+      (atlas: ReturnType<typeof createMinimalAtlas>) => {
+        Reflect.set(
+          atlas.selector.criteria[0]!.options[0]!.hardGates[0]!,
+          "processGateId",
+          "gate-missing-capability",
+        );
+      },
+    ],
+    [
+      "lane gate",
+      (atlas: ReturnType<typeof createMinimalAtlas>) => {
+        atlas.decisionLanes[0]!.processGateIds = ["gate-missing-capability"];
+      },
+    ],
+    [
+      "visualization material",
+      (atlas: ReturnType<typeof createMinimalAtlas>) => {
+        Reflect.set(atlas.visualizationReferences[0]!, "subject", {
+          kind: "material-id",
+          materialId: "material-missing-alpha",
+        });
+      },
+    ],
+    [
+      "visualization claim",
+      (atlas: ReturnType<typeof createMinimalAtlas>) => {
+        Reflect.set(
+          atlas.visualizationReferences[0]!.related[0]!,
+          "claimId",
+          "claim-missing-density",
+        );
+      },
+    ],
+    [
+      "visualization lane",
+      (atlas: ReturnType<typeof createMinimalAtlas>) => {
+        Reflect.set(
+          atlas.visualizationReferences[0]!.related[1]!,
+          "decisionLaneId",
+          "lane-missing-route",
+        );
+      },
+    ],
+    [
+      "visualization criterion",
+      (atlas: ReturnType<typeof createMinimalAtlas>) => {
+        Reflect.set(
+          atlas.visualizationReferences[0]!.related[2]!,
+          "selectorCriterionId",
+          "selector-missing-goal",
+        );
+      },
+    ],
+    [
+      "visualization gate",
+      (atlas: ReturnType<typeof createMinimalAtlas>) => {
+        Reflect.set(
+          atlas.visualizationReferences[0]!.related[3]!,
+          "processGateId",
+          "gate-missing-capability",
+        );
+      },
+    ],
+    [
+      "visualization route",
+      (atlas: ReturnType<typeof createMinimalAtlas>) => {
+        Reflect.set(atlas.visualizationReferences[0]!.related[4]!, "slug", "missing-route");
+      },
+    ],
   ] as const)("rejects a dangling %s reference", (_label, mutate) => {
     const atlas = createMinimalAtlas();
     mutate(atlas);
@@ -231,25 +311,67 @@ describe("AtlasV1 cross-record invariants", () => {
   });
 
   it.each([
-    ["metric", (observation: ReturnType<typeof createMinimalAtlas>["materials"][number]["thermalObservations"][number]) => {
-      observation.metric = "heat-deflection";
-      observation.metricLabel = "Heat deflection temperature";
-    }],
-    ["standard", (observation: ReturnType<typeof createMinimalAtlas>["materials"][number]["thermalObservations"][number]) => {
-      observation.method = { ...observation.method, standard: "Synthetic standard B" };
-    }],
-    ["load", (observation: ReturnType<typeof createMinimalAtlas>["materials"][number]["thermalObservations"][number]) => {
-      Reflect.set(observation.method, "loadMpa", 1.8);
-    }],
-    ["annealing", (observation: ReturnType<typeof createMinimalAtlas>["materials"][number]["thermalObservations"][number]) => {
-      observation.method = { ...observation.method, annealed: true };
-    }],
-    ["conditioning", (observation: ReturnType<typeof createMinimalAtlas>["materials"][number]["thermalObservations"][number]) => {
-      Reflect.set(observation.method, "conditioning", "Synthetic conditioned state");
-    }],
-    ["other conditions", (observation: ReturnType<typeof createMinimalAtlas>["materials"][number]["thermalObservations"][number]) => {
-      Reflect.set(observation.method, "otherConditions", "Synthetic alternate fixture");
-    }],
+    [
+      "metric",
+      (
+        observation: ReturnType<
+          typeof createMinimalAtlas
+        >["materials"][number]["thermalObservations"][number],
+      ) => {
+        observation.metric = "heat-deflection";
+        observation.metricLabel = "Heat deflection temperature";
+      },
+    ],
+    [
+      "standard",
+      (
+        observation: ReturnType<
+          typeof createMinimalAtlas
+        >["materials"][number]["thermalObservations"][number],
+      ) => {
+        observation.method = { ...observation.method, standard: "Synthetic standard B" };
+      },
+    ],
+    [
+      "load",
+      (
+        observation: ReturnType<
+          typeof createMinimalAtlas
+        >["materials"][number]["thermalObservations"][number],
+      ) => {
+        Reflect.set(observation.method, "loadMpa", 1.8);
+      },
+    ],
+    [
+      "annealing",
+      (
+        observation: ReturnType<
+          typeof createMinimalAtlas
+        >["materials"][number]["thermalObservations"][number],
+      ) => {
+        observation.method = { ...observation.method, annealed: true };
+      },
+    ],
+    [
+      "conditioning",
+      (
+        observation: ReturnType<
+          typeof createMinimalAtlas
+        >["materials"][number]["thermalObservations"][number],
+      ) => {
+        Reflect.set(observation.method, "conditioning", "Synthetic conditioned state");
+      },
+    ],
+    [
+      "other conditions",
+      (
+        observation: ReturnType<
+          typeof createMinimalAtlas
+        >["materials"][number]["thermalObservations"][number],
+      ) => {
+        Reflect.set(observation.method, "otherConditions", "Synthetic alternate fixture");
+      },
+    ],
   ] as const)("rejects named observations with a different %s", (_dimension, mutate) => {
     const atlas = createMinimalAtlas();
     const second = structuredClone(atlas.materials[0]!.thermalObservations[0]!);
@@ -262,11 +384,13 @@ describe("AtlasV1 cross-record invariants", () => {
       [{ kind: "claim-id", claimId: second.id }],
     );
 
-    expect(thermalIssues(atlas)).toEqual([{
-      code: "THERMAL_NOT_COMPARABLE",
-      pointer: "/visualizationReferences/0/related/0",
-      entityId: reference.id,
-    }]);
+    expect(thermalIssues(atlas)).toEqual([
+      {
+        code: "THERMAL_NOT_COMPARABLE",
+        pointer: "/visualizationReferences/0/related/0",
+        entityId: reference.id,
+      },
+    ]);
   });
 
   it.each([
@@ -278,23 +402,30 @@ describe("AtlasV1 cross-record invariants", () => {
       state: "known",
       value: { shape: "exact", value: 9.876, unit: "g/cm3" },
     };
-    const service = { kind: "claim-id" as const, claimId: atlas.materials[0]!.serviceTemperature.id };
-    const density = { kind: "claim-id" as const, claimId: atlas.materials[0]!.properties.density.id };
-    const reference = setThermalRange(
-      atlas,
-      position === "subject" ? density : service,
-      [position === "related" ? density : service],
-    );
+    const service = {
+      kind: "claim-id" as const,
+      claimId: atlas.materials[0]!.serviceTemperature.id,
+    };
+    const density = {
+      kind: "claim-id" as const,
+      claimId: atlas.materials[0]!.properties.density.id,
+    };
+    const reference = setThermalRange(atlas, position === "subject" ? density : service, [
+      position === "related" ? density : service,
+    ]);
 
     const result = parseAtlas(atlas);
     expect(result.success).toBe(false);
-    expect(thermalIssues(atlas)).toEqual([{
-      code: "THERMAL_NOT_COMPARABLE",
-      pointer: position === "subject"
-        ? "/visualizationReferences/0/subject"
-        : "/visualizationReferences/0/related/0",
-      entityId: reference.id,
-    }]);
+    expect(thermalIssues(atlas)).toEqual([
+      {
+        code: "THERMAL_NOT_COMPARABLE",
+        pointer:
+          position === "subject"
+            ? "/visualizationReferences/0/subject"
+            : "/visualizationReferences/0/related/0",
+        entityId: reference.id,
+      },
+    ]);
     expect(JSON.stringify(result)).not.toContain("9.876");
   });
 
@@ -306,33 +437,43 @@ describe("AtlasV1 cross-record invariants", () => {
     ["process gate", { kind: "process-gate-id", processGateId: "gate-synthetic-enclosure" }],
   ] as const;
 
-  it.each(resolvedNonClaimTargets)("rejects a resolved %s target as the thermal subject", (_label, target) => {
-    const atlas = createMinimalAtlas();
-    const reference = setThermalRange(atlas, target, [
-      { kind: "claim-id", claimId: atlas.materials[0]!.serviceTemperature.id },
-    ]);
+  it.each(resolvedNonClaimTargets)(
+    "rejects a resolved %s target as the thermal subject",
+    (_label, target) => {
+      const atlas = createMinimalAtlas();
+      const reference = setThermalRange(atlas, target, [
+        { kind: "claim-id", claimId: atlas.materials[0]!.serviceTemperature.id },
+      ]);
 
-    expect(thermalIssues(atlas)).toEqual([{
-      code: "THERMAL_NOT_COMPARABLE",
-      pointer: "/visualizationReferences/0/subject",
-      entityId: reference.id,
-    }]);
-  });
+      expect(thermalIssues(atlas)).toEqual([
+        {
+          code: "THERMAL_NOT_COMPARABLE",
+          pointer: "/visualizationReferences/0/subject",
+          entityId: reference.id,
+        },
+      ]);
+    },
+  );
 
-  it.each(resolvedNonClaimTargets)("rejects a resolved %s target in the thermal related list", (_label, target) => {
-    const atlas = createMinimalAtlas();
-    const reference = setThermalRange(
-      atlas,
-      { kind: "claim-id", claimId: atlas.materials[0]!.serviceTemperature.id },
-      [target],
-    );
+  it.each(resolvedNonClaimTargets)(
+    "rejects a resolved %s target in the thermal related list",
+    (_label, target) => {
+      const atlas = createMinimalAtlas();
+      const reference = setThermalRange(
+        atlas,
+        { kind: "claim-id", claimId: atlas.materials[0]!.serviceTemperature.id },
+        [target],
+      );
 
-    expect(thermalIssues(atlas)).toEqual([{
-      code: "THERMAL_NOT_COMPARABLE",
-      pointer: "/visualizationReferences/0/related/0",
-      entityId: reference.id,
-    }]);
-  });
+      expect(thermalIssues(atlas)).toEqual([
+        {
+          code: "THERMAL_NOT_COMPARABLE",
+          pointer: "/visualizationReferences/0/related/0",
+          entityId: reference.id,
+        },
+      ]);
+    },
+  );
 
   it("rejects a thermal-range reference without a relationship", () => {
     const atlas = createMinimalAtlas();
@@ -342,11 +483,13 @@ describe("AtlasV1 cross-record invariants", () => {
       [],
     );
 
-    expect(thermalIssues(atlas)).toEqual([{
-      code: "THERMAL_NOT_COMPARABLE",
-      pointer: "/visualizationReferences/0/related",
-      entityId: reference.id,
-    }]);
+    expect(thermalIssues(atlas)).toEqual([
+      {
+        code: "THERMAL_NOT_COMPARABLE",
+        pointer: "/visualizationReferences/0/related",
+        entityId: reference.id,
+      },
+    ]);
   });
 
   it("maps local schema rules to stable invariant codes", () => {
@@ -355,11 +498,19 @@ describe("AtlasV1 cross-record invariants", () => {
     expect(issueCodes(unsafeUrl)).toContain("URL_UNSAFE");
 
     const wrongScope = createMinimalAtlas();
-    Reflect.set(wrongScope.materials[0]!.startingProfile.printSpeed.basis[0]!, "scope", "family-guidance");
+    Reflect.set(
+      wrongScope.materials[0]!.startingProfile.printSpeed.basis[0]!,
+      "scope",
+      "family-guidance",
+    );
     expect(issueCodes(wrongScope)).toContain("EVIDENCE_SCOPE_INVALID");
 
     const invalidVocabulary = createMinimalAtlas();
-    Reflect.set(invalidVocabulary.materials[0]!.properties.outdoorUv.value, "value", "universally-best");
+    Reflect.set(
+      invalidVocabulary.materials[0]!.properties.outdoorUv.value,
+      "value",
+      "universally-best",
+    );
     expect(issueCodes(invalidVocabulary)).toContain("VOCABULARY_INVALID");
   });
 
@@ -370,7 +521,9 @@ describe("AtlasV1 cross-record invariants", () => {
     });
     const result = parseAtlas(atlas);
     expect(result.success).toBe(false);
-    expect(result.success ? [] : result.issues.map(({ code }) => code)).toContain("LANE_CANDIDATE_EMBEDDED");
+    expect(result.success ? [] : result.issues.map(({ code }) => code)).toContain(
+      "LANE_CANDIDATE_EMBEDDED",
+    );
     expect(JSON.stringify(result)).not.toContain(privateLookingSyntheticMarker);
   });
 
@@ -382,11 +535,16 @@ describe("AtlasV1 cross-record invariants", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.issues).toEqual(direct);
-      expect(result.issues).toEqual([...result.issues].sort((left, right) =>
-        left.pointer.localeCompare(right.pointer) || left.code.localeCompare(right.code),
-      ));
+      expect(result.issues).toEqual(
+        [...result.issues].sort(
+          (left, right) =>
+            left.pointer.localeCompare(right.pointer) || left.code.localeCompare(right.code),
+        ),
+      );
       for (const issue of result.issues) {
-        expect(Object.keys(issue).every((key) => ["code", "pointer", "entityId"].includes(key))).toBe(true);
+        expect(
+          Object.keys(issue).every((key) => ["code", "pointer", "entityId"].includes(key)),
+        ).toBe(true);
       }
     }
   });

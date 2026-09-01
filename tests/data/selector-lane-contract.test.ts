@@ -23,7 +23,9 @@ function criterion(id: (typeof selectorCriterionIds)[number], index: number) {
     id,
     label: `Criterion ${index + 1}`,
     displayOrder: index,
-    ...(primary ? { role: "primary" as const, weight: 2 as const } : { role: "secondary" as const, weight: 1 as const }),
+    ...(primary
+      ? { role: "primary" as const, weight: 2 as const }
+      : { role: "secondary" as const, weight: 1 as const }),
     defaultOptionId: `option-${id.slice("selector-".length)}-default`,
     options: [
       {
@@ -83,8 +85,18 @@ describe("selector definition", () => {
   it.each([
     { ...selector, primaryWeight: 3 },
     { ...selector, criteria: selector.criteria.slice(1) },
-    { ...selector, criteria: selector.criteria.map((item, index) => index === 0 ? { ...item, weight: 1 } : item) },
-    { ...selector, criteria: selector.criteria.map((item, index) => index === 0 ? { ...item, candidateMaterialIds: ["material-alpha"] } : item) },
+    {
+      ...selector,
+      criteria: selector.criteria.map((item, index) =>
+        index === 0 ? { ...item, weight: 1 } : item,
+      ),
+    },
+    {
+      ...selector,
+      criteria: selector.criteria.map((item, index) =>
+        index === 0 ? { ...item, candidateMaterialIds: ["material-alpha"] } : item,
+      ),
+    },
   ])("rejects semantic drift or duplicate candidate facts", (value) => {
     expect(SelectorDefinitionSchema.safeParse(value).success).toBe(false);
   });
@@ -96,7 +108,11 @@ describe("decision-lane registry", () => {
     label: `Lane ${index + 1}`,
     need: "Find a suitable material for this need.",
     propertyChecks: ["properties.outdoorUv" as const],
-    candidateRule: { op: "one-of" as const, field: "properties.outdoorUv", values: ["suitable", "excellent"] },
+    candidateRule: {
+      op: "one-of" as const,
+      field: "properties.outdoorUv",
+      values: ["suitable", "excellent"],
+    },
     verification: ["Verify the selected product data and process capability."],
     processGateIds: ["gate-enclosure-capability"],
   }));

@@ -59,12 +59,8 @@ function buildLabelIndexes(projection: SelectorProjectionV1): LabelIndexes {
   return { criteria, processGates };
 }
 
-function criterionLabel(
-  indexes: LabelIndexes,
-  criterionId: SelectorCriterionId,
-): string {
-  return indexes.criteria.get(criterionId)?.label ??
-    fail("EXPLANATION_CRITERION_UNKNOWN");
+function criterionLabel(indexes: LabelIndexes, criterionId: SelectorCriterionId): string {
+  return indexes.criteria.get(criterionId)?.label ?? fail("EXPLANATION_CRITERION_UNKNOWN");
 }
 
 function criterionAndOptionLabels(
@@ -72,16 +68,14 @@ function criterionAndOptionLabels(
   criterionId: SelectorCriterionId,
   optionId: SelectorOptionId,
 ): Readonly<{ criterion: string; option: string }> {
-  const criterion = indexes.criteria.get(criterionId) ??
-    fail("EXPLANATION_CRITERION_UNKNOWN");
-  const option = criterion.options.find(({ id }) => id === optionId) ??
-    fail("EXPLANATION_OPTION_UNKNOWN");
+  const criterion = indexes.criteria.get(criterionId) ?? fail("EXPLANATION_CRITERION_UNKNOWN");
+  const option =
+    criterion.options.find(({ id }) => id === optionId) ?? fail("EXPLANATION_OPTION_UNKNOWN");
   return { criterion: criterion.label, option: option.label };
 }
 
 function processGateLabel(indexes: LabelIndexes, processGateId: ProcessGateId): string {
-  return indexes.processGates.get(processGateId) ??
-    fail("EXPLANATION_PROCESS_GATE_UNKNOWN");
+  return indexes.processGates.get(processGateId) ?? fail("EXPLANATION_PROCESS_GATE_UNKNOWN");
 }
 
 function pointLabel(value: number): string {
@@ -102,29 +96,23 @@ export function resolveExplanationToken(
 
   switch (token.kind) {
     case "contribution": {
-      const labels = criterionAndOptionLabels(
-        indexes,
-        token.criterionId,
-        token.optionId,
-      );
-      const outcome = token.outcome === "match"
-        ? "matched"
-        : token.outcome === "no-match"
-          ? "did not match"
-          : "could not be verified";
+      const labels = criterionAndOptionLabels(indexes, token.criterionId, token.optionId);
+      const outcome =
+        token.outcome === "match"
+          ? "matched"
+          : token.outcome === "no-match"
+            ? "did not match"
+            : "could not be verified";
       return `${labels.criterion} — ${labels.option}: ${outcome}; ${token.awardedPoints} of ${token.possiblePoints} alignment ${pointLabel(token.possiblePoints)}.`;
     }
 
     case "exclusion": {
-      const labels = criterionAndOptionLabels(
-        indexes,
-        token.criterionId,
-        token.optionId,
-      );
+      const labels = criterionAndOptionLabels(indexes, token.criterionId, token.optionId);
       const gate = processGateLabel(indexes, token.processGateId);
-      const outcome = token.outcome === "incompatible"
-        ? "blocked by selected constraint"
-        : "cannot be verified and is treated as incompatible";
+      const outcome =
+        token.outcome === "incompatible"
+          ? "blocked by selected constraint"
+          : "cannot be verified and is treated as incompatible";
       return `${labels.criterion} — ${labels.option}: ${outcome}; process gate ${gate}; reason ${token.reasonId}.`;
     }
 

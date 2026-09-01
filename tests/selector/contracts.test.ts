@@ -61,7 +61,11 @@ describe("selector public contracts", () => {
   });
 
   it("defines one explicit ranked, no-compatible, or invalid-selection outcome", () => {
-    const kinds = ["ranked", "no-compatible", "invalid-selection"] as const satisfies readonly SelectorEngineOutcome["kind"][];
+    const kinds = [
+      "ranked",
+      "no-compatible",
+      "invalid-selection",
+    ] as const satisfies readonly SelectorEngineOutcome["kind"][];
     expect(kinds).toEqual(["ranked", "no-compatible", "invalid-selection"]);
   });
 
@@ -121,7 +125,9 @@ describe("selector regression fixture catalog", () => {
       for (const selection of [scenario.input, scenario.baselineInput].filter(Boolean)) {
         for (const [criterionId, optionId] of Object.entries(selection ?? {})) {
           expect(criterionIds.has(criterionId), `${scenario.key}:${criterionId}`).toBe(true);
-          expect(optionId, `${scenario.key}:${criterionId}`).toMatch(/^option-[a-z0-9]+(?:-[a-z0-9]+)*$/u);
+          expect(optionId, `${scenario.key}:${criterionId}`).toMatch(
+            /^option-[a-z0-9]+(?:-[a-z0-9]+)*$/u,
+          );
         }
       }
       for (const id of scenario.expectedPublicIds) {

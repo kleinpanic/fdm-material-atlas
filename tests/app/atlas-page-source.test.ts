@@ -11,7 +11,15 @@ describe("material atlas route source", () => {
     expect(page).toContain("<AtlasIsland pageModel={pageModel} client:load />");
     expect(page.match(/client:load/gu)).toHaveLength(1);
     expect(page).toContain("pageModel.rows.length");
-    for (const forbidden of ["client:only", "fetch(", "loading=", "skeleton", "JSON.stringify", "atlas.v1.json"]) expect(page).not.toContain(forbidden);
+    for (const forbidden of [
+      "client:only",
+      "fetch(",
+      "loading=",
+      "skeleton",
+      "JSON.stringify",
+      "atlas.v1.json",
+    ])
+      expect(page).not.toContain(forbidden);
   });
 
   it("uses closed base-safe shell routes and approved static orientation", () => {
@@ -20,7 +28,9 @@ describe("material atlas route source", () => {
     expect(page).toContain('internalHref(base, { id: "method" })');
     expect(page).toContain("Material atlas");
     expect(page).toContain("Search all validated materials");
-    expect(page).toContain("Interactive filters are unavailable. All validated materials remain listed below.");
+    expect(page).toContain(
+      "Interactive filters are unavailable. All validated materials remain listed below.",
+    );
   });
 
   it("provides responsive ruled-list styles without nested result scrolling or decorative motion", () => {

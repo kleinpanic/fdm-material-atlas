@@ -6,10 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { parseAtlas } from "../../src/data/schema/parse-atlas.ts";
 import type { Predicate, SelectorField } from "../../src/data/schema/selector.ts";
-import {
-  selectMaterials,
-  selectProjectedMaterials,
-} from "../../src/domain/selector/engine.ts";
+import { selectMaterials, selectProjectedMaterials } from "../../src/domain/selector/engine.ts";
 import { compileSelectorProjection } from "../../src/domain/selector/projection.ts";
 import type { SelectorProjectionV1 } from "../../src/domain/selector/types.ts";
 // The publication scanner is deliberately framework-free and is also used for
@@ -75,19 +72,17 @@ function expectExactProjectionKeys(projection: SelectorProjectionV1): void {
       "weight",
     ]);
     for (const option of criterion.options) {
-      expect(Object.keys(option).sort()).toEqual([
-        "displayOrder",
-        "hardGates",
-        "id",
-        "label",
-        ...(option.preferenceRule ? ["preferenceRule"] : []),
-      ].sort());
+      expect(Object.keys(option).sort()).toEqual(
+        [
+          "displayOrder",
+          "hardGates",
+          "id",
+          "label",
+          ...(option.preferenceRule ? ["preferenceRule"] : []),
+        ].sort(),
+      );
       for (const gate of option.hardGates) {
-        expect(Object.keys(gate).sort()).toEqual([
-          "incompatibleWhen",
-          "processGateId",
-          "reasonId",
-        ]);
+        expect(Object.keys(gate).sort()).toEqual(["incompatibleWhen", "processGateId", "reasonId"]);
       }
     }
   }
@@ -99,9 +94,7 @@ function expectExactProjectionKeys(projection: SelectorProjectionV1): void {
     expect(Object.keys(material).sort()).toEqual(["fields", "id", "label"]);
     material.fields.forEach((field) => {
       expect(Object.keys(field).sort()).toEqual(
-        field.state === "resolved"
-          ? ["field", "state", "value"]
-          : ["field", "reason", "state"],
+        field.state === "resolved" ? ["field", "state", "value"] : ["field", "reason", "state"],
       );
     });
   });
@@ -113,10 +106,13 @@ describe("compileSelectorProjection", () => {
     const first = compileSelectorProjection(atlas);
     const second = compileSelectorProjection(structuredClone(atlas));
     const fields = referencedFields();
-    const referencedGateIds = [...new Set(
-      atlas.selector.criteria.flatMap(({ options }) => options.flatMap(({ hardGates }) =>
-        hardGates.map(({ processGateId }) => processGateId))),
-    )].sort();
+    const referencedGateIds = [
+      ...new Set(
+        atlas.selector.criteria.flatMap(({ options }) =>
+          options.flatMap(({ hardGates }) => hardGates.map(({ processGateId }) => processGateId)),
+        ),
+      ),
+    ].sort();
 
     expect(first).toEqual(second);
     expect(JSON.stringify(first)).toBe(JSON.stringify(second));
@@ -178,27 +174,31 @@ describe("compileSelectorProjection", () => {
       maximumBytes: 64 * 1024 * 1024,
     };
     const projection = compileSelectorProjection(atlas);
-    expect(scanBytes(JSON.stringify(projection), {
-      policy,
-      surface: "artifact",
-      location: Buffer.from("selector-projection.json"),
-    })).toEqual([]);
+    expect(
+      scanBytes(JSON.stringify(projection), {
+        policy,
+        surface: "artifact",
+        location: Buffer.from("selector-projection.json"),
+      }),
+    ).toEqual([]);
 
     const marked = { ...projection, kind: marker };
-    expect(scanBytes(JSON.stringify(marked), {
-      policy,
-      surface: "artifact",
-      location: Buffer.from("selector-projection.json"),
-    })).toMatchObject([{ ruleId: "private-source-pattern", surface: "artifact" }]);
+    expect(
+      scanBytes(JSON.stringify(marked), {
+        policy,
+        surface: "artifact",
+        location: Buffer.from("selector-projection.json"),
+      }),
+    ).toMatchObject([{ ruleId: "private-source-pattern", surface: "artifact" }]);
   });
 
   it("keeps the projected entry deeply equal to the delegating Atlas entry", () => {
     const projection = compileSelectorProjection(atlas);
     const inputs = Object.values(selectorScenarios)
       .filter(({ dataSource }) => dataSource === "canonical")
-      .flatMap((scenario) => "baselineInput" in scenario
-        ? [scenario.input, scenario.baselineInput]
-        : [scenario.input]);
+      .flatMap((scenario) =>
+        "baselineInput" in scenario ? [scenario.input, scenario.baselineInput] : [scenario.input],
+      );
     for (const input of inputs) {
       expect(selectProjectedMaterials(projection, input)).toEqual(selectMaterials(atlas, input));
     }

@@ -1,7 +1,11 @@
 /** @jsxImportSource preact */
 import { useEffect, useMemo, useState } from "preact/hooks";
 
-import { defaultExplorerState, type ExplorerState, type ExplorerSortableField } from "../../features/data-explorer/explore.ts";
+import {
+  defaultExplorerState,
+  type ExplorerState,
+  type ExplorerSortableField,
+} from "../../features/data-explorer/explore.ts";
 import type { DataExplorerModel } from "../../features/data-explorer/model.ts";
 import { safeExplore } from "../../features/data-explorer/safe-explore.ts";
 import { DataControls } from "./DataControls.tsx";
@@ -13,13 +17,21 @@ type Props = Readonly<{ model: DataExplorerModel }>;
 export function DataExplorerIsland({ model }: Props) {
   const [rawState, setRawState] = useState<unknown>(() => defaultExplorerState(model));
   const result = useMemo(() => safeExplore(model, rawState), [model, rawState]);
-  const [announcement, setAnnouncement] = useState(`${model.materials.length} materials available.`);
+  const [announcement, setAnnouncement] = useState(
+    `${model.materials.length} materials available.`,
+  );
   const current = result.state;
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setAnnouncement(result.kind === "failure"
-      ? "Explorer state was reset. No stale rows are shown."
-      : `${result.resultCount} materials shown in ${result.group.label}.`), 150);
+    const timer = window.setTimeout(
+      () =>
+        setAnnouncement(
+          result.kind === "failure"
+            ? "Explorer state was reset. No stale rows are shown."
+            : `${result.resultCount} materials shown in ${result.group.label}.`,
+        ),
+      150,
+    );
     return () => window.clearTimeout(timer);
   }, [result]);
 
@@ -41,23 +53,42 @@ export function DataExplorerIsland({ model }: Props) {
       <DataControls
         model={model}
         state={current}
-        onChange={(update: (state: ExplorerState) => ExplorerState) => setRawState((previous: unknown) => update(safeExplore(model, previous).state))}
+        onChange={(update: (state: ExplorerState) => ExplorerState) =>
+          setRawState((previous: unknown) => update(safeExplore(model, previous).state))
+        }
         onInvalid={() => setRawState({ invalid: true })}
         onClear={clear}
       />
-      <p role="status" aria-live="polite" aria-atomic="true">{announcement}</p>
+      <p role="status" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </p>
       {result.kind === "failure" ? (
-        <section role="alert"><h2>Data view reset</h2><p>The requested explorer state was not valid. No previous rows are shown.</p><button type="button" onClick={() => setRawState(defaultExplorerState(model))}>Reset explorer</button></section>
+        <section role="alert">
+          <h2>Data view reset</h2>
+          <p>The requested explorer state was not valid. No previous rows are shown.</p>
+          <button type="button" onClick={() => setRawState(defaultExplorerState(model))}>
+            Reset explorer
+          </button>
+        </section>
       ) : result.resultCount === 0 ? (
-        <section class="data-no-results"><h2>No materials match</h2><p>Clear one or more filters to restore results.</p></section>
+        <section class="data-no-results">
+          <h2>No materials match</h2>
+          <p>Clear one or more filters to restore results.</p>
+        </section>
       ) : current.view === "table" ? (
-        <DataTable result={result} onSort={(field) => setRawState({
-          ...current,
-          sort: {
-            field,
-            direction: current.sort.field === field && current.sort.direction === "asc" ? "desc" : "asc",
-          },
-        })} />
+        <DataTable
+          result={result}
+          onSort={(field) =>
+            setRawState({
+              ...current,
+              sort: {
+                field,
+                direction:
+                  current.sort.field === field && current.sort.direction === "asc" ? "desc" : "asc",
+              },
+            })
+          }
+        />
       ) : (
         <DataRecords result={result} />
       )}

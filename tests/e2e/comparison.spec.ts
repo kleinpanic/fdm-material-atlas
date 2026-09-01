@@ -44,22 +44,27 @@ function rejectRuntimeDataRequests(page: Page): string[] {
     if (!["fetch", "xhr"].includes(request.resourceType())) return;
     violations.push("runtime-data-request");
   });
-  void page.route("**/*", async (route: {
-    request(): { resourceType(): string };
-    abort(code?: string): Promise<void>;
-    continue(): Promise<void>;
-  }) => {
-    if (["fetch", "xhr"].includes(route.request().resourceType())) {
-      await route.abort("blockedbyclient");
-      return;
-    }
-    await route.continue();
-  });
+  void page.route(
+    "**/*",
+    async (route: {
+      request(): { resourceType(): string };
+      abort(code?: string): Promise<void>;
+      continue(): Promise<void>;
+    }) => {
+      if (["fetch", "xhr"].includes(route.request().resourceType())) {
+        await route.abort("blockedbyclient");
+        return;
+      }
+      await route.continue();
+    },
+  );
   return violations;
 }
 
 async function waitForComparison(page: Page, count: number): Promise<void> {
-  await expect(page.getByRole("heading", { name: `Comparison of ${count} materials` })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: `Comparison of ${count} materials` }),
+  ).toBeVisible();
   await expect(page.getByRole("status")).toContainText(`${count} materials`);
 }
 
@@ -75,21 +80,29 @@ test("empty and every invalid URL state fail closed with fixed recovery copy", a
 
   await page.goto(`${basePath}compare/`);
   await expect(page.getByRole("form", { name: "Choose materials to compare" })).toBeVisible();
-  await expect(page.getByText("Choose two to four materials, then update the comparison.", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Choose two to four materials, then update the comparison.", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole("heading", { name: /Comparison of/u })).toHaveCount(0);
 
   for (const path of invalidPaths) {
     await page.goto(path);
     const alert = page.getByRole("alert");
-    await expect(alert.getByRole("heading", { name: "Comparison link is not valid" })).toBeVisible();
-    await expect(alert).toContainText("Choose two to four different materials and update the comparison.");
+    await expect(
+      alert.getByRole("heading", { name: "Comparison link is not valid" }),
+    ).toBeVisible();
+    await expect(alert).toContainText(
+      "Choose two to four different materials and update the comparison.",
+    );
     await expect(page.getByRole("heading", { name: /Comparison of/u })).toHaveCount(0);
     await expect(page.getByLabel("Material 1")).toHaveAttribute("aria-invalid", "true");
     await expect(page.locator("body")).not.toContainText("material-stale");
   }
 });
 
-test("two, three, and four material URLs preserve order and complete semantic disclosures", async ({ page }) => {
+test("two, three, and four material URLs preserve order and complete semantic disclosures", async ({
+  page,
+}) => {
   test.setTimeout(90_000);
   const violations = rejectRuntimeDataRequests(page);
   for (const count of [2, 3, 4]) {
@@ -98,30 +111,48 @@ test("two, three, and four material URLs preserve order and complete semantic di
     if (expected.kind !== "comparison") throw new Error("PUBLIC_COMPARISON_FIXTURE_INVALID");
     await page.goto(comparePath(selected));
     await waitForComparison(page, count);
-    await expect(page.getByText(`${expected.differenceCount} differing attributes across ${expected.groups.length} groups.`, { exact: true })).toBeVisible();
-    const selectedOptions = await Promise.all(Array.from({ length: count }, (_, index) =>
-      page.getByLabel(`Material ${index + 1}${index > 1 ? " (optional)" : ""}`).inputValue()));
+    await expect(
+      page.getByText(
+        `${expected.differenceCount} differing attributes across ${expected.groups.length} groups.`,
+        { exact: true },
+      ),
+    ).toBeVisible();
+    const selectedOptions = await Promise.all(
+      Array.from({ length: count }, (_, index) =>
+        page.getByLabel(`Material ${index + 1}${index > 1 ? " (optional)" : ""}`).inputValue(),
+      ),
+    );
     expect(selectedOptions).toEqual(selected);
     const materialLinks = page.getByRole("link", { name: /^Open .+ material reference$/u });
     await expect(materialLinks).toHaveCount(count);
-    expect(await materialLinks.allInnerTexts()).toEqual(selected.map((id) => `Open ${names.get(id)} material reference`));
+    expect(await materialLinks.allInnerTexts()).toEqual(
+      selected.map((id) => `Open ${names.get(id)} material reference`),
+    );
     await expect(page.getByText(/^Same across selected materials \(\d+\)$/u).first()).toBeVisible();
     await expect(page.getByText("Difference", { exact: true }).first()).toBeVisible();
     for (const group of expected.groups) {
       await expect(page.getByRole("heading", { name: group.label, exact: true })).toBeVisible();
       if (group.differing.length === 0) {
-        await expect(page.getByText("No differences in this group.", { exact: true })).toBeVisible();
+        await expect(
+          page.getByText("No differences in this group.", { exact: true }),
+        ).toBeVisible();
       }
     }
     await expect(page.getByText("Evidence scope:", { exact: false }).first()).toBeVisible();
     const evidence = expected.groups
       .flatMap((group) => [...group.differing, ...group.equal])
       .flatMap((row) => row.values)
-      .flatMap((value) => value.kind === "no-comparable-observation"
-        ? []
-        : value.kind === "value" ? value.cell.evidence : value.member.evidence)[0];
+      .flatMap((value) =>
+        value.kind === "no-comparable-observation"
+          ? []
+          : value.kind === "value"
+            ? value.cell.evidence
+            : value.member.evidence,
+      )[0];
     if (evidence !== undefined) {
-      await expect(page.getByRole("link", { name: evidence.label, exact: true }).first()).toHaveAttribute("href", evidence.href);
+      await expect(
+        page.getByRole("link", { name: evidence.label, exact: true }).first(),
+      ).toHaveAttribute("href", evidence.href);
     }
   }
   expect(violations).toEqual([]);
@@ -135,16 +166,29 @@ test("slot updates replace history and retain scientific limitations", async ({ 
   await expect(page.getByRole("heading", { name: "Comparison of 2 materials" })).toBeVisible();
   await page.getByRole("button", { name: "Update comparison" }).click();
   await page.waitForFunction(
-    ([first, second]: [string, string]) => new URL(location.href).searchParams.getAll("material").join("|") === `${first}|${second}`,
+    ([first, second]: [string, string]) =>
+      new URL(location.href).searchParams.getAll("material").join("|") === `${first}|${second}`,
     [ids[0], ids[2]],
   );
   expect(new URL(page.url()).searchParams.getAll("material")).toEqual([ids[0], ids[2]]);
   expect(await page.evaluate(() => history.length)).toBe(initialHistory);
-  await expect(page.getByText("Named thermal tests are not directly interchangeable.", { exact: true })).toBeVisible();
-  await expect(page.getByText("does not rank a universally better material", { exact: false }).first()).toBeVisible();
-  await expect(page.getByRole("link", { name: "Return to the material selector" })).toHaveAttribute("href", basePath);
-  await expect(page.getByRole("link", { name: "Browse all materials" })).toHaveAttribute("href", `${basePath}materials/`);
-  await expect(page.getByRole("link", { name: "Read sources, definitions, and methodology" })).toHaveAttribute("href", `${basePath}method/`);
+  await expect(
+    page.getByText("Named thermal tests are not directly interchangeable.", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("does not rank a universally better material", { exact: false }).first(),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Return to the material selector" })).toHaveAttribute(
+    "href",
+    basePath,
+  );
+  await expect(page.getByRole("link", { name: "Browse all materials" })).toHaveAttribute(
+    "href",
+    `${basePath}materials/`,
+  );
+  await expect(
+    page.getByRole("link", { name: "Read sources, definitions, and methodology" }),
+  ).toHaveAttribute("href", `${basePath}method/`);
 });
 
 test("selector handoff preserves shortlist insertion order", async ({ page }) => {
@@ -167,7 +211,9 @@ test("selector handoff preserves shortlist insertion order", async ({ page }) =>
   await expect(page.getByLabel("Material 2")).toHaveValue(expectedOrder[1]!);
 });
 
-test("material details submit current-first pairs and every displayed continuity link resolves", async ({ page }) => {
+test("material details submit current-first pairs and every displayed continuity link resolves", async ({
+  page,
+}) => {
   test.setTimeout(120_000);
   const detail = detailModels.find(({ continuity }) => continuity.relatedMaterials.length > 0);
   if (detail === undefined) throw new Error("DETAIL_CONTINUITY_FIXTURE_MISSING");
@@ -185,7 +231,9 @@ test("material details submit current-first pairs and every displayed continuity
     if (item.details.kind !== "link") continue;
     await page.goto(path);
     await page.getByRole("link", { name: item.name, exact: true }).click();
-    await expect(page).toHaveURL(new RegExp(`${item.details.href.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, "u"));
+    await expect(page).toHaveURL(
+      new RegExp(`${item.details.href.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, "u"),
+    );
     await expect(page.getByRole("heading", { level: 1, name: item.name })).toBeVisible();
     await page.goBack();
     await expect(page.getByRole("heading", { level: 1, name: detail.name })).toBeVisible();
@@ -201,10 +249,17 @@ test("material details submit current-first pairs and every displayed continuity
     await expect(page.getByRole("heading", { level: 1, name: detail.name })).toBeVisible();
   }
 
-  const unavailable = detailModels.find(({ continuity }) => continuity.relatedMaterials.length === 0);
+  const unavailable = detailModels.find(
+    ({ continuity }) => continuity.relatedMaterials.length === 0,
+  );
   if (unavailable !== undefined) {
     await page.goto(`${basePath}materials/${unavailable.slug}/#relationships`);
-    await expect(page.getByText("No shared decision-lane relationship is currently reported, so no comparison pair is suggested.", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText(
+        "No shared decision-lane relationship is currently reported, so no comparison pair is suggested.",
+        { exact: true },
+      ),
+    ).toBeVisible();
     await expect(page.getByRole("button", { name: "Add to comparison" })).toHaveCount(0);
   }
 });

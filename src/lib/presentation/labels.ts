@@ -4,12 +4,7 @@ import type { ThermalMetricKind } from "../../data/schema/material.ts";
 
 export type FactStateKind = FactState<unknown>["state"];
 export type ProcessRequirementState =
-  | "not-required"
-  | "recommended"
-  | "required"
-  | "conditional"
-  | "unknown"
-  | "not-applicable";
+  "not-required" | "recommended" | "required" | "conditional" | "unknown" | "not-applicable";
 export type PublicMeasurementUnit = "degC" | "g/cm3" | "mm/s" | "percent";
 export type EvidenceSourceKind = EvidenceSource["kind"];
 
@@ -40,20 +35,26 @@ export const EVIDENCE_SCOPE_PRESENTATION = {
   "qualitative-heuristic": {
     label: "Qualitative heuristic",
     tracerLabel: "Qualitative heuristic",
-    meaning: "The statement is a practical qualitative classification, not a standardized property.",
+    meaning:
+      "The statement is a practical qualitative classification, not a standardized property.",
   },
   "starting-profile-guidance": {
     label: "Starting-profile guidance",
     tracerLabel: "Starting-profile guidance",
-    meaning: "The setting is a calibration starting point and is not a guaranteed setting or maximum.",
+    meaning:
+      "The setting is a calibration starting point and is not a guaranteed setting or maximum.",
   },
   "derived-selector-logic": {
     label: "Derived selector logic",
     tracerLabel: "Derived selector logic",
-    meaning: "The statement is produced by documented selection rules and is not a measured property.",
+    meaning:
+      "The statement is produced by documented selection rules and is not a measured property.",
   },
 } as const satisfies Readonly<
-  Record<EvidenceScope, { readonly label: string; readonly tracerLabel: string; readonly meaning: string }>
+  Record<
+    EvidenceScope,
+    { readonly label: string; readonly tracerLabel: string; readonly meaning: string }
+  >
 >;
 
 export const EVIDENCE_SCOPE_ORDER = [
@@ -98,11 +99,32 @@ export const UNIT_PRESENTATION = {
 } as const satisfies Readonly<Record<PublicMeasurementUnit, { readonly label: string }>>;
 
 export type DisplayFact<T> =
-  | { readonly state: "known"; readonly label: typeof FACT_STATE_PRESENTATION.known.label; readonly value: T }
-  | { readonly state: "unknown"; readonly label: typeof FACT_STATE_PRESENTATION.unknown.label; readonly reason: string }
-  | { readonly state: "conditional"; readonly label: typeof FACT_STATE_PRESENTATION.conditional.label; readonly condition: string; readonly value?: T | undefined }
-  | { readonly state: "not-applicable"; readonly label: typeof FACT_STATE_PRESENTATION["not-applicable"]["label"]; readonly reason?: string | undefined }
-  | { readonly state: "missing"; readonly label: typeof FACT_STATE_PRESENTATION.missing.label; readonly reason: string };
+  | {
+      readonly state: "known";
+      readonly label: typeof FACT_STATE_PRESENTATION.known.label;
+      readonly value: T;
+    }
+  | {
+      readonly state: "unknown";
+      readonly label: typeof FACT_STATE_PRESENTATION.unknown.label;
+      readonly reason: string;
+    }
+  | {
+      readonly state: "conditional";
+      readonly label: typeof FACT_STATE_PRESENTATION.conditional.label;
+      readonly condition: string;
+      readonly value?: T | undefined;
+    }
+  | {
+      readonly state: "not-applicable";
+      readonly label: (typeof FACT_STATE_PRESENTATION)["not-applicable"]["label"];
+      readonly reason?: string | undefined;
+    }
+  | {
+      readonly state: "missing";
+      readonly label: typeof FACT_STATE_PRESENTATION.missing.label;
+      readonly reason: string;
+    };
 
 function assertNever(value: never): never {
   void value;
@@ -111,19 +133,46 @@ function assertNever(value: never): never {
 
 export function projectFactState<T>(state: FactState<T>): DisplayFact<T> {
   switch (state.state) {
-    case "known": return { state: "known", label: FACT_STATE_PRESENTATION.known.label, value: state.value };
-    case "unknown": return { state: "unknown", label: FACT_STATE_PRESENTATION.unknown.label, reason: state.reason };
-    case "conditional": return { state: "conditional", label: FACT_STATE_PRESENTATION.conditional.label, condition: state.condition, ...(state.value === undefined ? {} : { value: state.value }) };
-    case "not-applicable": return { state: "not-applicable", label: FACT_STATE_PRESENTATION["not-applicable"].label, ...(state.reason === undefined ? {} : { reason: state.reason }) };
-    case "missing": return { state: "missing", label: FACT_STATE_PRESENTATION.missing.label, reason: state.reason };
-    default: return assertNever(state);
+    case "known":
+      return { state: "known", label: FACT_STATE_PRESENTATION.known.label, value: state.value };
+    case "unknown":
+      return {
+        state: "unknown",
+        label: FACT_STATE_PRESENTATION.unknown.label,
+        reason: state.reason,
+      };
+    case "conditional":
+      return {
+        state: "conditional",
+        label: FACT_STATE_PRESENTATION.conditional.label,
+        condition: state.condition,
+        ...(state.value === undefined ? {} : { value: state.value }),
+      };
+    case "not-applicable":
+      return {
+        state: "not-applicable",
+        label: FACT_STATE_PRESENTATION["not-applicable"].label,
+        ...(state.reason === undefined ? {} : { reason: state.reason }),
+      };
+    case "missing":
+      return {
+        state: "missing",
+        label: FACT_STATE_PRESENTATION.missing.label,
+        reason: state.reason,
+      };
+    default:
+      return assertNever(state);
   }
 }
 
-export function evidenceScopeLabel(scope: EvidenceScope): (typeof EVIDENCE_SCOPE_PRESENTATION)[EvidenceScope]["label"] {
+export function evidenceScopeLabel(
+  scope: EvidenceScope,
+): (typeof EVIDENCE_SCOPE_PRESENTATION)[EvidenceScope]["label"] {
   return EVIDENCE_SCOPE_PRESENTATION[scope].label;
 }
 
-export function tracerEvidenceScopeLabel(scope: EvidenceScope): (typeof EVIDENCE_SCOPE_PRESENTATION)[EvidenceScope]["tracerLabel"] {
+export function tracerEvidenceScopeLabel(
+  scope: EvidenceScope,
+): (typeof EVIDENCE_SCOPE_PRESENTATION)[EvidenceScope]["tracerLabel"] {
   return EVIDENCE_SCOPE_PRESENTATION[scope].tracerLabel;
 }

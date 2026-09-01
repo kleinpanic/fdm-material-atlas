@@ -7,10 +7,7 @@ import {
 } from "../../data/schema/evidence.ts";
 import type { ClaimId, MaterialId, MethodId, SourceId } from "../../data/schema/ids.ts";
 import type { Material } from "../../data/schema/material.ts";
-import {
-  EVIDENCE_SCOPE_ORDER,
-  SOURCE_KIND_PRESENTATION,
-} from "../../lib/presentation/labels.ts";
+import { EVIDENCE_SCOPE_ORDER, SOURCE_KIND_PRESENTATION } from "../../lib/presentation/labels.ts";
 import {
   enumerateMaterialClaims,
   type EnumeratedMaterialClaim,
@@ -263,8 +260,8 @@ function compileEvidenceGraph(atlas: AtlasV1): EvidenceIndex {
     const records = [...materialRecords.values()]
       .sort((left, right) => compareText(targetId(left.target), targetId(right.target)))
       .map(({ target, record, edges }) => {
-        const sortedEdges = [...edges].sort((left, right) =>
-          compareClaims(left, right) || compareScopes(left.scope, right.scope)
+        const sortedEdges = [...edges].sort(
+          (left, right) => compareClaims(left, right) || compareScopes(left.scope, right.scope),
         );
         const supportedById = new Map<string, EvidenceClaimReference>();
         for (const edge of sortedEdges) {
@@ -302,10 +299,11 @@ function compileEvidenceGraph(atlas: AtlasV1): EvidenceIndex {
       // without claiming support for one material fact. Sources cannot appear
       // as an unreferenced bibliography entry.
       if (uses.length === 0 && record.kind === "source") fail("EVIDENCE_RECORD_UNUSED");
-      const sortedUses = [...uses].sort((left, right) =>
-        compareText(left.materialSlug, right.materialSlug) ||
-        compareClaims(left, right) ||
-        compareScopes(left.scope, right.scope)
+      const sortedUses = [...uses].sort(
+        (left, right) =>
+          compareText(left.materialSlug, right.materialSlug) ||
+          compareClaims(left, right) ||
+          compareScopes(left.scope, right.scope),
       );
       return {
         target,
@@ -339,8 +337,9 @@ export function buildMaterialEvidenceModel(
   index: EvidenceIndex = buildEvidenceIndex(atlas),
 ): MaterialEvidenceModel {
   const materialId = typeof material === "string" ? material : material.id;
-  const model = index.materials.find(({ materialId: candidateId, materialSlug }) =>
-    candidateId === materialId || materialSlug === materialId
+  const model = index.materials.find(
+    ({ materialId: candidateId, materialSlug }) =>
+      candidateId === materialId || materialSlug === materialId,
   );
   if (!model) fail("EVIDENCE_MATERIAL_MISSING");
   return model;

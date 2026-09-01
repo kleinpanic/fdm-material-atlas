@@ -143,8 +143,13 @@ function numericValue(value: unknown): number | undefined {
   if (typeof value === "number" && Number.isFinite(value)) return Object.is(value, -0) ? 0 : value;
   if (typeof value !== "object" || value === null || !("shape" in value)) return undefined;
   const measurement = value as Record<string, unknown>;
-  if (measurement.shape === "exact" && typeof measurement.value === "number") return measurement.value;
-  if (measurement.shape === "range" && typeof measurement.min === "number" && typeof measurement.max === "number") {
+  if (measurement.shape === "exact" && typeof measurement.value === "number")
+    return measurement.value;
+  if (
+    measurement.shape === "range" &&
+    typeof measurement.min === "number" &&
+    typeof measurement.max === "number"
+  ) {
     return (measurement.min + measurement.max) / 2;
   }
   return undefined;
@@ -163,7 +168,11 @@ function knownValue(descriptor: DataAttributeDescriptor, material: Material): un
 function vocabularyOrder(atlas: AtlasV1): ReadonlyMap<string, number> {
   const order = new Map<string, number>();
   for (const vocabulary of [...atlas.vocabularies].sort((a, b) => a.id.localeCompare(b.id, "en"))) {
-    for (const term of [...vocabulary.terms].sort((a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER) || a.value.localeCompare(b.value, "en"))) {
+    for (const term of [...vocabulary.terms].sort(
+      (a, b) =>
+        (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER) ||
+        a.value.localeCompare(b.value, "en"),
+    )) {
       if (term.order !== undefined && !order.has(term.value)) order.set(term.value, term.order);
     }
   }
@@ -178,19 +187,25 @@ function sortKey(
 ): ExplorerSortKey {
   const state = comparisonCell.state;
   if (descriptor.sort === "none") return { kind: "none", state };
-  if (descriptor.sort === "canonical") return { kind: "canonical", state: "identity", value: material.displayOrder };
+  if (descriptor.sort === "canonical")
+    return { kind: "canonical", state: "identity", value: material.displayOrder };
   const value = knownValue(descriptor, material);
-  if (descriptor.sort === "number") return {
-    kind: "number",
-    state,
-    ...(numericValue(value) === undefined ? {} : { value: numericValue(value) }),
-  };
+  if (descriptor.sort === "number")
+    return {
+      kind: "number",
+      state,
+      ...(numericValue(value) === undefined ? {} : { value: numericValue(value) }),
+    };
   if (descriptor.sort === "vocabulary") {
     const ordered = typeof value === "string" ? vocabulary.get(value) : undefined;
     return { kind: "vocabulary", state, ...(ordered === undefined ? {} : { value: ordered }) };
   }
   const label = comparisonCell.display[0];
-  return { kind: "label", state, ...(label === undefined ? {} : { value: normalizeSearch(label) }) };
+  return {
+    kind: "label",
+    state,
+    ...(label === undefined ? {} : { value: normalizeSearch(label) }),
+  };
 }
 
 function projectValueCell(
@@ -235,7 +250,10 @@ function projectThermalMember(member: ComparisonThermalMember): ExplorerThermalM
 }
 
 /** Compile the validated public Atlas into a compact, display-ready explorer projection. */
-export function buildDataExplorerModel(atlas: AtlasV1, base: string | undefined): DataExplorerModel {
+export function buildDataExplorerModel(
+  atlas: AtlasV1,
+  base: string | undefined,
+): DataExplorerModel {
   if (atlas.materials.length === 0) fail("DATA_EXPLORER_MATERIALS_EMPTY");
   const ids = new Set(atlas.materials.map(({ id }) => id));
   const slugs = new Set(atlas.materials.map(({ slug }) => slug));
@@ -258,11 +276,13 @@ export function buildDataExplorerModel(atlas: AtlasV1, base: string | undefined)
     help: field.help,
     ...(field.caution === undefined ? {} : { caution: field.caution }),
   }));
-  const groups: ExplorerGroup[] = DATA_ATTRIBUTE_GROUPS.map(({ key, label, fields: groupFields }) => ({
-    key,
-    label,
-    fieldKeys: groupFields.map(({ key: fieldKey }) => fieldKey),
-  }));
+  const groups: ExplorerGroup[] = DATA_ATTRIBUTE_GROUPS.map(
+    ({ key, label, fields: groupFields }) => ({
+      key,
+      label,
+      fieldKeys: groupFields.map(({ key: fieldKey }) => fieldKey),
+    }),
+  );
 
   const materials: ExplorerMaterial[] = comparison.materials.map((projected) => {
     const material = canonicalById.get(projected.id) ?? fail("DATA_EXPLORER_CELL_MISSING");
@@ -273,8 +293,14 @@ export function buildDataExplorerModel(atlas: AtlasV1, base: string | undefined)
         return projectValueCell(descriptor, material, comparisonCell, vocabulary);
       }
       const members = comparisonCell.members.map(projectThermalMember);
-      const searchText = members.flatMap(({ metricLabel, methodLabel, display, qualification, scopeLabels }) =>
-        [metricLabel, methodLabel, ...display, qualification, ...scopeLabels]
+      const searchText = members.flatMap(
+        ({ metricLabel, methodLabel, display, qualification, scopeLabels }) => [
+          metricLabel,
+          methodLabel,
+          ...display,
+          qualification,
+          ...scopeLabels,
+        ],
       );
       return {
         kind: "thermal",
@@ -283,26 +309,30 @@ export function buildDataExplorerModel(atlas: AtlasV1, base: string | undefined)
         states: uniqueStates(members.map(({ state }) => state)),
         scopes: uniqueScopes(members.flatMap(({ scopes }) => scopes)),
         searchText,
-        sortKey: comparisonCell.key === "thermal-value"
-          ? { kind: "none", state: members[0]?.state ?? "missing" }
-          : {
-              kind: "label",
-              state: members[0]?.state ?? "missing",
-              ...(members[0] === undefined ? {} : { value: normalizeSearch(members[0].metricLabel) }),
-            },
+        sortKey:
+          comparisonCell.key === "thermal-value"
+            ? { kind: "none", state: members[0]?.state ?? "missing" }
+            : {
+                kind: "label",
+                state: members[0]?.state ?? "missing",
+                ...(members[0] === undefined
+                  ? {}
+                  : { value: normalizeSearch(members[0].metricLabel) }),
+              },
       };
     });
     const familyCell = cells.find(({ key }) => key === "family-or-fill");
     const familyFact = material.familyOrFill.value;
-    const family = familyFact.state === "known" || (familyFact.state === "conditional" && familyFact.value !== undefined)
-      ? familyFact.value
-      : familyCell?.kind === "value"
-        ? familyCell.display[0]
-        : undefined;
+    const family =
+      familyFact.state === "known" ||
+      (familyFact.state === "conditional" && familyFact.value !== undefined)
+        ? familyFact.value
+        : familyCell?.kind === "value"
+          ? familyCell.display[0]
+          : undefined;
     if (family === undefined || cells.length !== 32) fail("DATA_EXPLORER_VALUE_INVALID");
-    const familyQualifier = familyFact.state === "conditional"
-      ? `Conditional — ${familyFact.condition}`
-      : undefined;
+    const familyQualifier =
+      familyFact.state === "conditional" ? `Conditional — ${familyFact.condition}` : undefined;
     return {
       id: projected.id,
       name: projected.name,

@@ -1,9 +1,5 @@
 import type { EvidenceScope } from "../../data/schema/evidence.ts";
-import type {
-  DecisionLaneId,
-  MaterialId,
-  ProcessGateId,
-} from "../../data/schema/ids.ts";
+import type { DecisionLaneId, MaterialId, ProcessGateId } from "../../data/schema/ids.ts";
 import type { ThermalMetricKind, ThermalMethod } from "../../data/schema/material.ts";
 import type {
   FlexibilityRating,
@@ -66,9 +62,17 @@ export type MapEvidenceContext = {
 
 export type MapDisplayFact =
   | { readonly state: "known"; readonly display: readonly string[] }
-  | { readonly state: "conditional"; readonly display: readonly string[]; readonly condition: string }
+  | {
+      readonly state: "conditional";
+      readonly display: readonly string[];
+      readonly condition: string;
+    }
   | { readonly state: "unknown"; readonly display: readonly string[]; readonly reason: string }
-  | { readonly state: "not-applicable"; readonly display: readonly string[]; readonly reason?: string }
+  | {
+      readonly state: "not-applicable";
+      readonly display: readonly string[];
+      readonly reason?: string;
+    }
   | { readonly state: "missing"; readonly display: readonly string[]; readonly reason: string };
 
 export type MapProcessGateReference = {
@@ -96,7 +100,12 @@ export type MapDecisionLane = {
 
 export type MapServiceMeasurement =
   | { readonly shape: "point"; readonly value: number; readonly unit: "degC" }
-  | { readonly shape: "interval"; readonly low: number; readonly high: number; readonly unit: "degC" };
+  | {
+      readonly shape: "interval";
+      readonly low: number;
+      readonly high: number;
+      readonly unit: "degC";
+    };
 
 export type MapServiceGuidanceRecord = {
   readonly material: MapMaterialReference;
@@ -266,8 +275,15 @@ export type MapSelectionAction =
       readonly mode: MapMode;
       readonly source: "focus" | "hover";
     }
-  | { readonly type: "set-search"; readonly target: "thermal" | "impact-flex"; readonly query: string }
-  | { readonly type: "set-service-sort"; readonly sort: "canonical" | "low-endpoint" | "high-endpoint" }
+  | {
+      readonly type: "set-search";
+      readonly target: "thermal" | "impact-flex";
+      readonly query: string;
+    }
+  | {
+      readonly type: "set-service-sort";
+      readonly sort: "canonical" | "low-endpoint" | "high-endpoint";
+    }
   | { readonly type: "set-maximum-difficulty"; readonly value?: PrintDifficulty }
   | { readonly type: "set-difficulty-shapes"; readonly enabled: boolean }
   | { readonly type: "clear-filters"; readonly target: "thermal" | "impact-flex" | "all" }

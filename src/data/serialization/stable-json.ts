@@ -28,12 +28,18 @@ function basisKey(reference: BasisRef): string {
 
 function targetKey(target: VisualizationTargetRef): string {
   switch (target.kind) {
-    case "material-id": return `${target.kind}\u0000${target.materialId}`;
-    case "claim-id": return `${target.kind}\u0000${target.claimId}`;
-    case "decision-lane-id": return `${target.kind}\u0000${target.decisionLaneId}`;
-    case "selector-criterion-id": return `${target.kind}\u0000${target.selectorCriterionId}`;
-    case "process-gate-id": return `${target.kind}\u0000${target.processGateId}`;
-    case "material-route": return `${target.kind}\u0000${target.slug}`;
+    case "material-id":
+      return `${target.kind}\u0000${target.materialId}`;
+    case "claim-id":
+      return `${target.kind}\u0000${target.claimId}`;
+    case "decision-lane-id":
+      return `${target.kind}\u0000${target.decisionLaneId}`;
+    case "selector-criterion-id":
+      return `${target.kind}\u0000${target.selectorCriterionId}`;
+    case "process-gate-id":
+      return `${target.kind}\u0000${target.processGateId}`;
+    case "material-route":
+      return `${target.kind}\u0000${target.slug}`;
   }
 }
 
@@ -45,7 +51,7 @@ function orderPredicate(predicate: Predicate): void {
   switch (predicate.op) {
     case "one-of":
       predicate.values = [...predicate.values].sort((left, right) =>
-        compareText(scalarKey(left), scalarKey(right))
+        compareText(scalarKey(left), scalarKey(right)),
       );
       break;
     case "contains-any":
@@ -55,7 +61,7 @@ function orderPredicate(predicate: Predicate): void {
     case "any":
       predicate.rules.forEach(orderPredicate);
       predicate.rules = [...predicate.rules].sort((left, right) =>
-        compareText(JSON.stringify(left), JSON.stringify(right))
+        compareText(JSON.stringify(left), JSON.stringify(right)),
       );
       break;
     case "not":

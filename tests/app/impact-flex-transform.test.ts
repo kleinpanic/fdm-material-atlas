@@ -44,14 +44,19 @@ describe("complete impact-flex categorical transform", () => {
         Array.from({ length: cell.records.length }, (_, index) => index),
       );
     }
-    expect(model.records.all.every(({ material }) =>
-      material.href.startsWith("/atlas-preview/materials/") && material.href.endsWith("/"))).toBe(true);
+    expect(
+      model.records.all.every(
+        ({ material }) =>
+          material.href.startsWith("/atlas-preview/materials/") && material.href.endsWith("/"),
+      ),
+    ).toBe(true);
   });
 
   it("assigns the six-record collision by display order and stable ID", () => {
     const model = buildImpactFlexModel(loadPublicAtlas());
-    const collision = model.cells.find(({ impact, flexibility }) =>
-      impact === "high-impact" && flexibility === "semi-rigid")!;
+    const collision = model.cells.find(
+      ({ impact, flexibility }) => impact === "high-impact" && flexibility === "semi-rigid",
+    )!;
 
     expect(collision.records.map(({ material: { id }, slot }) => [id, slot])).toEqual([
       ["material-tough-pla", 0],
@@ -65,8 +70,9 @@ describe("complete impact-flex categorical transform", () => {
   });
 
   it("is invariant to material, vocabulary, and term permutation", () => {
-    expect(buildImpactFlexModel(reverseInput(cloneAtlas()), "/repo/"))
-      .toEqual(buildImpactFlexModel(loadPublicAtlas(), "/repo/"));
+    expect(buildImpactFlexModel(reverseInput(cloneAtlas()), "/repo/")).toEqual(
+      buildImpactFlexModel(loadPublicAtlas(), "/repo/"),
+    );
   });
 
   it("keeps every axis-state omission visible with exact state and axis reasons", () => {
@@ -123,8 +129,9 @@ describe("complete impact-flex categorical transform", () => {
       disposition: { disposition: "omitted", code: "flexibility-value-unavailable" },
       omissionDetails: [{ axis: "flexibility", code: "unknown-value" }],
     });
-    const conditional = model.records.plotted.find(({ material }) =>
-      material.id === atlas.materials[5]!.id)!;
+    const conditional = model.records.plotted.find(
+      ({ material }) => material.id === atlas.materials[5]!.id,
+    )!;
     expect(conditional.flexibilityFact).toMatchObject({
       state: "conditional",
       condition: "Flexible only after conditioning.",
@@ -185,13 +192,18 @@ describe("complete impact-flex categorical transform", () => {
     expect(defaultModel.records.all.every(({ shape }) => shape === undefined)).toBe(true);
     expect(shaped.shapesEnabled).toBe(true);
     expect(shaped.shapeLegend.map(({ value }) => value)).toEqual(printDifficultyValues);
-    expect(new Map(shaped.shapeLegend.map(({ value, shape }) => [value, shape]))).toEqual(new Map([
-      ["easy", "circle"],
-      ["moderate", "square"],
-      ["advanced", "diamond"],
-      ["expert", "triangle"],
-    ]));
-    expect(shaped.records.all.every(({ printDifficulty, shape }) =>
-      printDifficulty !== undefined && shape !== undefined)).toBe(true);
+    expect(new Map(shaped.shapeLegend.map(({ value, shape }) => [value, shape]))).toEqual(
+      new Map([
+        ["easy", "circle"],
+        ["moderate", "square"],
+        ["advanced", "diamond"],
+        ["expert", "triangle"],
+      ]),
+    );
+    expect(
+      shaped.records.all.every(
+        ({ printDifficulty, shape }) => printDifficulty !== undefined && shape !== undefined,
+      ),
+    ).toBe(true);
   });
 });

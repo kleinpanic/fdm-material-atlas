@@ -27,8 +27,10 @@ describe("compare page source contract", () => {
   });
 
   it("uses only local styles and no request, raw HTML, or guessed route", () => {
-    expect(page).toContain('../../styles/comparison.css');
-    expect(page).not.toMatch(/fetch\s*\(|XMLHttpRequest|dangerouslySetInnerHTML|set:html|https?:\/\//u);
+    expect(page).toContain("../../styles/comparison.css");
+    expect(page).not.toMatch(
+      /fetch\s*\(|XMLHttpRequest|dangerouslySetInnerHTML|set:html|https?:\/\//u,
+    );
   });
 
   it("uses one property-first DOM that stacks below 768px without comparison scrolling", () => {

@@ -188,7 +188,9 @@ describe("complete evidence-aware material record", () => {
     const result = MaterialSchema.safeParse(wrongScope);
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues.some(({ message }) => message === "STARTING_PROFILE_BASIS_INVALID")).toBe(true);
+      expect(
+        result.error.issues.some(({ message }) => message === "STARTING_PROFILE_BASIS_INVALID"),
+      ).toBe(true);
     }
   });
 
@@ -198,4 +200,3 @@ describe("complete evidence-aware material record", () => {
     expect(MaterialSchema.safeParse(guaranteed).success).toBe(false);
   });
 });
-

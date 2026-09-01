@@ -99,7 +99,9 @@ function decisionCandidate(
   laneId: DecisionLaneId,
   materialId: MaterialId,
 ): boolean {
-  return projection.lanes.find(({ id }) => id === laneId)!.candidates.some(({ id }) => id === materialId);
+  return projection.lanes
+    .find(({ id }) => id === laneId)!
+    .candidates.some(({ id }) => id === materialId);
 }
 
 function baseState(): MapState {
@@ -110,17 +112,19 @@ function baseState(): MapState {
     thermal: { view: "service-guidance", query: "", serviceSort: "canonical" },
     processGates: {},
     impactFlex: { query: "", difficultyShapes: false },
-    announcement: "Interactive map controls are preparing. Every path and structured table is already available.",
+    announcement:
+      "Interactive map controls are preparing. Every path and structured table is already available.",
   });
 }
 
 /** Create the only route-local map state. No record is selected implicitly. */
 export function createInitialMapState(projection: MapProjection): MapState {
   if (
-    projection.lanes.length !== 8
-    || projection.processGates.gates.length !== 8
-    || projection.serviceGuidance.records.length === 0
-  ) return recoverMapState(baseState());
+    projection.lanes.length !== 8 ||
+    projection.processGates.gates.length !== 8 ||
+    projection.serviceGuidance.records.length === 0
+  )
+    return recoverMapState(baseState());
   return baseState();
 }
 
@@ -138,7 +142,10 @@ export function recoverMapState(previous: Pick<MapState, "hydrated">): MapState 
 function lockedTarget(state: MapState, mode: MapMode): MapSelectionTarget | undefined {
   switch (mode) {
     case "decision-paths":
-      if (state.decisionPaths.materialId !== undefined && state.decisionPaths.laneId !== undefined) {
+      if (
+        state.decisionPaths.materialId !== undefined &&
+        state.decisionPaths.laneId !== undefined
+      ) {
         return {
           kind: "material",
           mode,
@@ -170,7 +177,10 @@ function lockedTarget(state: MapState, mode: MapMode): MapSelectionTarget | unde
   }
 }
 
-export function selectLockedMapTarget(state: MapState, mode: MapMode): MapSelectionTarget | undefined {
+export function selectLockedMapTarget(
+  state: MapState,
+  mode: MapMode,
+): MapSelectionTarget | undefined {
   return lockedTarget(state, mode);
 }
 
@@ -178,24 +188,36 @@ export function selectMapPreview(
   state: MapState,
   mode: MapMode,
 ): Readonly<{ source: "focus" | "hover"; target: MapSelectionTarget }> | undefined {
-  if (state.hoverPreview?.mode === mode) return { source: "hover", target: state.hoverPreview.target };
-  if (state.focusPreview?.mode === mode) return { source: "focus", target: state.focusPreview.target };
+  if (state.hoverPreview?.mode === mode)
+    return { source: "hover", target: state.hoverPreview.target };
+  if (state.focusPreview?.mode === mode)
+    return { source: "focus", target: state.focusPreview.target };
   return undefined;
 }
 
-export function selectEffectiveMapTarget(state: MapState, mode: MapMode): MapSelectionTarget | undefined {
+export function selectEffectiveMapTarget(
+  state: MapState,
+  mode: MapMode,
+): MapSelectionTarget | undefined {
   return selectMapPreview(state, mode)?.target ?? lockedTarget(state, mode);
 }
 
-function validTarget(projection: MapProjection, target: unknown, mode: MapMode): target is MapSelectionTarget {
+function validTarget(
+  projection: MapProjection,
+  target: unknown,
+  mode: MapMode,
+): target is MapSelectionTarget {
   if (!isRecord(target) || target.mode !== mode || typeof target.kind !== "string") return false;
   switch (target.kind) {
     case "lane":
-      return (mode === "decision-paths" || mode === "process-gates") && hasLane(projection, target.id);
+      return (
+        (mode === "decision-paths" || mode === "process-gates") && hasLane(projection, target.id)
+      );
     case "material":
       if (!hasMaterial(projection, target.id)) return false;
       return mode === "decision-paths"
-        ? hasLane(projection, target.laneId) && decisionCandidate(projection, target.laneId, target.id)
+        ? hasLane(projection, target.laneId) &&
+            decisionCandidate(projection, target.laneId, target.id)
         : mode === "thermal-ranges" || mode === "impact-flex-space";
     case "gate":
       return mode === "process-gates" && hasGate(projection, target.id);
@@ -227,14 +249,18 @@ function update(state: MapState, patch: MapStatePatch, announcement: string): Ma
 
 function clearFilters(state: MapState, target: "thermal" | "impact-flex" | "all"): MapState {
   const { maximumDifficulty: _maximumDifficulty, ...impactWithoutMaximum } = state.impactFlex;
-  return update(state, {
-    ...(target === "thermal" || target === "all"
-      ? { thermal: { ...state.thermal, query: "", serviceSort: "canonical" as const } }
-      : {}),
-    ...(target === "impact-flex" || target === "all"
-      ? { impactFlex: { ...impactWithoutMaximum, query: "" } }
-      : {}),
-  }, "Map filters cleared.");
+  return update(
+    state,
+    {
+      ...(target === "thermal" || target === "all"
+        ? { thermal: { ...state.thermal, query: "", serviceSort: "canonical" as const } }
+        : {}),
+      ...(target === "impact-flex" || target === "all"
+        ? { impactFlex: { ...impactWithoutMaximum, query: "" } }
+        : {}),
+    },
+    "Map filters cleared.",
+  );
 }
 
 function resetView(state: MapState, mode: MapMode | "all"): MapState {
@@ -250,18 +276,28 @@ function resetView(state: MapState, mode: MapMode | "all"): MapState {
     ...(state.focusPreview?.mode === mode ? { focusPreview: undefined } : {}),
     ...(state.hoverPreview?.mode === mode ? { hoverPreview: undefined } : {}),
   };
-  if (mode === "decision-paths") return update(state, { ...clearPreviews, decisionPaths: {} }, "Map view reset.");
+  if (mode === "decision-paths")
+    return update(state, { ...clearPreviews, decisionPaths: {} }, "Map view reset.");
   if (mode === "thermal-ranges") {
-    return update(state, {
-      ...clearPreviews,
-      thermal: { view: "service-guidance", query: "", serviceSort: "canonical" },
-    }, "Map view reset.");
+    return update(
+      state,
+      {
+        ...clearPreviews,
+        thermal: { view: "service-guidance", query: "", serviceSort: "canonical" },
+      },
+      "Map view reset.",
+    );
   }
-  if (mode === "process-gates") return update(state, { ...clearPreviews, processGates: {} }, "Map view reset.");
-  return update(state, {
-    ...clearPreviews,
-    impactFlex: { query: "", difficultyShapes: false },
-  }, "Map view reset.");
+  if (mode === "process-gates")
+    return update(state, { ...clearPreviews, processGates: {} }, "Map view reset.");
+  return update(
+    state,
+    {
+      ...clearPreviews,
+      impactFlex: { query: "", difficultyShapes: false },
+    },
+    "Map view reset.",
+  );
 }
 
 /** Total pure transition boundary for DOM-originated map actions. */
@@ -279,86 +315,131 @@ export function reduceMapState(
         ? update(state, { mode: action.mode }, "Map section changed.")
         : recoverMapState(state);
     case "set-thermal-view":
-      return action.mode === "thermal-ranges"
-        && (action.view === "service-guidance" || action.view === "named-observations")
-        ? update(state, {
-            mode: "thermal-ranges",
-            thermal: { ...state.thermal, view: action.view },
-          }, "Thermal view changed.")
+      return action.mode === "thermal-ranges" &&
+        (action.view === "service-guidance" || action.view === "named-observations")
+        ? update(
+            state,
+            {
+              mode: "thermal-ranges",
+              thermal: { ...state.thermal, view: action.view },
+            },
+            "Thermal view changed.",
+          )
         : recoverMapState(state);
     case "select-lane":
       if (!hasLane(projection, action.laneId)) return recoverMapState(state);
       if (action.mode === "decision-paths") {
-        return update(state, {
-          mode: action.mode,
-          decisionPaths: { laneId: action.laneId },
-          focusPreview: undefined,
-          hoverPreview: undefined,
-        }, "Decision lane selected.");
+        return update(
+          state,
+          {
+            mode: action.mode,
+            decisionPaths: { laneId: action.laneId },
+            focusPreview: undefined,
+            hoverPreview: undefined,
+          },
+          "Decision lane selected.",
+        );
       }
       if (action.mode === "process-gates") {
-        return update(state, {
-          mode: action.mode,
-          processGates: { laneId: action.laneId },
-          focusPreview: undefined,
-          hoverPreview: undefined,
-        }, "Process-gate lane selected.");
+        return update(
+          state,
+          {
+            mode: action.mode,
+            processGates: { laneId: action.laneId },
+            focusPreview: undefined,
+            hoverPreview: undefined,
+          },
+          "Process-gate lane selected.",
+        );
       }
       return recoverMapState(state);
     case "select-material":
       if (action.mode === "decision-paths") {
-        if (!hasLane(projection, action.laneId)
-          || !hasMaterial(projection, action.materialId)
-          || !decisionCandidate(projection, action.laneId, action.materialId)) return recoverMapState(state);
-        return update(state, {
-          mode: action.mode,
-          decisionPaths: { laneId: action.laneId, materialId: action.materialId },
-          focusPreview: undefined,
-          hoverPreview: undefined,
-        }, "Decision-path material selected.");
+        if (
+          !hasLane(projection, action.laneId) ||
+          !hasMaterial(projection, action.materialId) ||
+          !decisionCandidate(projection, action.laneId, action.materialId)
+        )
+          return recoverMapState(state);
+        return update(
+          state,
+          {
+            mode: action.mode,
+            decisionPaths: { laneId: action.laneId, materialId: action.materialId },
+            focusPreview: undefined,
+            hoverPreview: undefined,
+          },
+          "Decision-path material selected.",
+        );
       }
-      if ((action.mode === "thermal-ranges" || action.mode === "impact-flex-space")
-        && hasMaterial(projection, action.materialId)) {
+      if (
+        (action.mode === "thermal-ranges" || action.mode === "impact-flex-space") &&
+        hasMaterial(projection, action.materialId)
+      ) {
         return action.mode === "thermal-ranges"
-          ? update(state, {
-              mode: action.mode,
-              thermal: { ...state.thermal, materialId: action.materialId },
-              focusPreview: undefined,
-              hoverPreview: undefined,
-            }, "Thermal material selected.")
-          : update(state, {
-              mode: action.mode,
-              impactFlex: { ...state.impactFlex, materialId: action.materialId },
-              focusPreview: undefined,
-              hoverPreview: undefined,
-            }, "Impact and flexibility material selected.");
+          ? update(
+              state,
+              {
+                mode: action.mode,
+                thermal: { ...state.thermal, materialId: action.materialId },
+                focusPreview: undefined,
+                hoverPreview: undefined,
+              },
+              "Thermal material selected.",
+            )
+          : update(
+              state,
+              {
+                mode: action.mode,
+                impactFlex: { ...state.impactFlex, materialId: action.materialId },
+                focusPreview: undefined,
+                hoverPreview: undefined,
+              },
+              "Impact and flexibility material selected.",
+            );
       }
       return recoverMapState(state);
     case "select-gate":
       return action.mode === "process-gates" && hasGate(projection, action.gateId)
-        ? update(state, {
-            mode: action.mode,
-            processGates: { gateId: action.gateId },
-            focusPreview: undefined,
-            hoverPreview: undefined,
-          }, "Process gate selected.")
+        ? update(
+            state,
+            {
+              mode: action.mode,
+              processGates: { gateId: action.gateId },
+              focusPreview: undefined,
+              hoverPreview: undefined,
+            },
+            "Process gate selected.",
+          )
         : recoverMapState(state);
     case "select-thermal-group":
       return action.mode === "thermal-ranges" && hasGroup(projection, action.groupId)
-        ? update(state, {
-            mode: action.mode,
-            thermal: { ...state.thermal, view: "named-observations", groupId: action.groupId },
-            focusPreview: undefined,
-            hoverPreview: undefined,
-          }, "Named thermal group selected.")
+        ? update(
+            state,
+            {
+              mode: action.mode,
+              thermal: { ...state.thermal, view: "named-observations", groupId: action.groupId },
+              focusPreview: undefined,
+              hoverPreview: undefined,
+            },
+            "Named thermal group selected.",
+          )
         : recoverMapState(state);
     case "preview-selection":
-      return isMode(action.mode)
-        && (action.source === "focus" || action.source === "hover")
-        && validTarget(projection, action.target, action.mode)
+      return isMode(action.mode) &&
+        (action.source === "focus" || action.source === "hover") &&
+        validTarget(projection, action.target, action.mode)
         ? action.source === "focus"
-          ? update(state, { focusPreview: { mode: action.mode, target: action.target } }, state.announcement)
-          : update(state, { hoverPreview: { mode: action.mode, target: action.target } }, state.announcement)
+          ? update(
+              state,
+              { focusPreview: { mode: action.mode, target: action.target } },
+              state.announcement,
+            )
+          : update(
+              state,
+              { hoverPreview: { mode: action.mode, target: action.target } },
+              state.announcement,
+            )
         : recoverMapState(state);
     case "clear-preview":
       if (!isMode(action.mode) || (action.source !== "focus" && action.source !== "hover")) {
@@ -373,21 +454,36 @@ export function reduceMapState(
         ? update(state, { hoverPreview: undefined }, state.announcement)
         : state;
     case "set-search":
-      if (typeof action.query !== "string" || action.query.length > MAX_QUERY_LENGTH) return recoverMapState(state);
+      if (typeof action.query !== "string" || action.query.length > MAX_QUERY_LENGTH)
+        return recoverMapState(state);
       if (action.target === "thermal") {
-        return update(state, {
-          thermal: { ...state.thermal, query: action.query.normalize("NFC") },
-        }, "Thermal filter updated.");
+        return update(
+          state,
+          {
+            thermal: { ...state.thermal, query: action.query.normalize("NFC") },
+          },
+          "Thermal filter updated.",
+        );
       }
       if (action.target === "impact-flex") {
-        return update(state, {
-          impactFlex: { ...state.impactFlex, query: action.query.normalize("NFC") },
-        }, "Impact and flexibility filter updated.");
+        return update(
+          state,
+          {
+            impactFlex: { ...state.impactFlex, query: action.query.normalize("NFC") },
+          },
+          "Impact and flexibility filter updated.",
+        );
       }
       return recoverMapState(state);
     case "set-service-sort":
-      return action.sort === "canonical" || action.sort === "low-endpoint" || action.sort === "high-endpoint"
-        ? update(state, { thermal: { ...state.thermal, serviceSort: action.sort } }, "Service guidance order updated.")
+      return action.sort === "canonical" ||
+        action.sort === "low-endpoint" ||
+        action.sort === "high-endpoint"
+        ? update(
+            state,
+            { thermal: { ...state.thermal, serviceSort: action.sort } },
+            "Service guidance order updated.",
+          )
         : recoverMapState(state);
     case "set-maximum-difficulty":
       if (action.value === undefined) {
@@ -395,26 +491,40 @@ export function reduceMapState(
         return update(state, { impactFlex: withoutMaximum }, "Maximum print difficulty updated.");
       }
       return typeof action.value === "string" && DIFFICULTIES.has(action.value as PrintDifficulty)
-        ? update(state, {
-            impactFlex: { ...state.impactFlex, maximumDifficulty: action.value as PrintDifficulty },
-          }, "Maximum print difficulty updated.")
+        ? update(
+            state,
+            {
+              impactFlex: {
+                ...state.impactFlex,
+                maximumDifficulty: action.value as PrintDifficulty,
+              },
+            },
+            "Maximum print difficulty updated.",
+          )
         : recoverMapState(state);
     case "set-difficulty-shapes":
       return typeof action.enabled === "boolean"
-        ? update(state, {
-            impactFlex: { ...state.impactFlex, difficultyShapes: action.enabled },
-          }, "Difficulty shape encoding updated.")
+        ? update(
+            state,
+            {
+              impactFlex: { ...state.impactFlex, difficultyShapes: action.enabled },
+            },
+            "Difficulty shape encoding updated.",
+          )
         : recoverMapState(state);
     case "clear-filters":
-      return action.target === "thermal" || action.target === "impact-flex" || action.target === "all"
+      return action.target === "thermal" ||
+        action.target === "impact-flex" ||
+        action.target === "all"
         ? clearFilters(state, action.target)
         : recoverMapState(state);
     case "clear-selection": {
       if (!isMode(action.mode)) return recoverMapState(state);
       if (action.mode === "decision-paths") {
-        const decisionPaths = action.target === "material" && state.decisionPaths.laneId !== undefined
-          ? { laneId: state.decisionPaths.laneId }
-          : {};
+        const decisionPaths =
+          action.target === "material" && state.decisionPaths.laneId !== undefined
+            ? { laneId: state.decisionPaths.laneId }
+            : {};
         return update(state, { decisionPaths }, "Decision-path selection cleared.");
       }
       if (action.mode === "thermal-ranges") {
@@ -427,7 +537,11 @@ export function reduceMapState(
         return update(state, { processGates: {} }, "Process-gate selection cleared.");
       }
       const { materialId: _materialId, ...impactWithoutMaterial } = state.impactFlex;
-      return update(state, { impactFlex: impactWithoutMaterial }, "Impact and flexibility selection cleared.");
+      return update(
+        state,
+        { impactFlex: impactWithoutMaterial },
+        "Impact and flexibility selection cleared.",
+      );
     }
     case "reset-view":
       return action.mode === "all" || isMode(action.mode)
@@ -449,20 +563,33 @@ function normalizedQuery(query: string): string {
   return query.trim().normalize("NFC").toLocaleLowerCase("en-US");
 }
 
-function serviceEndpoint(record: MapServiceGuidanceRecord, end: "low" | "high"): number | undefined {
+function serviceEndpoint(
+  record: MapServiceGuidanceRecord,
+  end: "low" | "high",
+): number | undefined {
   if (record.measurement === undefined) return undefined;
   if (record.measurement.shape === "point") return record.measurement.value;
   return end === "low" ? record.measurement.low : record.measurement.high;
 }
 
-function serviceRecords(projection: MapProjection, state: MapState): readonly MapServiceGuidanceRecord[] {
+function serviceRecords(
+  projection: MapProjection,
+  state: MapState,
+): readonly MapServiceGuidanceRecord[] {
   const query = normalizedQuery(state.thermal.query);
   const records = projection.serviceGuidance.records.map((record): MapServiceGuidanceRecord => {
-    if (record.disposition.disposition !== "plotted" || query === ""
-      || record.material.name.normalize("NFC").toLocaleLowerCase("en-US").includes(query)) return record;
+    if (
+      record.disposition.disposition !== "plotted" ||
+      query === "" ||
+      record.material.name.normalize("NFC").toLocaleLowerCase("en-US").includes(query)
+    )
+      return record;
     return {
       ...record,
-      disposition: { disposition: "filtered", filter: { kind: "search", target: "thermal", query } },
+      disposition: {
+        disposition: "filtered",
+        filter: { kind: "search", target: "thermal", query },
+      },
     };
   });
   if (state.thermal.serviceSort === "canonical") return records;
@@ -472,52 +599,83 @@ function serviceRecords(projection: MapProjection, state: MapState): readonly Ma
     const rightValue = serviceEndpoint(right, end);
     if (leftValue === undefined && rightValue !== undefined) return 1;
     if (leftValue !== undefined && rightValue === undefined) return -1;
-    if (leftValue !== undefined && rightValue !== undefined && leftValue !== rightValue) return leftValue - rightValue;
-    return left.material.displayOrder - right.material.displayOrder || left.material.id.localeCompare(right.material.id, "en");
+    if (leftValue !== undefined && rightValue !== undefined && leftValue !== rightValue)
+      return leftValue - rightValue;
+    return (
+      left.material.displayOrder - right.material.displayOrder ||
+      left.material.id.localeCompare(right.material.id, "en")
+    );
   });
 }
 
-function namedRecords(records: readonly MapNamedThermalRecord[], queryValue: string): readonly MapNamedThermalRecord[] {
+function namedRecords(
+  records: readonly MapNamedThermalRecord[],
+  queryValue: string,
+): readonly MapNamedThermalRecord[] {
   const query = normalizedQuery(queryValue);
   if (query === "") return records;
   return records.map((record): MapNamedThermalRecord => {
     const searchable = `${record.material.name}\u0000${record.material.id}`
-      .normalize("NFC").toLocaleLowerCase("en-US");
+      .normalize("NFC")
+      .toLocaleLowerCase("en-US");
     if (searchable.includes(query)) return record;
     return {
       ...record,
-      disposition: { disposition: "filtered", filter: { kind: "search", target: "thermal", query } },
+      disposition: {
+        disposition: "filtered",
+        filter: { kind: "search", target: "thermal", query },
+      },
     };
   });
 }
 
 const DIFFICULTY_ORDER = new Map<PrintDifficulty, number>(
-  ["easy", "moderate", "advanced", "expert"].map((value, index) => [value as PrintDifficulty, index]),
+  ["easy", "moderate", "advanced", "expert"].map((value, index) => [
+    value as PrintDifficulty,
+    index,
+  ]),
 );
 
 function impactRecords(projection: MapProjection, state: MapState): readonly MapImpactFlexRecord[] {
   const query = normalizedQuery(state.impactFlex.query);
-  const maximum = state.impactFlex.maximumDifficulty === undefined
-    ? undefined
-    : DIFFICULTY_ORDER.get(state.impactFlex.maximumDifficulty);
+  const maximum =
+    state.impactFlex.maximumDifficulty === undefined
+      ? undefined
+      : DIFFICULTY_ORDER.get(state.impactFlex.maximumDifficulty);
   return projection.impactFlex.records.map((record): MapImpactFlexRecord => {
     if (record.disposition.disposition === "omitted") return record;
-    const difficulty = record.printDifficulty === undefined ? undefined : DIFFICULTY_ORDER.get(record.printDifficulty);
+    const difficulty =
+      record.printDifficulty === undefined
+        ? undefined
+        : DIFFICULTY_ORDER.get(record.printDifficulty);
     let disposition: MapDisposition = { disposition: "plotted" };
     if (maximum !== undefined && (difficulty === undefined || difficulty > maximum)) {
       disposition = {
         disposition: "filtered",
         filter: { kind: "maximum-difficulty", value: state.impactFlex.maximumDifficulty! },
       };
-    } else if (query !== "" && !`${record.material.name}\u0000${record.material.id}`
-      .normalize("NFC").toLocaleLowerCase("en-US").includes(query)) {
-      disposition = { disposition: "filtered", filter: { kind: "search", target: "impact-flex", query } };
+    } else if (
+      query !== "" &&
+      !`${record.material.name}\u0000${record.material.id}`
+        .normalize("NFC")
+        .toLocaleLowerCase("en-US")
+        .includes(query)
+    ) {
+      disposition = {
+        disposition: "filtered",
+        filter: { kind: "search", target: "impact-flex", query },
+      };
     }
-    return disposition.disposition === record.disposition.disposition ? record : { ...record, disposition };
+    return disposition.disposition === record.disposition.disposition
+      ? record
+      : { ...record, disposition };
   });
 }
 
-function processContext(projection: MapProjection, target: MapSelectionTarget | undefined): unknown {
+function processContext(
+  projection: MapProjection,
+  target: MapSelectionTarget | undefined,
+): unknown {
   if (target?.mode !== "process-gates") return undefined;
   if (target.kind === "lane") {
     const lane = projection.processGates.lanes.find(({ id }) => id === target.id);
@@ -567,14 +725,18 @@ export function buildMapView(projection: MapProjection, state: MapState) {
   const impactTarget = selectEffectiveMapTarget(state, "impact-flex-space");
   const currentServiceRecords = serviceRecords(projection, state);
   const currentImpactRecords = impactRecords(projection, state);
-  const selectedGroup = state.thermal.groupId === undefined
-    ? undefined
-    : projection.thermalGroups.find(({ id }) => id === state.thermal.groupId);
-  const currentNamedRecords = selectedGroup === undefined ? [] : namedRecords(selectedGroup.records, state.thermal.query);
-  const selectedImpactId = impactLockedTarget?.kind === "material" ? impactLockedTarget.id : undefined;
-  const selectedImpact = selectedImpactId === undefined
-    ? undefined
-    : currentImpactRecords.find(({ material }) => material.id === selectedImpactId);
+  const selectedGroup =
+    state.thermal.groupId === undefined
+      ? undefined
+      : projection.thermalGroups.find(({ id }) => id === state.thermal.groupId);
+  const currentNamedRecords =
+    selectedGroup === undefined ? [] : namedRecords(selectedGroup.records, state.thermal.query);
+  const selectedImpactId =
+    impactLockedTarget?.kind === "material" ? impactLockedTarget.id : undefined;
+  const selectedImpact =
+    selectedImpactId === undefined
+      ? undefined
+      : currentImpactRecords.find(({ material }) => material.id === selectedImpactId);
 
   return deepFreeze({
     activeTarget: selectEffectiveMapTarget(state, state.mode),

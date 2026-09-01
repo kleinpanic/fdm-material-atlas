@@ -26,12 +26,7 @@ const guidanceId = `${id}-scroll-guidance`;
 ---
 
 <p id={guidanceId} class="data-overflow-guidance">{scrollGuidance}</p>
-<div
-  class="data-overflow"
-  tabindex="0"
-  aria-label={scrollLabel}
-  aria-describedby={guidanceId}
->
+<div class="data-overflow" tabindex="0" aria-label={scrollLabel} aria-describedby={guidanceId}>
   <table>
     <caption>{caption}</caption>
     <thead>

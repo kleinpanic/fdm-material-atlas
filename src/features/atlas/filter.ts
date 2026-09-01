@@ -6,7 +6,10 @@ export type AtlasFilterState = Readonly<{
 }>;
 
 export type AtlasFilterMatch = Readonly<{ row: AtlasRow }>;
-export type AtlasFilterVerification = Readonly<{ row: AtlasRow; unresolvedDimensions: readonly string[] }>;
+export type AtlasFilterVerification = Readonly<{
+  row: AtlasRow;
+  unresolvedDimensions: readonly string[];
+}>;
 export type AtlasFilterOutside = Readonly<{ row: AtlasRow; firstMismatch: string }>;
 
 export type AtlasFilterResult = Readonly<{
@@ -17,7 +20,9 @@ export type AtlasFilterResult = Readonly<{
   counts: Readonly<{ matches: number; needsVerification: number; outside: number; total: number }>;
 }>;
 
-function fail(): never { throw new Error("ATLAS_FILTER_INVALID"); }
+function fail(): never {
+  throw new Error("ATLAS_FILTER_INVALID");
+}
 function normalize(value: string): string {
   return value.normalize("NFKC").trim().replace(/\s+/gu, " ").toLocaleLowerCase("en");
 }
@@ -39,7 +44,13 @@ type ActiveDefinition = Readonly<{
 
 /** Apply exact search and fact-state-aware structured filters without ranking. */
 export function filterAtlas(model: AtlasPageModel, state: AtlasFilterState): AtlasFilterResult {
-  if (typeof state.search !== "string" || state.search.length > 500 || typeof state.selections !== "object" || state.selections === null) fail();
+  if (
+    typeof state.search !== "string" ||
+    state.search.length > 500 ||
+    typeof state.selections !== "object" ||
+    state.selections === null
+  )
+    fail();
   const definitionById = new Map(model.filters.map((definition) => [definition.id, definition]));
   const active: ActiveDefinition[] = [];
   for (const [id, optionId] of Object.entries(state.selections)) {
@@ -49,12 +60,27 @@ export function filterAtlas(model: AtlasPageModel, state: AtlasFilterState): Atl
     if (!definition || !option) fail();
     active.push({ definition, option });
   }
-  active.sort((left, right) => model.filters.indexOf(left.definition) - model.filters.indexOf(right.definition));
+  active.sort(
+    (left, right) =>
+      model.filters.indexOf(left.definition) - model.filters.indexOf(right.definition),
+  );
 
   const query = normalize(state.search);
   const activeFilters = [
-    ...(query ? [{ id: "search", label: "Search", valueLabel: state.search.normalize("NFKC").trim().replace(/\s+/gu, " ") }] : []),
-    ...active.map(({ definition, option }) => ({ id: definition.id, label: definition.label, valueLabel: option.label })),
+    ...(query
+      ? [
+          {
+            id: "search",
+            label: "Search",
+            valueLabel: state.search.normalize("NFKC").trim().replace(/\s+/gu, " "),
+          },
+        ]
+      : []),
+    ...active.map(({ definition, option }) => ({
+      id: definition.id,
+      label: definition.label,
+      valueLabel: option.label,
+    })),
   ];
   const matches: AtlasFilterMatch[] = [];
   const needsVerification: AtlasFilterVerification[] = [];
@@ -76,14 +102,19 @@ export function filterAtlas(model: AtlasPageModel, state: AtlasFilterState): Atl
         if (fact.state !== selectedState) firstMismatch ??= definition.label;
       } else if (fact.state === "known") {
         if (fact.value !== option.id) firstMismatch ??= definition.label;
-      } else if (fact.state === "unknown" || fact.state === "conditional" || fact.state === "missing") {
+      } else if (
+        fact.state === "unknown" ||
+        fact.state === "conditional" ||
+        fact.state === "missing"
+      ) {
         unresolved.push(definition.label);
       } else {
         firstMismatch ??= definition.label;
       }
     }
     if (firstMismatch) outside.push({ row, firstMismatch });
-    else if (unresolved.length > 0) needsVerification.push({ row, unresolvedDimensions: unresolved });
+    else if (unresolved.length > 0)
+      needsVerification.push({ row, unresolvedDimensions: unresolved });
     else matches.push({ row });
   }
 
@@ -92,6 +123,11 @@ export function filterAtlas(model: AtlasPageModel, state: AtlasFilterState): Atl
     needsVerification,
     outside,
     activeFilters,
-    counts: { matches: matches.length, needsVerification: needsVerification.length, outside: outside.length, total: model.rows.length },
+    counts: {
+      matches: matches.length,
+      needsVerification: needsVerification.length,
+      outside: outside.length,
+      total: model.rows.length,
+    },
   });
 }

@@ -19,7 +19,11 @@ function catalog() {
       id: material.id,
       slug: material.slug,
       decisionMapLaneIds: memberships
-        .filter((lane) => lane.candidateMaterialIds.includes(material.id) || lane.indeterminateMaterialIds.includes(material.id))
+        .filter(
+          (lane) =>
+            lane.candidateMaterialIds.includes(material.id) ||
+            lane.indeterminateMaterialIds.includes(material.id),
+        )
         .map(({ id }) => id),
     })),
     lanes: memberships.map(({ id, label }) => ({ id, label })),
@@ -29,56 +33,77 @@ function catalog() {
 describe("material detail continuity", () => {
   it.each([
     ["/", "/materials/", "/compare/#comparison-matrix", "/map/#"],
-    ["/fdm-material-atlas/", "/fdm-material-atlas/materials/", "/fdm-material-atlas/compare/#comparison-matrix", "/fdm-material-atlas/map/#"],
-  ])("round-trips every offered pair through canonical root %s routes", (base, detailPrefix, compareHref, mapPrefix) => {
-    const atlas = loadPublicAtlas();
-    const models = buildMaterialDetailModels(atlas, base);
-    const knownIds = atlas.materials.map(({ id }) => id);
+    [
+      "/fdm-material-atlas/",
+      "/fdm-material-atlas/materials/",
+      "/fdm-material-atlas/compare/#comparison-matrix",
+      "/fdm-material-atlas/map/#",
+    ],
+  ])(
+    "round-trips every offered pair through canonical root %s routes",
+    (base, detailPrefix, compareHref, mapPrefix) => {
+      const atlas = loadPublicAtlas();
+      const models = buildMaterialDetailModels(atlas, base);
+      const knownIds = atlas.materials.map(({ id }) => id);
 
-    expect(models).toHaveLength(23);
-    expect(models.filter(({ continuity }) => continuity.relatedMaterials.length > 0)).toHaveLength(22);
-    for (const model of models) {
-      expect(model.continuity.compare).toMatchObject({ kind: "link", href: compareHref });
-      expect(model.continuity.relatedMaterials.length > 0).toBe(model.relationships.length > 0);
-      for (const related of model.continuity.relatedMaterials) {
-        expect(related.id).not.toBe(model.id);
-        expect(related.details).toMatchObject({ kind: "link" });
-        if (related.details.kind === "link") expect(related.details.href).toBe(`${detailPrefix}${related.slug}/`);
-        const query = new URLSearchParams();
-        query.append("material", model.continuity.currentMaterialId);
-        query.append("material", related.id);
-        expect(decodeCompareUrlState(`?${query.toString()}`, knownIds)).toEqual({
-          kind: "valid",
-          materialIds: [model.id, related.id],
-        });
+      expect(models).toHaveLength(23);
+      expect(
+        models.filter(({ continuity }) => continuity.relatedMaterials.length > 0),
+      ).toHaveLength(22);
+      for (const model of models) {
+        expect(model.continuity.compare).toMatchObject({ kind: "link", href: compareHref });
+        expect(model.continuity.relatedMaterials.length > 0).toBe(model.relationships.length > 0);
+        for (const related of model.continuity.relatedMaterials) {
+          expect(related.id).not.toBe(model.id);
+          expect(related.details).toMatchObject({ kind: "link" });
+          if (related.details.kind === "link")
+            expect(related.details.href).toBe(`${detailPrefix}${related.slug}/`);
+          const query = new URLSearchParams();
+          query.append("material", model.continuity.currentMaterialId);
+          query.append("material", related.id);
+          expect(decodeCompareUrlState(`?${query.toString()}`, knownIds)).toEqual({
+            kind: "valid",
+            materialIds: [model.id, related.id],
+          });
+        }
+        for (const relationship of model.relationships) {
+          expect(relationship.action).toMatchObject({ kind: "link" });
+          if (relationship.action.kind === "link")
+            expect(relationship.action.href).toBe(`${mapPrefix}${relationship.laneId}`);
+        }
       }
-      for (const relationship of model.relationships) {
-        expect(relationship.action).toMatchObject({ kind: "link" });
-        if (relationship.action.kind === "link") expect(relationship.action.href).toBe(`${mapPrefix}${relationship.laneId}`);
-      }
-    }
-  });
+    },
+  );
 
   it("orders a deduplicated union by state, shared lane, display order, then ID", () => {
     const atlas = loadPublicAtlas();
     const lanes = deriveDecisionLaneMembership(atlas);
-    const materialOrder = new Map(atlas.materials.map(({ id, displayOrder }) => [id, displayOrder]));
+    const materialOrder = new Map(
+      atlas.materials.map(({ id, displayOrder }) => [id, displayOrder]),
+    );
     const models = buildMaterialDetailModels(atlas, "/");
 
     for (const model of models) {
-      expect(new Set(model.continuity.relatedMaterials.map(({ id }) => id)).size)
-        .toBe(model.continuity.relatedMaterials.length);
-      const expected = model.continuity.relatedMaterials.map((related) => ({
-        id: related.id,
-        state: related.state,
-        firstLane: Math.min(...related.sharedLanes.map(({ id }) => lanes.findIndex((lane) => lane.id === id))),
-        displayOrder: materialOrder.get(related.id)!,
-      })).sort((left, right) =>
-        (left.state === "candidate" ? 0 : 1) - (right.state === "candidate" ? 0 : 1)
-        || left.firstLane - right.firstLane
-        || left.displayOrder - right.displayOrder
-        || left.id.localeCompare(right.id, "en")
-      ).map(({ id }) => id);
+      expect(new Set(model.continuity.relatedMaterials.map(({ id }) => id)).size).toBe(
+        model.continuity.relatedMaterials.length,
+      );
+      const expected = model.continuity.relatedMaterials
+        .map((related) => ({
+          id: related.id,
+          state: related.state,
+          firstLane: Math.min(
+            ...related.sharedLanes.map(({ id }) => lanes.findIndex((lane) => lane.id === id)),
+          ),
+          displayOrder: materialOrder.get(related.id)!,
+        }))
+        .sort(
+          (left, right) =>
+            (left.state === "candidate" ? 0 : 1) - (right.state === "candidate" ? 0 : 1) ||
+            left.firstLane - right.firstLane ||
+            left.displayOrder - right.displayOrder ||
+            left.id.localeCompare(right.id, "en"),
+        )
+        .map(({ id }) => id);
       expect(model.continuity.relatedMaterials.map(({ id }) => id)).toEqual(expected);
     }
   });
@@ -89,28 +114,46 @@ describe("material detail continuity", () => {
     const paCf = models.find(({ id }) => id === "material-pa-cf")!;
     const pa12 = models.find(({ id }) => id === "material-pa12-nylon")!;
 
-    const currentIndeterminate = nylon.continuity.relatedMaterials.find(({ id }) => id === paCf.id)!;
+    const currentIndeterminate = nylon.continuity.relatedMaterials.find(
+      ({ id }) => id === paCf.id,
+    )!;
     expect(currentIndeterminate.state).toBe("indeterminate");
-    expect(currentIndeterminate.sharedLanes).toContainEqual(expect.objectContaining({
-      id: "lane-high-heat-sustained-load",
-      currentState: "indeterminate",
-      relatedState: "candidate",
-    }));
+    expect(currentIndeterminate.sharedLanes).toContainEqual(
+      expect.objectContaining({
+        id: "lane-high-heat-sustained-load",
+        currentState: "indeterminate",
+        relatedState: "candidate",
+      }),
+    );
 
-    const relatedIndeterminate = paCf.continuity.relatedMaterials.find(({ id }) => id === nylon.id)!;
+    const relatedIndeterminate = paCf.continuity.relatedMaterials.find(
+      ({ id }) => id === nylon.id,
+    )!;
     expect(relatedIndeterminate.state).toBe("indeterminate");
-    expect(relatedIndeterminate.sharedLanes).toContainEqual(expect.objectContaining({
-      id: "lane-high-heat-sustained-load",
-      currentState: "candidate",
-      relatedState: "indeterminate",
-    }));
+    expect(relatedIndeterminate.sharedLanes).toContainEqual(
+      expect.objectContaining({
+        id: "lane-high-heat-sustained-load",
+        currentState: "candidate",
+        relatedState: "indeterminate",
+      }),
+    );
 
     const mixed = nylon.continuity.relatedMaterials.find(({ id }) => id === pa12.id)!;
     expect(mixed.state).toBe("indeterminate");
-    expect(mixed.sharedLanes).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: "lane-high-heat-sustained-load", currentState: "indeterminate", relatedState: "candidate" }),
-      expect.objectContaining({ id: "lane-impact-flex", currentState: "candidate", relatedState: "candidate" }),
-    ]));
+    expect(mixed.sharedLanes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "lane-high-heat-sustained-load",
+          currentState: "indeterminate",
+          relatedState: "candidate",
+        }),
+        expect.objectContaining({
+          id: "lane-impact-flex",
+          currentState: "candidate",
+          relatedState: "candidate",
+        }),
+      ]),
+    );
   });
 
   it("keeps closed compare and map capabilities href-free without guessing targets", () => {
@@ -123,7 +166,10 @@ describe("material detail continuity", () => {
     };
     const models = buildMaterialDetailModels(loadPublicAtlas(), "/", closedRegistry);
     for (const model of models) {
-      expect(model.continuity.compare).toEqual({ kind: "unavailable", label: "Comparison is not available yet" });
+      expect(model.continuity.compare).toEqual({
+        kind: "unavailable",
+        label: "Comparison is not available yet",
+      });
       expect(model.relationships.every(({ action }) => action.kind === "unavailable")).toBe(true);
       expect(JSON.stringify(model.relationships)).not.toContain('"href"');
     }
@@ -133,8 +179,12 @@ describe("material detail continuity", () => {
     const atlas = loadPublicAtlas();
     const availability = buildSelectorRouteAvailability("/", PUBLIC_ROUTE_REGISTRY, catalog());
     const models = buildMaterialDetailModels(atlas, "/");
-    const materialRoutes = new Map(availability.materials.map((route) => [route.materialId, route]));
-    const laneRoutes = new Map(availability.decisionMaps.map((route) => [route.laneId, route.action]));
+    const materialRoutes = new Map(
+      availability.materials.map((route) => [route.materialId, route]),
+    );
+    const laneRoutes = new Map(
+      availability.decisionMaps.map((route) => [route.laneId, route.action]),
+    );
 
     for (const model of models) {
       expect(model.continuity.compare).toEqual(availability.compare);
@@ -150,13 +200,18 @@ describe("material detail continuity", () => {
   it("never accepts a one-material comparison", () => {
     const atlas = loadPublicAtlas();
     const model = buildMaterialDetailModels(atlas, "/")[0]!;
-    expect(decodeCompareUrlState(`?material=${model.id}`, atlas.materials.map(({ id }) => id)))
-      .toMatchObject({ kind: "invalid" });
+    expect(
+      decodeCompareUrlState(
+        `?material=${model.id}`,
+        atlas.materials.map(({ id }) => id),
+      ),
+    ).toMatchObject({ kind: "invalid" });
   });
 
   it("does not invent a related material for a material outside every lane", () => {
-    const model = buildMaterialDetailModels(loadPublicAtlas(), "/")
-      .find(({ id }) => id === "material-abs" as MaterialId);
+    const model = buildMaterialDetailModels(loadPublicAtlas(), "/").find(
+      ({ id }) => id === ("material-abs" as MaterialId),
+    );
     expect(model?.relationships).toEqual([]);
     expect(model?.continuity.relatedMaterials).toEqual([]);
   });

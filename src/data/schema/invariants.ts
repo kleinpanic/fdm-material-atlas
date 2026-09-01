@@ -1,9 +1,6 @@
 import type { AtlasV1 } from "./atlas.ts";
 import type { BasisRef } from "./evidence.ts";
-import {
-  compareThermalObservations,
-  type ThermalObservation,
-} from "./material.ts";
+import { compareThermalObservations, type ThermalObservation } from "./material.ts";
 import type { AtlasIssue } from "./parse-atlas.ts";
 import type { VisualizationTargetRef } from "./visualization.ts";
 
@@ -26,8 +23,7 @@ type ThermalEntry = {
 };
 
 type ThermalIndicator =
-  | { kind: "service-guidance" }
-  | { kind: "named-observation"; observation: ThermalObservation };
+  { kind: "service-guidance" } | { kind: "named-observation"; observation: ThermalObservation };
 
 function issue(code: AtlasIssue["code"], pointer: string, entityId?: string): AtlasIssue {
   return { code, pointer, ...(entityId === undefined ? {} : { entityId }) };
@@ -103,9 +99,10 @@ function validateBasis(
 ): AtlasIssue[] {
   const issues: AtlasIssue[] = [];
   basis.forEach((reference, index) => {
-    const resolved = reference.kind === "source"
-      ? sourceIds.has(reference.sourceId)
-      : methodIds.has(reference.methodId);
+    const resolved =
+      reference.kind === "source"
+        ? sourceIds.has(reference.sourceId)
+        : methodIds.has(reference.methodId);
     if (!resolved) {
       issues.push(issue("REFERENCE_MISSING", `${pointer}/basis/${index}`, entityId));
     }
@@ -128,12 +125,18 @@ function validateTarget(
 ): AtlasIssue[] {
   const resolved = (() => {
     switch (target.kind) {
-      case "material-id": return indexes.materialIds.has(target.materialId);
-      case "claim-id": return indexes.claimIds.has(target.claimId);
-      case "decision-lane-id": return indexes.laneIds.has(target.decisionLaneId);
-      case "selector-criterion-id": return indexes.criterionIds.has(target.selectorCriterionId);
-      case "process-gate-id": return indexes.processGateIds.has(target.processGateId);
-      case "material-route": return indexes.routeSlugs.has(target.slug);
+      case "material-id":
+        return indexes.materialIds.has(target.materialId);
+      case "claim-id":
+        return indexes.claimIds.has(target.claimId);
+      case "decision-lane-id":
+        return indexes.laneIds.has(target.decisionLaneId);
+      case "selector-criterion-id":
+        return indexes.criterionIds.has(target.selectorCriterionId);
+      case "process-gate-id":
+        return indexes.processGateIds.has(target.processGateId);
+      case "material-route":
+        return indexes.routeSlugs.has(target.slug);
     }
   })();
   return resolved ? [] : [issue("REFERENCE_MISSING", pointer, entityId)];
@@ -157,9 +160,10 @@ function validateThermalTransformations(
   atlas.visualizationReferences.forEach((reference, referenceIndex) => {
     if (reference.kind !== "thermal-range") return;
     const base = `/visualizationReferences/${referenceIndex}`;
-    const subject = reference.subject.kind === "claim-id"
-      ? indicatorsById.get(reference.subject.claimId)
-      : undefined;
+    const subject =
+      reference.subject.kind === "claim-id"
+        ? indicatorsById.get(reference.subject.claimId)
+        : undefined;
     if (!subject) {
       issues.push(issue("THERMAL_NOT_COMPARABLE", `${base}/subject`, reference.id));
     }
@@ -167,15 +171,11 @@ function validateThermalTransformations(
       issues.push(issue("THERMAL_NOT_COMPARABLE", `${base}/related`, reference.id));
     }
     reference.related.forEach((target, targetIndex) => {
-      const related = target.kind === "claim-id"
-        ? indicatorsById.get(target.claimId)
-        : undefined;
+      const related = target.kind === "claim-id" ? indicatorsById.get(target.claimId) : undefined;
       if (!related) {
-        issues.push(issue(
-          "THERMAL_NOT_COMPARABLE",
-          `${base}/related/${targetIndex}`,
-          reference.id,
-        ));
+        issues.push(
+          issue("THERMAL_NOT_COMPARABLE", `${base}/related/${targetIndex}`, reference.id),
+        );
         return;
       }
       if (
@@ -183,11 +183,9 @@ function validateThermalTransformations(
         related.kind === "named-observation" &&
         !compareThermalObservations(subject.observation, related.observation).comparable
       ) {
-        issues.push(issue(
-          "THERMAL_NOT_COMPARABLE",
-          `${base}/related/${targetIndex}`,
-          reference.id,
-        ));
+        issues.push(
+          issue("THERMAL_NOT_COMPARABLE", `${base}/related/${targetIndex}`, reference.id),
+        );
       }
     });
   });
@@ -200,64 +198,132 @@ export function validateAtlasInvariants(atlas: AtlasV1): AtlasIssue[] {
   const { claims, thermal, thermalIndicators } = materialClaims(atlas);
 
   issues.push(
-    ...duplicateIssues(atlas.materials, ({ id }) => id, (index) => `/materials/${index}/id`, ({ id }) => id),
-    ...duplicateIssues(atlas.materials, ({ slug }) => slug, (index) => `/materials/${index}/slug`, ({ id }) => id),
-    ...duplicateIssues(atlas.sources, ({ id }) => id, (index) => `/sources/${index}/id`, ({ id }) => id),
-    ...duplicateIssues(atlas.methods, ({ id }) => id, (index) => `/methods/${index}/id`, ({ id }) => id),
-    ...duplicateIssues(atlas.processGates, ({ id }) => id, (index) => `/processGates/${index}/id`, ({ id }) => id),
-    ...duplicateIssues(atlas.decisionLanes, ({ id }) => id, (index) => `/decisionLanes/${index}/id`, ({ id }) => id),
-    ...duplicateIssues(atlas.visualizationReferences, ({ id }) => id, (index) => `/visualizationReferences/${index}/id`, ({ id }) => id),
-    ...duplicateIssues(atlas.vocabularies, ({ id }) => id, (index) => `/vocabularies/${index}/id`, ({ id }) => id),
-    ...duplicateIssues(claims, ({ claim }) => claim.id, (index) => `${claims[index]!.pointer}/id`, ({ entityId }) => entityId),
-    ...duplicateIssues(thermal, ({ observation }) => observation.id, (index) => `${thermal[index]!.pointer}/id`, ({ entityId }) => entityId),
+    ...duplicateIssues(
+      atlas.materials,
+      ({ id }) => id,
+      (index) => `/materials/${index}/id`,
+      ({ id }) => id,
+    ),
+    ...duplicateIssues(
+      atlas.materials,
+      ({ slug }) => slug,
+      (index) => `/materials/${index}/slug`,
+      ({ id }) => id,
+    ),
+    ...duplicateIssues(
+      atlas.sources,
+      ({ id }) => id,
+      (index) => `/sources/${index}/id`,
+      ({ id }) => id,
+    ),
+    ...duplicateIssues(
+      atlas.methods,
+      ({ id }) => id,
+      (index) => `/methods/${index}/id`,
+      ({ id }) => id,
+    ),
+    ...duplicateIssues(
+      atlas.processGates,
+      ({ id }) => id,
+      (index) => `/processGates/${index}/id`,
+      ({ id }) => id,
+    ),
+    ...duplicateIssues(
+      atlas.decisionLanes,
+      ({ id }) => id,
+      (index) => `/decisionLanes/${index}/id`,
+      ({ id }) => id,
+    ),
+    ...duplicateIssues(
+      atlas.visualizationReferences,
+      ({ id }) => id,
+      (index) => `/visualizationReferences/${index}/id`,
+      ({ id }) => id,
+    ),
+    ...duplicateIssues(
+      atlas.vocabularies,
+      ({ id }) => id,
+      (index) => `/vocabularies/${index}/id`,
+      ({ id }) => id,
+    ),
+    ...duplicateIssues(
+      claims,
+      ({ claim }) => claim.id,
+      (index) => `${claims[index]!.pointer}/id`,
+      ({ entityId }) => entityId,
+    ),
+    ...duplicateIssues(
+      thermal,
+      ({ observation }) => observation.id,
+      (index) => `${thermal[index]!.pointer}/id`,
+      ({ entityId }) => entityId,
+    ),
   );
 
   const allClaimEntries = [
     ...claims.map(({ claim, pointer, entityId }) => ({ id: claim.id, pointer, entityId })),
-    ...thermal.map(({ observation, pointer, entityId }) => ({ id: observation.id, pointer, entityId })),
+    ...thermal.map(({ observation, pointer, entityId }) => ({
+      id: observation.id,
+      pointer,
+      entityId,
+    })),
   ];
-  issues.push(...duplicateIssues(
-    allClaimEntries,
-    ({ id }) => id,
-    (index) => `${allClaimEntries[index]!.pointer}/id`,
-    ({ entityId }) => entityId,
-  ));
+  issues.push(
+    ...duplicateIssues(
+      allClaimEntries,
+      ({ id }) => id,
+      (index) => `${allClaimEntries[index]!.pointer}/id`,
+      ({ entityId }) => entityId,
+    ),
+  );
 
   const optionEntries = atlas.selector.criteria.flatMap((criterion, criterionIndex) =>
     criterion.options.map((option, optionIndex) => ({ option, criterionIndex, optionIndex })),
   );
-  issues.push(...duplicateIssues(
-    atlas.selector.criteria,
-    ({ id }) => id,
-    (index) => `/selector/criteria/${index}/id`,
-    ({ id }) => id,
-  ));
-  issues.push(...duplicateIssues(
-    optionEntries,
-    ({ option }) => option.id,
-    (index) => `/selector/criteria/${optionEntries[index]!.criterionIndex}/options/${optionEntries[index]!.optionIndex}/id`,
-    ({ option }) => option.id,
-  ));
+  issues.push(
+    ...duplicateIssues(
+      atlas.selector.criteria,
+      ({ id }) => id,
+      (index) => `/selector/criteria/${index}/id`,
+      ({ id }) => id,
+    ),
+  );
+  issues.push(
+    ...duplicateIssues(
+      optionEntries,
+      ({ option }) => option.id,
+      (index) =>
+        `/selector/criteria/${optionEntries[index]!.criterionIndex}/options/${optionEntries[index]!.optionIndex}/id`,
+      ({ option }) => option.id,
+    ),
+  );
 
   atlas.vocabularies.forEach((vocabulary, vocabularyIndex) => {
-    issues.push(...duplicateIssues(
-      vocabulary.terms,
-      ({ value }) => value,
-      (termIndex) => `/vocabularies/${vocabularyIndex}/terms/${termIndex}/value`,
-      () => vocabulary.id,
-    ));
+    issues.push(
+      ...duplicateIssues(
+        vocabulary.terms,
+        ({ value }) => value,
+        (termIndex) => `/vocabularies/${vocabularyIndex}/terms/${termIndex}/value`,
+        () => vocabulary.id,
+      ),
+    );
     const orderedTerms = vocabulary.terms
       .map((term, index) => ({ term, index }))
       .filter(({ term }) => term.order !== undefined);
     if (vocabulary.ordered && orderedTerms.length !== vocabulary.terms.length) {
-      issues.push(issue("VOCABULARY_INVALID", `/vocabularies/${vocabularyIndex}/terms`, vocabulary.id));
+      issues.push(
+        issue("VOCABULARY_INVALID", `/vocabularies/${vocabularyIndex}/terms`, vocabulary.id),
+      );
     }
-    issues.push(...duplicateIssues(
-      orderedTerms,
-      ({ term }) => String(term.order),
-      (entryIndex) => `/vocabularies/${vocabularyIndex}/terms/${orderedTerms[entryIndex]!.index}/order`,
-      () => vocabulary.id,
-    ));
+    issues.push(
+      ...duplicateIssues(
+        orderedTerms,
+        ({ term }) => String(term.order),
+        (entryIndex) =>
+          `/vocabularies/${vocabularyIndex}/terms/${orderedTerms[entryIndex]!.index}/order`,
+        () => vocabulary.id,
+      ),
+    );
   });
 
   const sourceIds = new Set(atlas.sources.map(({ id }) => id));
@@ -280,7 +346,9 @@ export function validateAtlasInvariants(atlas: AtlasV1): AtlasIssue[] {
   }
 
   atlas.processGates.forEach((gate, gateIndex) => {
-    issues.push(...validateBasis(gate.basis, `/processGates/${gateIndex}`, gate.id, sourceIds, methodIds));
+    issues.push(
+      ...validateBasis(gate.basis, `/processGates/${gateIndex}`, gate.id, sourceIds, methodIds),
+    );
   });
 
   const materialIds = new Set(atlas.materials.map(({ id }) => id));
@@ -294,11 +362,13 @@ export function validateAtlasInvariants(atlas: AtlasV1): AtlasIssue[] {
   optionEntries.forEach(({ option, criterionIndex, optionIndex }) => {
     option.hardGates.forEach((gate, gateIndex) => {
       if (!processGateIds.has(gate.processGateId)) {
-        issues.push(issue(
-          "REFERENCE_MISSING",
-          `/selector/criteria/${criterionIndex}/options/${optionIndex}/hardGates/${gateIndex}/processGateId`,
-          option.id,
-        ));
+        issues.push(
+          issue(
+            "REFERENCE_MISSING",
+            `/selector/criteria/${criterionIndex}/options/${optionIndex}/hardGates/${gateIndex}/processGateId`,
+            option.id,
+          ),
+        );
       }
     });
   });
@@ -306,15 +376,35 @@ export function validateAtlasInvariants(atlas: AtlasV1): AtlasIssue[] {
   atlas.decisionLanes.forEach((lane, laneIndex) => {
     lane.processGateIds.forEach((gateId, gateIndex) => {
       if (!processGateIds.has(gateId)) {
-        issues.push(issue("REFERENCE_MISSING", `/decisionLanes/${laneIndex}/processGateIds/${gateIndex}`, lane.id));
+        issues.push(
+          issue(
+            "REFERENCE_MISSING",
+            `/decisionLanes/${laneIndex}/processGateIds/${gateIndex}`,
+            lane.id,
+          ),
+        );
       }
     });
   });
 
   atlas.visualizationReferences.forEach((reference, referenceIndex) => {
-    issues.push(...validateTarget(reference.subject, `/visualizationReferences/${referenceIndex}/subject`, reference.id, indexes));
+    issues.push(
+      ...validateTarget(
+        reference.subject,
+        `/visualizationReferences/${referenceIndex}/subject`,
+        reference.id,
+        indexes,
+      ),
+    );
     reference.related.forEach((target, targetIndex) => {
-      issues.push(...validateTarget(target, `/visualizationReferences/${referenceIndex}/related/${targetIndex}`, reference.id, indexes));
+      issues.push(
+        ...validateTarget(
+          target,
+          `/visualizationReferences/${referenceIndex}/related/${targetIndex}`,
+          reference.id,
+          indexes,
+        ),
+      );
     });
   });
 
@@ -325,9 +415,10 @@ export function validateAtlasInvariants(atlas: AtlasV1): AtlasIssue[] {
     const key = `${atlasIssue.pointer}\u0000${atlasIssue.code}\u0000${atlasIssue.entityId ?? ""}`;
     deduplicated.set(key, atlasIssue);
   }
-  return [...deduplicated.values()].sort((left, right) =>
-    left.pointer.localeCompare(right.pointer) ||
-    left.code.localeCompare(right.code) ||
-    (left.entityId ?? "").localeCompare(right.entityId ?? ""),
+  return [...deduplicated.values()].sort(
+    (left, right) =>
+      left.pointer.localeCompare(right.pointer) ||
+      left.code.localeCompare(right.code) ||
+      (left.entityId ?? "").localeCompare(right.entityId ?? ""),
   );
 }

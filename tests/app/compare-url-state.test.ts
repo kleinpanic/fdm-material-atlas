@@ -20,23 +20,37 @@ describe("compare URL state", () => {
       ["/", "/compare/"],
       ["/atlas-preview/", "/atlas-preview/compare/"],
     ] as const) {
-      for (const selected of [[B, A], [C, A, B], [D, B, A, C]] as const) {
-        const encoded = encodeCompareUrlState(selected, KNOWN, base, "https://atlas.example/current/?old=1#old");
+      for (const selected of [
+        [B, A],
+        [C, A, B],
+        [D, B, A, C],
+      ] as const) {
+        const encoded = encodeCompareUrlState(
+          selected,
+          KNOWN,
+          base,
+          "https://atlas.example/current/?old=1#old",
+        );
         expect(encoded).toEqual({
           kind: "valid",
           materialIds: selected,
-          href: `${expectedPrefix}${selected.map((value) => `material=${value}`).join("&")}`.replace("/material=", "/?material="),
+          href: `${expectedPrefix}${selected.map((value) => `material=${value}`).join("&")}`.replace(
+            "/material=",
+            "/?material=",
+          ),
         });
         if (encoded.kind !== "valid") continue;
-        expect(decodeCompareUrlState(encoded.href.slice(encoded.href.indexOf("?")), KNOWN)).toEqual({
-          kind: "valid",
-          materialIds: selected,
-        });
+        expect(decodeCompareUrlState(encoded.href.slice(encoded.href.indexOf("?")), KNOWN)).toEqual(
+          {
+            kind: "valid",
+            materialIds: selected,
+          },
+        );
       }
     }
   });
 
-  it.each(["", "?"])('treats empty search %j as the documented empty state', (search) => {
+  it.each(["", "?"])("treats empty search %j as the documented empty state", (search) => {
     expect(decodeCompareUrlState(search, KNOWN)).toEqual({ kind: "empty" });
   });
 
@@ -55,7 +69,13 @@ describe("compare URL state", () => {
   });
 
   it("rejects non-string and oversized decoder inputs before interpretation", () => {
-    for (const input of [null, undefined, [], {}, new URLSearchParams(`material=${A}&material=${B}`)]) {
+    for (const input of [
+      null,
+      undefined,
+      [],
+      {},
+      new URLSearchParams(`material=${A}&material=${B}`),
+    ]) {
       expect(decodeCompareUrlState(input, KNOWN)).toMatchObject({ kind: "invalid" });
     }
     expect(decodeCompareUrlState(`?${"x".repeat(4_097)}`, KNOWN)).toEqual({
@@ -81,8 +101,14 @@ describe("compare URL state", () => {
   });
 
   it("fails closed for unsafe base and document origins", () => {
-    expect(encodeCompareUrlState([A, B], KNOWN, "https://evil.example/", "https://atlas.example/current/"))
-      .toEqual({ kind: "invalid", code: "COMPARE_URL_CONTEXT_INVALID" });
+    expect(
+      encodeCompareUrlState(
+        [A, B],
+        KNOWN,
+        "https://evil.example/",
+        "https://atlas.example/current/",
+      ),
+    ).toEqual({ kind: "invalid", code: "COMPARE_URL_CONTEXT_INVALID" });
     for (const documentUrl of [
       "https://user:secret@atlas.example/current/",
       "data:text/html,unsafe",

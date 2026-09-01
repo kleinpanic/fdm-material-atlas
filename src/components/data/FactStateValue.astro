@@ -59,12 +59,16 @@ const presentation = presentFact(fact);
 
 <span class="fact-state-value" data-fact-state={fact.state}>
   <StateMarker variant={presentation.marker} label={presentation.label} />
-  {presentation.value !== undefined && (
-    <span class="fact-state-value__value">{presentation.value}</span>
-  )}
-  {presentation.detail !== undefined && (
-    <span class="fact-state-value__detail">{presentation.detail}</span>
-  )}
+  {
+    presentation.value !== undefined && (
+      <span class="fact-state-value__value">{presentation.value}</span>
+    )
+  }
+  {
+    presentation.detail !== undefined && (
+      <span class="fact-state-value__detail">{presentation.detail}</span>
+    )
+  }
 </span>
 
 <style>

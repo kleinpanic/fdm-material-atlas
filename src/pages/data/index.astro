@@ -41,28 +41,58 @@ const footerLinks = navigation.map(({ label, href }) => ({ label, href }));
   <header class="data-orientation">
     <p class="technical-eyebrow">Advanced material data</p>
     <h1>Explore every material attribute</h1>
-    <p class="reading-measure">Inspect the same validated facts used by the selector, comparison, and material details. Search and filter material membership without hiding fields from retained rows.</p>
-    <p class="data-count"><strong>{model.materials.length}</strong> material families · <strong>{model.fields.length}</strong> registered attributes</p>
+    <p class="reading-measure">
+      Inspect the same validated facts used by the selector, comparison, and material details.
+      Search and filter material membership without hiding fields from retained rows.
+    </p>
+    <p class="data-count">
+      <strong>{model.materials.length}</strong> material families · <strong
+        >{model.fields.length}</strong
+      > registered attributes
+    </p>
     <aside class="data-thermal-caution" aria-label="Thermal comparison caution">
       <strong>Named thermal tests are not directly interchangeable.</strong>
-      Practical service guidance, Tg, HDT, Vicat softening temperature, melting point, and other named tests retain separate identities and represented methods.
+      Practical service guidance, Tg, HDT, Vicat softening temperature, melting point, and other named
+      tests retain separate identities and represented methods.
     </aside>
   </header>
 
   <section class="data-experience" aria-label="Complete material data explorer">
-    <noscript><p class="data-noscript">Interactive filters require JavaScript. The complete default identity and thermal table remains available in this page.</p></noscript>
+    <noscript
+      ><p class="data-noscript">
+        Interactive filters require JavaScript. The complete default identity and thermal table
+        remains available in this page.
+      </p></noscript
+    >
     <DataExplorerIsland model={model} client:load />
   </section>
 
   <section class="data-group-guide" aria-labelledby="data-group-guide-heading">
     <h2 id="data-group-guide-heading">Attribute group guide</h2>
-    <p>Choose one group at a time to keep the table readable. Every registered attribute remains available.</p>
-    <ol>{model.groups.map((group) => <li><strong>{group.label}</strong><span>{group.fieldKeys.length} attributes</span></li>)}</ol>
+    <p>
+      Choose one group at a time to keep the table readable. Every registered attribute remains
+      available.
+    </p>
+    <ol>
+      {
+        model.groups.map((group) => (
+          <li>
+            <>
+              <strong>{group.label}</strong>
+              <span>{group.fieldKeys.length} attributes</span>
+            </>
+          </li>
+        ))
+      }
+    </ol>
   </section>
 
   <aside class="data-method-note" aria-labelledby="data-method-heading">
     <h2 id="data-method-heading">Read values with their evidence context</h2>
-    <p>Fact states, conditions, qualifications, units, and evidence scope are part of each value. Product formulations differ, and starting profiles are calibration starting points.</p>
+    <p>
+      Fact states, conditions, qualifications, units, and evidence scope are part of each value.
+      Product formulations differ, and starting profiles are calibration starting points.
+    </p>
     <a href={methodHref}>Read sources, definitions, and methodology</a>
   </aside>
 </BaseLayout>

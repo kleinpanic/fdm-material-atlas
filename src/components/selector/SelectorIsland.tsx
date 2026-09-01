@@ -24,7 +24,11 @@ type Props = Readonly<{ pageModel: SelectorClientModel }>;
 
 export function SelectorIsland({ pageModel }: Props) {
   const runtimeModel = useMemo(() => {
-    try { return decodeSelectorClientModel(pageModel); } catch { return null; }
+    try {
+      return decodeSelectorClientModel(pageModel);
+    } catch {
+      return null;
+    }
   }, [pageModel]);
   if (runtimeModel === null) {
     return (
@@ -42,8 +46,12 @@ export function SelectorIsland({ pageModel }: Props) {
 
 function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRuntimePageModel }>) {
   const [hydrated, setHydrated] = useState(false);
-  const [selection, setSelection] = useState<Readonly<Record<string, string>>>(() => pageModel.defaults);
-  const [evaluationInput, setEvaluationInput] = useState<Readonly<Record<string, unknown>>>(() => pageModel.defaults);
+  const [selection, setSelection] = useState<Readonly<Record<string, string>>>(
+    () => pageModel.defaults,
+  );
+  const [evaluationInput, setEvaluationInput] = useState<Readonly<Record<string, unknown>>>(
+    () => pageModel.defaults,
+  );
   const [announcement, setAnnouncement] = useState<string>(SELECTOR_COPY.hydrationStatus);
   const [announcementCause, setAnnouncementCause] = useState<"aggregate" | "reset">("aggregate");
   const [shortlistIds, setShortlistIds] = useState<ShortlistState>([]);
@@ -63,14 +71,20 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
     [pageModel.projection, evaluationInput],
   );
   const presentation = useMemo(
-    () => evaluation.kind === "success"
-      ? presentSelectorOutcome(pageModel, evaluation.outcome)
-      : { kind: "error" as const, body: SELECTOR_COPY.errorState, action: SELECTOR_COPY.errorAction },
+    () =>
+      evaluation.kind === "success"
+        ? presentSelectorOutcome(pageModel, evaluation.outcome)
+        : {
+            kind: "error" as const,
+            body: SELECTOR_COPY.errorState,
+            action: SELECTOR_COPY.errorAction,
+          },
     [evaluation, pageModel],
   );
-  const compatibleIds = presentation.kind === "ranked"
-    ? presentation.compatible.map(({ materialId }) => materialId)
-    : [];
+  const compatibleIds =
+    presentation.kind === "ranked"
+      ? presentation.compatible.map(({ materialId }) => materialId)
+      : [];
   const shortlist = presentShortlist(shortlistIds, compatibleIds);
 
   useLayoutEffect(() => {
@@ -93,13 +107,14 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
       setAnnouncement("Selector reset to published defaults.");
       return;
     }
-    const next = presentation.kind === "ranked"
-      ? `${presentation.compatible.length} compatible materials; ${presentation.eliminated.length} eliminated.${presentation.compatible[0] ? ` Highest alignment is ${presentation.compatible[0].materialLabel}.` : ""}`
-      : presentation.kind === "no-compatible"
-        ? "No compatible materials. Your selections were not changed."
-        : presentation.kind === "error"
-          ? SELECTOR_COPY.errorState
-          : presentation.body;
+    const next =
+      presentation.kind === "ranked"
+        ? `${presentation.compatible.length} compatible materials; ${presentation.eliminated.length} eliminated.${presentation.compatible[0] ? ` Highest alignment is ${presentation.compatible[0].materialLabel}.` : ""}`
+        : presentation.kind === "no-compatible"
+          ? "No compatible materials. Your selections were not changed."
+          : presentation.kind === "error"
+            ? SELECTOR_COPY.errorState
+            : presentation.body;
     const timer = window.setTimeout(() => setAnnouncement(next), 150);
     return () => window.clearTimeout(timer);
   }, [announcementCause, hydrated, presentation]);
@@ -146,7 +161,9 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
         onView={() => resultsHeadingRef.current?.focus()}
         onReset={reset}
       />
-      <p role="status" aria-live="polite" aria-atomic="true">{announcement}</p>
+      <p role="status" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </p>
       <SelectorResults
         pageModel={pageModel}
         presentation={presentation}
@@ -161,9 +178,13 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
         }}
         onShowAll={() => setShowAll(true)}
         onEliminationsToggle={setEliminationsOpen}
-        onToggleShortlist={(materialId) => applyShortlist(shortlistIds.includes(materialId)
-          ? { type: "remove", materialId, currentResultIds: compatibleIds }
-          : { type: "add", materialId })}
+        onToggleShortlist={(materialId) =>
+          applyShortlist(
+            shortlistIds.includes(materialId)
+              ? { type: "remove", materialId, currentResultIds: compatibleIds }
+              : { type: "add", materialId },
+          )
+        }
         onClearShortlist={() => applyShortlist({ type: "clear" })}
         onReview={(target) => {
           if (target === "secondary-summary") {

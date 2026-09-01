@@ -55,18 +55,23 @@ export const selectorFieldValues = [
 ] as const;
 
 export const SelectorFieldSchema = z.enum(selectorFieldValues);
-export const SelectorTextFieldSchema = z.enum([
-  "guidance.bestSuitedFor",
-  "guidance.tradeoffs",
-]);
+export const SelectorTextFieldSchema = z.enum(["guidance.bestSuitedFor", "guidance.tradeoffs"]);
 
 const PredicateScalarSchema = z.union([z.string(), z.number().finite(), z.boolean()]);
 
 export type Predicate =
   | { op: "equals"; field: z.infer<typeof SelectorFieldSchema>; value: string | number | boolean }
-  | { op: "one-of"; field: z.infer<typeof SelectorFieldSchema>; values: readonly (string | number | boolean)[] }
+  | {
+      op: "one-of";
+      field: z.infer<typeof SelectorFieldSchema>;
+      values: readonly (string | number | boolean)[];
+    }
   | { op: "at-least" | "at-most"; field: z.infer<typeof SelectorFieldSchema>; value: number }
-  | { op: "contains-any"; field: z.infer<typeof SelectorTextFieldSchema>; values: readonly string[] }
+  | {
+      op: "contains-any";
+      field: z.infer<typeof SelectorTextFieldSchema>;
+      values: readonly string[];
+    }
   | { op: "all" | "any"; rules: readonly Predicate[] }
   | { op: "not"; rule: Predicate };
 
@@ -83,21 +88,39 @@ export const permittedPredicateOperators = [
 
 export const PredicateSchema: z.ZodType<Predicate> = z.lazy(() =>
   z.discriminatedUnion("op", [
-    z.strictObject({ op: z.literal("equals"), field: SelectorFieldSchema, value: PredicateScalarSchema }),
+    z.strictObject({
+      op: z.literal("equals"),
+      field: SelectorFieldSchema,
+      value: PredicateScalarSchema,
+    }),
     z.strictObject({
       op: z.literal("one-of"),
       field: SelectorFieldSchema,
       values: z.array(PredicateScalarSchema).min(1, "PREDICATE_VALUES_REQUIRED").max(50),
     }),
-    z.strictObject({ op: z.literal("at-least"), field: SelectorFieldSchema, value: z.number().finite() }),
-    z.strictObject({ op: z.literal("at-most"), field: SelectorFieldSchema, value: z.number().finite() }),
+    z.strictObject({
+      op: z.literal("at-least"),
+      field: SelectorFieldSchema,
+      value: z.number().finite(),
+    }),
+    z.strictObject({
+      op: z.literal("at-most"),
+      field: SelectorFieldSchema,
+      value: z.number().finite(),
+    }),
     z.strictObject({
       op: z.literal("contains-any"),
       field: SelectorTextFieldSchema,
       values: z.array(NormalizedTextSchema).min(1, "PREDICATE_VALUES_REQUIRED").max(50),
     }),
-    z.strictObject({ op: z.literal("all"), rules: z.array(PredicateSchema).min(1, "PREDICATE_RULES_REQUIRED").max(50) }),
-    z.strictObject({ op: z.literal("any"), rules: z.array(PredicateSchema).min(1, "PREDICATE_RULES_REQUIRED").max(50) }),
+    z.strictObject({
+      op: z.literal("all"),
+      rules: z.array(PredicateSchema).min(1, "PREDICATE_RULES_REQUIRED").max(50),
+    }),
+    z.strictObject({
+      op: z.literal("any"),
+      rules: z.array(PredicateSchema).min(1, "PREDICATE_RULES_REQUIRED").max(50),
+    }),
     z.strictObject({ op: z.literal("not"), rule: PredicateSchema }),
   ]),
 );
@@ -156,4 +179,3 @@ export const SelectorDefinitionSchema = z
 export type SelectorField = z.infer<typeof SelectorFieldSchema>;
 export type SelectorCriterion = z.infer<typeof SelectorCriterionSchema>;
 export type SelectorDefinition = z.infer<typeof SelectorDefinitionSchema>;
-

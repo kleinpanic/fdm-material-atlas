@@ -4,11 +4,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { parseAtlas } from "../../src/data/schema/parse-atlas.ts";
-import type {
-  MaterialId,
-  ProcessGateId,
-  SelectorOptionId,
-} from "../../src/data/schema/ids.ts";
+import type { MaterialId, ProcessGateId, SelectorOptionId } from "../../src/data/schema/ids.ts";
 import type { ReadonlyPredicate } from "../../src/domain/selector/types.ts";
 import {
   compileSelectorProjection,
@@ -62,23 +58,27 @@ function gateProjection(gated: boolean): SelectorProjectionV1 {
   const base = makeSyntheticSelectorProjection();
   const primary = base.criteria[0]!;
   return makeSyntheticSelectorProjection({
-    criteria: [{
-      ...primary,
-      options: primary.options.map((option) => ({
-        ...option,
-        hardGates: gated
-          ? [{
-              reasonId: "reason-enclosure-required",
-              processGateId: gateId("gate-synthetic-capability"),
-              incompatibleWhen: {
-                op: "equals",
-                field: "process.enclosure",
-                value: "required",
-              },
-            }]
-          : [],
-      })),
-    }],
+    criteria: [
+      {
+        ...primary,
+        options: primary.options.map((option) => ({
+          ...option,
+          hardGates: gated
+            ? [
+                {
+                  reasonId: "reason-enclosure-required",
+                  processGateId: gateId("gate-synthetic-capability"),
+                  incompatibleWhen: {
+                    op: "equals",
+                    field: "process.enclosure",
+                    value: "required",
+                  },
+                },
+              ]
+            : [],
+        })),
+      },
+    ],
     materials: [
       resolvedMaterial("material-synthetic-a"),
       resolvedMaterial("material-synthetic-b", "required"),
@@ -106,7 +106,9 @@ describe("selector finite invariants", () => {
 
     const reversedAtlas = structuredClone(atlas);
     reversedAtlas.materials.reverse();
-    expect(selectMaterials(reversedAtlas, canonicalInput)).toEqual(selectMaterials(atlas, canonicalInput));
+    expect(selectMaterials(reversedAtlas, canonicalInput)).toEqual(
+      selectMaterials(atlas, canonicalInput),
+    );
   });
 
   it("03 normalizes criterion, option, gate, and input-key permutations", () => {
@@ -182,8 +184,11 @@ describe("selector finite invariants", () => {
   it("09 retains every matching or indeterminate reason on eliminated materials", () => {
     for (const material of outcome().eliminated) {
       expect(material.exclusions.length).toBeGreaterThan(0);
-      expect(material.exclusions.every(({ outcome: state }) =>
-        state === "incompatible" || state === "indeterminate")).toBe(true);
+      expect(
+        material.exclusions.every(
+          ({ outcome: state }) => state === "incompatible" || state === "indeterminate",
+        ),
+      ).toBe(true);
     }
   });
 
@@ -204,14 +209,18 @@ describe("selector finite invariants", () => {
   });
 
   it("12 cannot add compatibility when a hard gate is added", () => {
-    const relaxed = new Set(outcome(gateProjection(false), {}).compatible.map(({ materialId: id }) => id));
+    const relaxed = new Set(
+      outcome(gateProjection(false), {}).compatible.map(({ materialId: id }) => id),
+    );
     const gated = outcome(gateProjection(true), {}).compatible.map(({ materialId: id }) => id);
     expect(gated.every((id) => relaxed.has(id))).toBe(true);
     expect(gated).toEqual(["material-synthetic-a"]);
   });
 
   it("13 cannot remove compatibility when only a hard gate is relaxed", () => {
-    const gated = new Set(outcome(gateProjection(true), {}).compatible.map(({ materialId: id }) => id));
+    const gated = new Set(
+      outcome(gateProjection(true), {}).compatible.map(({ materialId: id }) => id),
+    );
     const relaxed = outcome(gateProjection(false), {}).compatible.map(({ materialId: id }) => id);
     expect([...gated].every((id) => relaxed.includes(id))).toBe(true);
     expect(relaxed).toEqual(["material-synthetic-a", "material-synthetic-b"]);
@@ -221,19 +230,22 @@ describe("selector finite invariants", () => {
     const gated = outcome(gateProjection(true), {});
     const relaxed = outcome(gateProjection(false), {});
     const survivor = gated.compatible[0]!;
-    expect(relaxed.compatible.find(({ materialId: id }) => id === survivor.materialId)?.contributions)
-      .toEqual(survivor.contributions);
+    expect(
+      relaxed.compatible.find(({ materialId: id }) => id === survivor.materialId)?.contributions,
+    ).toEqual(survivor.contributions);
   });
 
   it.each(["unknown", "conditional", "missing", "not-applicable"] as const)(
     "15 gives the %s fact state no preference points",
     (reason) => {
       const projection = makeSyntheticSelectorProjection({
-        materials: [{
-          id: materialId("material-synthetic-a"),
-          label: "Synthetic A",
-          fields: [{ field: "properties.outdoorUv", state: "indeterminate", reason }],
-        }],
+        materials: [
+          {
+            id: materialId("material-synthetic-a"),
+            label: "Synthetic A",
+            fields: [{ field: "properties.outdoorUv", state: "indeterminate", reason }],
+          },
+        ],
       });
       const result = outcome(projection, {});
       expect(result.compatible[0]?.score).toBe(0);
@@ -250,14 +262,16 @@ describe("selector finite invariants", () => {
       const projection = gateProjection(true);
       const uncertain: SelectorProjectionV1 = {
         ...projection,
-        materials: [{
-          id: materialId("material-synthetic-a"),
-          label: "Synthetic A",
-          fields: [
-            { field: "properties.outdoorUv", state: "resolved", value: "excellent" },
-            { field: "process.enclosure", state: "indeterminate", reason },
-          ],
-        }],
+        materials: [
+          {
+            id: materialId("material-synthetic-a"),
+            label: "Synthetic A",
+            fields: [
+              { field: "properties.outdoorUv", state: "resolved", value: "excellent" },
+              { field: "process.enclosure", state: "indeterminate", reason },
+            ],
+          },
+        ],
       };
       const result = outcome(uncertain, {});
       expect(result.kind).toBe("no-compatible");
@@ -275,21 +289,32 @@ describe("selector finite invariants", () => {
       defaultOptionId: optionId("option-enclosure-none"),
       role: "secondary" as const,
       weight: 1 as const,
-      options: [{
-        id: optionId("option-enclosure-none"),
-        label: "No enclosure",
-        displayOrder: 0,
-        hardGates: [{
-          reasonId: "reason-enclosure-required",
-          processGateId: gateId("gate-synthetic-capability"),
-          incompatibleWhen: { op: "equals" as const, field: "process.enclosure" as const, value: "required" },
-        }],
-      }],
+      options: [
+        {
+          id: optionId("option-enclosure-none"),
+          label: "No enclosure",
+          displayOrder: 0,
+          hardGates: [
+            {
+              reasonId: "reason-enclosure-required",
+              processGateId: gateId("gate-synthetic-capability"),
+              incompatibleWhen: {
+                op: "equals" as const,
+                field: "process.enclosure" as const,
+                value: "required",
+              },
+            },
+          ],
+        },
+      ],
     };
-    const result = outcome(makeSyntheticSelectorProjection({
-      criteria: [primary, gateOnly],
-      materials: [resolvedMaterial("material-synthetic-a")],
-    }), {});
+    const result = outcome(
+      makeSyntheticSelectorProjection({
+        criteria: [primary, gateOnly],
+        materials: [resolvedMaterial("material-synthetic-a")],
+      }),
+      {},
+    );
     expect(result.applicableMaximum).toBe(2);
     expect(result.compatible[0]?.contributions).toHaveLength(1);
   });

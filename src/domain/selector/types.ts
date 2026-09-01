@@ -1,13 +1,5 @@
-import type {
-  MaterialId,
-  ProcessGateId,
-  SelectorOptionId,
-} from "../../data/schema/ids.ts";
-import type {
-  Predicate,
-  SelectorCriterion,
-  SelectorField,
-} from "../../data/schema/selector.ts";
+import type { MaterialId, ProcessGateId, SelectorOptionId } from "../../data/schema/ids.ts";
+import type { Predicate, SelectorCriterion, SelectorField } from "../../data/schema/selector.ts";
 
 /** Untrusted URL or client state enters the selector only through this boundary. */
 export type SelectorSelectionInput = Readonly<Record<string, unknown>>;
@@ -96,10 +88,7 @@ export type CompatibleMaterialResult = Readonly<{
   applicableMaximum: number;
   contributions: readonly ContributionRecord[];
   exclusions: readonly [];
-  explanationTokens: readonly (
-    | ContributionExplanationToken
-    | AlignmentSummaryExplanationToken
-  )[];
+  explanationTokens: readonly (ContributionExplanationToken | AlignmentSummaryExplanationToken)[];
 }>;
 
 export type EliminatedMaterialResult = Readonly<{
@@ -147,9 +136,7 @@ export type InvalidSelectionOutcome = Readonly<{
 }>;
 
 export type SelectorEngineOutcome =
-  | RankedSelectorOutcome
-  | NoCompatibleSelectorOutcome
-  | InvalidSelectionOutcome;
+  RankedSelectorOutcome | NoCompatibleSelectorOutcome | InvalidSelectionOutcome;
 
 export type JsonScalar = string | number | boolean | null;
 export type JsonValue = JsonScalar | readonly JsonValue[] | Readonly<{ [key: string]: JsonValue }>;

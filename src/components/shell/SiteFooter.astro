@@ -14,13 +14,17 @@ const { links } = Astro.props;
 <footer class="site-footer">
   <div class="page-shell site-footer__inner">
     <p>
-      Material guidance is comparative. Check current TDS and SDS documents
-      before safety-critical use.
+      Material guidance is comparative. Check current TDS and SDS documents before safety-critical
+      use.
     </p>
     <ul aria-label="Available routes">
-      {links.map((link) => (
-        <li><a href={link.href}>{link.label}</a></li>
-      ))}
+      {
+        links.map((link) => (
+          <li>
+            <a href={link.href}>{link.label}</a>
+          </li>
+        ))
+      }
     </ul>
   </div>
 </footer>

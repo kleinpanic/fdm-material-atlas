@@ -4,16 +4,9 @@ import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import { parseAtlas } from "../../src/data/schema/parse-atlas.ts";
-import type {
-  MaterialId,
-  ProcessGateId,
-  SelectorOptionId,
-} from "../../src/data/schema/ids.ts";
+import type { MaterialId, ProcessGateId, SelectorOptionId } from "../../src/data/schema/ids.ts";
 import * as fieldResolver from "../../src/domain/selector/field-resolver.ts";
-import {
-  selectMaterials,
-  selectProjectedMaterials,
-} from "../../src/domain/selector/engine.ts";
+import { selectMaterials, selectProjectedMaterials } from "../../src/domain/selector/engine.ts";
 import { compileSelectorProjection } from "../../src/domain/selector/projection.ts";
 import type {
   ProjectedSelectorCriterion,
@@ -38,13 +31,15 @@ const primary: ProjectedSelectorCriterion = {
   defaultOptionId: optionId("option-goal-outdoor"),
   role: "primary",
   weight: 2,
-  options: [{
-    id: optionId("option-goal-outdoor"),
-    label: "Outdoor",
-    displayOrder: 0,
-    preferenceRule: { op: "equals", field: "properties.outdoorUv", value: "strong" },
-    hardGates: [],
-  }],
+  options: [
+    {
+      id: optionId("option-goal-outdoor"),
+      label: "Outdoor",
+      displayOrder: 0,
+      preferenceRule: { op: "equals", field: "properties.outdoorUv", value: "strong" },
+      hardGates: [],
+    },
+  ],
 };
 
 const secondary: ProjectedSelectorCriterion = {
@@ -54,13 +49,15 @@ const secondary: ProjectedSelectorCriterion = {
   defaultOptionId: optionId("option-enclosure-none"),
   role: "secondary",
   weight: 1,
-  options: [{
-    id: optionId("option-enclosure-none"),
-    label: "No enclosure",
-    displayOrder: 0,
-    preferenceRule: { op: "equals", field: "process.enclosure", value: "not-required" },
-    hardGates: [],
-  }],
+  options: [
+    {
+      id: optionId("option-enclosure-none"),
+      label: "No enclosure",
+      displayOrder: 0,
+      preferenceRule: { op: "equals", field: "process.enclosure", value: "not-required" },
+      hardGates: [],
+    },
+  ],
 };
 
 function material(
@@ -92,14 +89,17 @@ function projection(overrides: Partial<SelectorProjectionV1> = {}): SelectorProj
 
 describe("selectProjectedMaterials", () => {
   it("applies defaults, normalizes criteria, awards 2:1, and sorts ASCII ties", () => {
-    const result = selectProjectedMaterials(projection({
-      criteria: [secondary, primary],
-      materials: [
-        material("material-synthetic-z"),
-        material("material-synthetic-a"),
-        material("material-synthetic-m", "limited"),
-      ],
-    }), {});
+    const result = selectProjectedMaterials(
+      projection({
+        criteria: [secondary, primary],
+        materials: [
+          material("material-synthetic-z"),
+          material("material-synthetic-a"),
+          material("material-synthetic-m", "limited"),
+        ],
+      }),
+      {},
+    );
 
     expect(result.kind).toBe("ranked");
     if (result.kind !== "ranked") return;
@@ -112,13 +112,19 @@ describe("selectProjectedMaterials", () => {
       "option-enclosure-none",
     ]);
     expect(result.applicableMaximum).toBe(3);
-    expect(result.compatible.map(({ materialId, score, rank }) => ({ materialId, score, rank }))).toEqual([
+    expect(
+      result.compatible.map(({ materialId, score, rank }) => ({ materialId, score, rank })),
+    ).toEqual([
       { materialId: "material-synthetic-a", score: 3, rank: 1 },
       { materialId: "material-synthetic-z", score: 3, rank: 2 },
       { materialId: "material-synthetic-m", score: 1, rank: 3 },
     ]);
-    expect(result.compatible[0]!.contributions.map(({ possiblePoints, awardedPoints }) =>
-      ({ possiblePoints, awardedPoints }))).toEqual([
+    expect(
+      result.compatible[0]!.contributions.map(({ possiblePoints, awardedPoints }) => ({
+        possiblePoints,
+        awardedPoints,
+      })),
+    ).toEqual([
       { possiblePoints: 2, awardedPoints: 2 },
       { possiblePoints: 1, awardedPoints: 1 },
     ]);
@@ -127,23 +133,28 @@ describe("selectProjectedMaterials", () => {
   it("collects every matching or indeterminate gate before scoring", () => {
     const gatedPrimary: ProjectedSelectorCriterion = {
       ...primary,
-      options: [{
-        ...primary.options[0]!,
-        hardGates: [
-          {
-            reasonId: "reason-zeta",
-            processGateId: gateId("gate-industrial-hardware"),
-            incompatibleWhen: { op: "equals", field: "properties.outdoorUv", value: "strong" },
-          },
-          {
-            reasonId: "reason-alpha",
-            processGateId: gateId("gate-enclosure-capability"),
-            incompatibleWhen: { op: "equals", field: "properties.flexibility", value: "rigid" },
-          },
-        ],
-      }],
+      options: [
+        {
+          ...primary.options[0]!,
+          hardGates: [
+            {
+              reasonId: "reason-zeta",
+              processGateId: gateId("gate-industrial-hardware"),
+              incompatibleWhen: { op: "equals", field: "properties.outdoorUv", value: "strong" },
+            },
+            {
+              reasonId: "reason-alpha",
+              processGateId: gateId("gate-enclosure-capability"),
+              incompatibleWhen: { op: "equals", field: "properties.flexibility", value: "rigid" },
+            },
+          ],
+        },
+      ],
     };
-    const result = selectProjectedMaterials(projection({ criteria: [secondary, gatedPrimary] }), {});
+    const result = selectProjectedMaterials(
+      projection({ criteria: [secondary, gatedPrimary] }),
+      {},
+    );
 
     expect(result.kind).toBe("no-compatible");
     if (result.kind !== "no-compatible") return;
@@ -155,20 +166,19 @@ describe("selectProjectedMaterials", () => {
     for (const eliminated of result.eliminated) {
       expect(eliminated).not.toHaveProperty("rank");
       expect(eliminated).not.toHaveProperty("score");
-      expect(eliminated.exclusions.map(({ reasonId, outcome }) => ({ reasonId, outcome }))).toEqual([
-        { reasonId: "reason-alpha", outcome: "indeterminate" },
-        { reasonId: "reason-zeta", outcome: "incompatible" },
-      ]);
+      expect(eliminated.exclusions.map(({ reasonId, outcome }) => ({ reasonId, outcome }))).toEqual(
+        [
+          { reasonId: "reason-alpha", outcome: "indeterminate" },
+          { reasonId: "reason-zeta", outcome: "incompatible" },
+        ],
+      );
       expect(eliminated.explanationTokens).toEqual(
         eliminated.exclusions.map(({ explanationToken }) => explanationToken),
       );
     }
     expect(result.explanationToken).toEqual({
       kind: "no-compatible",
-      selectedCriterionIds: [
-        "selector-primary-goal",
-        "selector-enclosure-capability",
-      ],
+      selectedCriterionIds: ["selector-primary-goal", "selector-enclosure-capability"],
       eliminatedCount: 2,
     });
   });
@@ -212,14 +222,18 @@ describe("selectProjectedMaterials", () => {
     void _preferenceRule;
     const gateOnly: ProjectedSelectorCriterion = {
       ...secondary,
-      options: [{
-        ...gateOnlyOption,
-        hardGates: [{
-          reasonId: "reason-enclosure-required",
-          processGateId: gateId("gate-enclosure-capability"),
-          incompatibleWhen: { op: "equals", field: "process.enclosure", value: "required" },
-        }],
-      }],
+      options: [
+        {
+          ...gateOnlyOption,
+          hardGates: [
+            {
+              reasonId: "reason-enclosure-required",
+              processGateId: gateId("gate-enclosure-capability"),
+              incompatibleWhen: { op: "equals", field: "process.enclosure", value: "required" },
+            },
+          ],
+        },
+      ],
     };
     const result = selectProjectedMaterials(projection({ criteria: [primary, gateOnly] }), {});
     expect(result.kind).toBe("ranked");

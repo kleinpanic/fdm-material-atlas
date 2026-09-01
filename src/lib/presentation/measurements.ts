@@ -5,13 +5,14 @@ import type {
   SpeedMeasurement,
   TemperatureMeasurement,
 } from "../../data/schema/measurements.ts";
-import { THERMAL_KIND_PRESENTATION, UNIT_PRESENTATION, type PublicMeasurementUnit } from "./labels.ts";
+import {
+  THERMAL_KIND_PRESENTATION,
+  UNIT_PRESENTATION,
+  type PublicMeasurementUnit,
+} from "./labels.ts";
 
 export type PublicMeasurement =
-  | TemperatureMeasurement
-  | DensityMeasurement
-  | SpeedMeasurement
-  | FanMeasurement;
+  TemperatureMeasurement | DensityMeasurement | SpeedMeasurement | FanMeasurement;
 
 export type MeasurementPresentation = {
   readonly shape: "exact" | "range";
@@ -36,12 +37,24 @@ export function formatMeasurement(measurement: PublicMeasurement): MeasurementPr
   const unitLabel = UNIT_PRESENTATION[unit].label;
   if (measurement.shape === "exact") {
     const value = measurement.value;
-    return { shape: "exact", values: [value], unit, unitLabel, text: `${numberText(value)} ${unitLabel}` };
+    return {
+      shape: "exact",
+      values: [value],
+      unit,
+      unitLabel,
+      text: `${numberText(value)} ${unitLabel}`,
+    };
   }
   if (measurement.shape === "range") {
     const { min, max } = measurement;
     if (min > max) return fail();
-    return { shape: "range", values: [min, max], unit, unitLabel, text: `${numberText(min)}–${numberText(max)} ${unitLabel}` };
+    return {
+      shape: "range",
+      values: [min, max],
+      unit,
+      unitLabel,
+      text: `${numberText(min)}–${numberText(max)} ${unitLabel}`,
+    };
   }
   return fail();
 }

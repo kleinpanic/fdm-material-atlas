@@ -2,10 +2,7 @@ import type { AtlasV1 } from "../../data/schema/atlas.ts";
 import type { BasisRef, Claim, EvidenceScope } from "../../data/schema/evidence.ts";
 import type { FactState } from "../../data/schema/fact-state.ts";
 import type { MaterialId } from "../../data/schema/ids.ts";
-import {
-  type Material,
-  type ThermalMethod,
-} from "../../data/schema/material.ts";
+import { type Material, type ThermalMethod } from "../../data/schema/material.ts";
 import { partitionCompatibleThermalObservations } from "../../domain/thermal/compatibility-groups.ts";
 import {
   EVIDENCE_SCOPE_ORDER,
@@ -62,20 +59,26 @@ function deepFreeze<T>(value: T): T {
 }
 
 function sortedScopes(basis: readonly BasisRef[]): readonly EvidenceScope[] {
-  return [...new Set(basis.map(({ scope }) => scope))]
-    .sort((left, right) => EVIDENCE_SCOPE_ORDER.indexOf(left) - EVIDENCE_SCOPE_ORDER.indexOf(right));
+  return [...new Set(basis.map(({ scope }) => scope))].sort(
+    (left, right) => EVIDENCE_SCOPE_ORDER.indexOf(left) - EVIDENCE_SCOPE_ORDER.indexOf(right),
+  );
 }
 
 function normalizeValue(value: unknown): SemanticTuple {
   if (typeof value === "string") return ["string", value.normalize("NFC")];
-  if (typeof value === "number" && Number.isFinite(value)) return ["number", Object.is(value, -0) ? 0 : value];
+  if (typeof value === "number" && Number.isFinite(value))
+    return ["number", Object.is(value, -0) ? 0 : value];
   if (typeof value === "boolean") return ["boolean", value];
   if (Array.isArray(value) && value.every((item) => typeof item === "string")) {
     return ["list", ...value.map((item) => ["item", item.normalize("NFC")] as const)];
   }
   if (typeof value === "object" && value !== null && "shape" in value && "unit" in value) {
     const measurement = value as Record<string, unknown>;
-    if (measurement.shape === "exact" && typeof measurement.value === "number" && typeof measurement.unit === "string") {
+    if (
+      measurement.shape === "exact" &&
+      typeof measurement.value === "number" &&
+      typeof measurement.unit === "string"
+    ) {
       return ["measurement", "exact", measurement.value, measurement.unit];
     }
     if (
@@ -95,19 +98,20 @@ function factTuple(
   qualification: string | undefined,
   scopes: readonly EvidenceScope[],
 ): SemanticTuple {
-  const suffix: SemanticTuple = [
-    "qualification",
-    qualification ?? "",
-    ["scopes", ...scopes],
-  ];
+  const suffix: SemanticTuple = ["qualification", qualification ?? "", ["scopes", ...scopes]];
   switch (fact.state) {
-    case "known": return ["known", normalizeValue(fact.value), suffix];
-    case "conditional": return fact.value === undefined
-      ? ["conditional", fact.condition.normalize("NFC"), ["without-value"], suffix]
-      : ["conditional", fact.condition.normalize("NFC"), normalizeValue(fact.value), suffix];
-    case "unknown": return ["unknown", fact.reason.normalize("NFC"), suffix];
-    case "not-applicable": return ["not-applicable", fact.reason?.normalize("NFC") ?? "", suffix];
-    case "missing": return ["missing", fact.reason.normalize("NFC"), suffix];
+    case "known":
+      return ["known", normalizeValue(fact.value), suffix];
+    case "conditional":
+      return fact.value === undefined
+        ? ["conditional", fact.condition.normalize("NFC"), ["without-value"], suffix]
+        : ["conditional", fact.condition.normalize("NFC"), normalizeValue(fact.value), suffix];
+    case "unknown":
+      return ["unknown", fact.reason.normalize("NFC"), suffix];
+    case "not-applicable":
+      return ["not-applicable", fact.reason?.normalize("NFC") ?? "", suffix];
+    case "missing":
+      return ["missing", fact.reason.normalize("NFC"), suffix];
   }
 }
 
@@ -130,15 +134,30 @@ function valueDisplay(value: unknown, labels: ReadonlyMap<string, string>): read
   return fail("COMPARISON_VALUE_INVALID");
 }
 
-function factDisplay(fact: FactState<unknown>, labels: ReadonlyMap<string, string>): readonly string[] {
+function factDisplay(
+  fact: FactState<unknown>,
+  labels: ReadonlyMap<string, string>,
+): readonly string[] {
   switch (fact.state) {
-    case "known": return valueDisplay(fact.value, labels);
-    case "conditional": return fact.value === undefined
-      ? [FACT_STATE_PRESENTATION.conditional.label, fact.condition]
-      : [FACT_STATE_PRESENTATION.conditional.label, ...valueDisplay(fact.value, labels), fact.condition];
-    case "unknown": return [FACT_STATE_PRESENTATION.unknown.label, fact.reason];
-    case "not-applicable": return [FACT_STATE_PRESENTATION["not-applicable"].label, ...(fact.reason === undefined ? [] : [fact.reason])];
-    case "missing": return [FACT_STATE_PRESENTATION.missing.label, fact.reason];
+    case "known":
+      return valueDisplay(fact.value, labels);
+    case "conditional":
+      return fact.value === undefined
+        ? [FACT_STATE_PRESENTATION.conditional.label, fact.condition]
+        : [
+            FACT_STATE_PRESENTATION.conditional.label,
+            ...valueDisplay(fact.value, labels),
+            fact.condition,
+          ];
+    case "unknown":
+      return [FACT_STATE_PRESENTATION.unknown.label, fact.reason];
+    case "not-applicable":
+      return [
+        FACT_STATE_PRESENTATION["not-applicable"].label,
+        ...(fact.reason === undefined ? [] : [fact.reason]),
+      ];
+    case "missing":
+      return [FACT_STATE_PRESENTATION.missing.label, fact.reason];
   }
 }
 
@@ -153,16 +172,17 @@ function actions(claim: MaterialDetailClaim): readonly ComparisonEvidenceAction[
 
 function claimDescriptor(key: MaterialSemanticKey): MaterialClaimDescriptor | undefined {
   return MATERIAL_CLAIM_REGISTRY.find(({ semanticKeys }) =>
-    (semanticKeys as readonly MaterialSemanticKey[]).includes(key)
+    (semanticKeys as readonly MaterialSemanticKey[]).includes(key),
   );
 }
 
-function scalarClaim(
-  material: Material,
-  key: MaterialSemanticKey,
-): Claim<unknown> {
+function scalarClaim(material: Material, key: MaterialSemanticKey): Claim<unknown> {
   const descriptor = claimDescriptor(key);
-  if (descriptor === undefined || descriptor.kind === "identity" || descriptor.kind === "named-thermal-observation") {
+  if (
+    descriptor === undefined ||
+    descriptor.kind === "identity" ||
+    descriptor.kind === "named-thermal-observation"
+  ) {
     return fail("COMPARISON_CLAIM_MISSING");
   }
   return descriptor.read(material);
@@ -173,7 +193,11 @@ function detailClaim(
   key: MaterialSemanticKey,
 ): MaterialDetailClaim {
   const descriptor = claimDescriptor(key);
-  if (descriptor === undefined || descriptor.kind === "identity" || descriptor.kind === "named-thermal-observation") {
+  if (
+    descriptor === undefined ||
+    descriptor.kind === "identity" ||
+    descriptor.kind === "named-thermal-observation"
+  ) {
     return fail("COMPARISON_CLAIM_MISSING");
   }
   const match = claims.find(({ descriptorKey }) => descriptorKey === descriptor.key);
@@ -205,28 +229,36 @@ function serviceEndpointCell(
     const measurement = claim.value.value;
     fact = {
       state: "known",
-      value: measurement.shape === "exact" ? measurement.value : measurement[endpoint === "low" ? "min" : "max"],
+      value:
+        measurement.shape === "exact"
+          ? measurement.value
+          : measurement[endpoint === "low" ? "min" : "max"],
     };
   } else if (claim.value.state === "conditional" && claim.value.value !== undefined) {
     const measurement = claim.value.value;
     fact = {
       state: "conditional",
       condition: claim.value.condition,
-      value: measurement.shape === "exact" ? measurement.value : measurement[endpoint === "low" ? "min" : "max"],
+      value:
+        measurement.shape === "exact"
+          ? measurement.value
+          : measurement[endpoint === "low" ? "min" : "max"],
     };
   } else {
     fact = claim.value as FactState<unknown>;
   }
-  const shape = claim.value.state === "known"
-    ? claim.value.value.shape
-    : claim.value.state === "conditional" && claim.value.value !== undefined
+  const shape =
+    claim.value.state === "known"
       ? claim.value.value.shape
-      : "without-measurement";
-  const display = fact.state === "known"
-    ? [`${String(fact.value)} °C`]
-    : fact.state === "conditional" && fact.value !== undefined
-      ? [FACT_STATE_PRESENTATION.conditional.label, `${String(fact.value)} °C`, fact.condition]
-      : factDisplay(fact, new Map());
+      : claim.value.state === "conditional" && claim.value.value !== undefined
+        ? claim.value.value.shape
+        : "without-measurement";
+  const display =
+    fact.state === "known"
+      ? [`${String(fact.value)} °C`]
+      : fact.state === "conditional" && fact.value !== undefined
+        ? [FACT_STATE_PRESENTATION.conditional.label, `${String(fact.value)} °C`, fact.condition]
+        : factDisplay(fact, new Map());
   return {
     kind: "value",
     key,
@@ -278,10 +310,12 @@ type ThermalGroupIndex = {
 
 function buildThermalGroups(materials: readonly Material[]): ThermalGroupIndex {
   const partition = partitionCompatibleThermalObservations(
-    materials.flatMap((material) => material.thermalObservations.map((observation) => ({
-      materialId: material.id,
-      observation,
-    }))),
+    materials.flatMap((material) =>
+      material.thermalObservations.map((observation) => ({
+        materialId: material.id,
+        observation,
+      })),
+    ),
   );
   const groups = partition.map(({ id, metric, metricLabel, method }): ComparisonThermalGroup => ({
     id,
@@ -290,10 +324,14 @@ function buildThermalGroups(materials: readonly Material[]): ThermalGroupIndex {
     ...(method === undefined ? {} : { method: { ...method } }),
     methodLabel: methodLabel(method),
   }));
-  const membership = new Map(partition.flatMap((group) => group.members.map(({ materialId, observation }) => [
-    `${materialId}\u0000${observation.id}`,
-    group.id,
-  ] as const)));
+  const membership = new Map(
+    partition.flatMap((group) =>
+      group.members.map(
+        ({ materialId, observation }) =>
+          [`${materialId}\u0000${observation.id}`, group.id] as const,
+      ),
+    ),
+  );
   return {
     groups,
     byObservation: membership,
@@ -309,8 +347,12 @@ function thermalCell(
 ): ComparisonCell {
   const members = [...material.thermalObservations]
     .map((observation): ComparisonThermalMember => {
-      const groupId = index.byObservation.get(`${material.id}\u0000${observation.id}`) ?? fail("COMPARISON_THERMAL_GROUP_MISSING");
-      const detail = detailClaims.find(({ claimId }) => claimId === observation.id) ?? fail("COMPARISON_CLAIM_MISSING");
+      const groupId =
+        index.byObservation.get(`${material.id}\u0000${observation.id}`) ??
+        fail("COMPARISON_THERMAL_GROUP_MISSING");
+      const detail =
+        detailClaims.find(({ claimId }) => claimId === observation.id) ??
+        fail("COMPARISON_CLAIM_MISSING");
       const scopes = sortedScopes(observation.basis);
       // Group membership is established only by compareThermalObservations().
       // Do not add a second client-side comparability rule through display text.
@@ -322,15 +364,31 @@ function thermalCell(
         ...(observation.method === undefined ? {} : { method: { ...observation.method } }),
         methodLabel: methodLabel(observation.method),
         state: observation.measurement.state,
-        display: key === "thermal-metric"
-          ? [observation.metricLabel, methodLabel(observation.method), FACT_STATE_PRESENTATION[observation.measurement.state].label]
-          : factDisplay(observation.measurement, labels),
+        display:
+          key === "thermal-metric"
+            ? [
+                observation.metricLabel,
+                methodLabel(observation.method),
+                FACT_STATE_PRESENTATION[observation.measurement.state].label,
+              ]
+            : factDisplay(observation.measurement, labels),
         qualification: observation.qualification,
         scopeLabels: scopes.map(evidenceScopeLabel),
         evidence: actions(detail),
-        equality: key === "thermal-metric"
-          ? ["thermal-metric", groupIdentity, observation.measurement.state, observation.qualification, ["scopes", ...scopes]]
-          : ["thermal-value", groupIdentity, factTuple(observation.measurement, observation.qualification, scopes)],
+        equality:
+          key === "thermal-metric"
+            ? [
+                "thermal-metric",
+                groupIdentity,
+                observation.measurement.state,
+                observation.qualification,
+                ["scopes", ...scopes],
+              ]
+            : [
+                "thermal-value",
+                groupIdentity,
+                factTuple(observation.measurement, observation.qualification, scopes),
+              ],
       };
     })
     .sort((left, right) => compareText(left.groupId, right.groupId));
@@ -350,32 +408,43 @@ export function buildComparisonModel(atlas: AtlasV1, base: string | undefined): 
   if (atlas.materials.length === 0) fail("COMPARISON_MATERIALS_EMPTY");
   const ids = new Set(atlas.materials.map(({ id }) => id));
   const slugs = new Set(atlas.materials.map(({ slug }) => slug));
-  if (ids.size !== atlas.materials.length || slugs.size !== atlas.materials.length) fail("COMPARISON_MATERIAL_DUPLICATE");
+  if (ids.size !== atlas.materials.length || slugs.size !== atlas.materials.length)
+    fail("COMPARISON_MATERIAL_DUPLICATE");
 
-  const materials = [...atlas.materials]
-    .sort((left, right) => left.displayOrder - right.displayOrder || compareText(left.id, right.id));
+  const materials = [...atlas.materials].sort(
+    (left, right) => left.displayOrder - right.displayOrder || compareText(left.id, right.id),
+  );
   const details = buildMaterialDetailModels(atlas, base);
   const detailsById = new Map(details.map((detail) => [detail.id, detail]));
   const thermal = buildThermalGroups(materials);
   const labels = labelLookup(atlas);
-  const groups: readonly ComparisonGroup[] = DATA_ATTRIBUTE_GROUPS.map(({ key, label, fields }) => ({
-    key,
-    label,
-    fields: fields.map((field) => ({
-      key: field.key,
-      label: field.label,
-      valueKind: field.valueKind,
-      help: field.help,
-      ...(field.caution === undefined ? {} : { caution: field.caution }),
-    })),
-  }));
+  const groups: readonly ComparisonGroup[] = DATA_ATTRIBUTE_GROUPS.map(
+    ({ key, label, fields }) => ({
+      key,
+      label,
+      fields: fields.map((field) => ({
+        key: field.key,
+        label: field.label,
+        valueKind: field.valueKind,
+        help: field.help,
+        ...(field.caution === undefined ? {} : { caution: field.caution }),
+      })),
+    }),
+  );
 
   const projected: ComparisonMaterial[] = materials.map((material) => {
     const detail = detailsById.get(material.id) ?? fail("COMPARISON_CLAIM_MISSING");
     const cells = DATA_ATTRIBUTE_REGISTRY.map((descriptor): ComparisonCell => {
       if (descriptor.key === "material-name") return identityCell(material);
-      if (descriptor.key === "service-temperature-low" || descriptor.key === "service-temperature-high") {
-        return serviceEndpointCell(material, detailClaim(detail.claims, descriptor.key), descriptor.key);
+      if (
+        descriptor.key === "service-temperature-low" ||
+        descriptor.key === "service-temperature-high"
+      ) {
+        return serviceEndpointCell(
+          material,
+          detailClaim(detail.claims, descriptor.key),
+          descriptor.key,
+        );
       }
       if (descriptor.key === "thermal-metric" || descriptor.key === "thermal-value") {
         return thermalCell(material, detail.claims, descriptor.key, thermal, labels);

@@ -1,5 +1,5 @@
-import { realpath } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import { realpath } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 
 /** Compare physical entrypoint paths so symlink invocation cannot bypass a CLI. */
 export async function isMainModule(metaUrl, argvPath = process.argv[1]) {

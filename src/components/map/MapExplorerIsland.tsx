@@ -34,10 +34,7 @@ export function MapExplorerIsland({ projection }: Props) {
       >
         <p>{view.status.announcement}</p>
         {view.status.recovery !== undefined && (
-          <button
-            type="button"
-            onClick={() => dispatch({ type: "reset-view", mode: "all" })}
-          >
+          <button type="button" onClick={() => dispatch({ type: "reset-view", mode: "all" })}>
             Reset all map views
           </button>
         )}

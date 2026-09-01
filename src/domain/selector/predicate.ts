@@ -36,9 +36,7 @@ export class PredicateConfigurationError extends Error {
   }
 }
 
-export type PredicateFieldResolver = (
-  field: SelectorField,
-) => ProjectedSelectorFieldRecord;
+export type PredicateFieldResolver = (field: SelectorField) => ProjectedSelectorFieldRecord;
 
 export type CompiledPredicateSet = Readonly<{
   preferenceRule?: ReadonlyPredicate;
@@ -54,10 +52,7 @@ const numericFields = new Set<SelectorField>([
   ...selectorFieldValues.filter((field) => field.endsWith(".order")),
 ]);
 
-const textListFields = new Set<SelectorField>([
-  "guidance.bestSuitedFor",
-  "guidance.tradeoffs",
-]);
+const textListFields = new Set<SelectorField>(["guidance.bestSuitedFor", "guidance.tradeoffs"]);
 
 function configurationError(code: PredicateConfigurationCode): never {
   throw new PredicateConfigurationError(code);
@@ -100,7 +95,8 @@ function compileNode(input: unknown, depth: number, state: CompilationState): Re
 
   switch (input.op) {
     case "equals": {
-      if (!hasExactKeys(input, ["op", "field", "value"])) configurationError("PREDICATE_OPERAND_INVALID");
+      if (!hasExactKeys(input, ["op", "field", "value"]))
+        configurationError("PREDICATE_OPERAND_INVALID");
       const fieldResult = SelectorFieldSchema.safeParse(input.field);
       if (!fieldResult.success) configurationError("PREDICATE_FIELD_INVALID");
       const kind = fieldKind(fieldResult.data);
@@ -111,16 +107,17 @@ function compileNode(input: unknown, depth: number, state: CompilationState): Re
     }
 
     case "one-of": {
-      if (!hasExactKeys(input, ["op", "field", "values"])) configurationError("PREDICATE_OPERAND_INVALID");
+      if (!hasExactKeys(input, ["op", "field", "values"]))
+        configurationError("PREDICATE_OPERAND_INVALID");
       const fieldResult = SelectorFieldSchema.safeParse(input.field);
       if (!fieldResult.success) configurationError("PREDICATE_FIELD_INVALID");
       const kind = fieldKind(fieldResult.data);
       if (
-        kind === "text-list"
-        || !Array.isArray(input.values)
-        || input.values.length < 1
-        || input.values.length > 50
-        || !input.values.every((value) => isCompatibleScalar(value, kind))
+        kind === "text-list" ||
+        !Array.isArray(input.values) ||
+        input.values.length < 1 ||
+        input.values.length > 50 ||
+        !input.values.every((value) => isCompatibleScalar(value, kind))
       ) {
         configurationError("PREDICATE_OPERAND_INVALID");
       }
@@ -133,7 +130,8 @@ function compileNode(input: unknown, depth: number, state: CompilationState): Re
 
     case "at-least":
     case "at-most": {
-      if (!hasExactKeys(input, ["op", "field", "value"])) configurationError("PREDICATE_OPERAND_INVALID");
+      if (!hasExactKeys(input, ["op", "field", "value"]))
+        configurationError("PREDICATE_OPERAND_INVALID");
       const fieldResult = SelectorFieldSchema.safeParse(input.field);
       if (!fieldResult.success) configurationError("PREDICATE_FIELD_INVALID");
       if (fieldKind(fieldResult.data) !== "number" || !isFiniteNumber(input.value)) {
@@ -143,15 +141,18 @@ function compileNode(input: unknown, depth: number, state: CompilationState): Re
     }
 
     case "contains-any": {
-      if (!hasExactKeys(input, ["op", "field", "values"])) configurationError("PREDICATE_OPERAND_INVALID");
+      if (!hasExactKeys(input, ["op", "field", "values"]))
+        configurationError("PREDICATE_OPERAND_INVALID");
       const fieldResult = SelectorFieldSchema.safeParse(input.field);
       if (!fieldResult.success) configurationError("PREDICATE_FIELD_INVALID");
       if (
-        fieldKind(fieldResult.data) !== "text-list"
-        || !Array.isArray(input.values)
-        || input.values.length < 1
-        || input.values.length > 50
-        || !input.values.every((value) => typeof value === "string" && value.trim().length > 0 && value.length <= 500)
+        fieldKind(fieldResult.data) !== "text-list" ||
+        !Array.isArray(input.values) ||
+        input.values.length < 1 ||
+        input.values.length > 50 ||
+        !input.values.every(
+          (value) => typeof value === "string" && value.trim().length > 0 && value.length <= 500,
+        )
       ) {
         configurationError("PREDICATE_OPERAND_INVALID");
       }
@@ -202,7 +203,10 @@ function resolveField(
 }
 
 function evaluateScalar(
-  predicate: Extract<ReadonlyPredicate, { op: "equals" | "one-of" | "at-least" | "at-most" | "contains-any" }>,
+  predicate: Extract<
+    ReadonlyPredicate,
+    { op: "equals" | "one-of" | "at-least" | "at-most" | "contains-any" }
+  >,
   resolver: PredicateFieldResolver,
 ): PredicateOutcome {
   const record = resolveField(resolver, predicate.field);
@@ -226,7 +230,10 @@ function evaluateScalar(
       if (!isFiniteNumber(record.value)) return "indeterminate";
       return record.value <= predicate.value ? "match" : "no-match";
     case "contains-any": {
-      if (!Array.isArray(record.value) || !record.value.every((value) => typeof value === "string")) {
+      if (
+        !Array.isArray(record.value) ||
+        !record.value.every((value) => typeof value === "string")
+      ) {
         return "indeterminate";
       }
       const values = record.value.map(normalizeLiteral);
@@ -266,11 +273,11 @@ export function compilePredicateSet(input: unknown): CompiledPredicateSet {
     const hardGates = input.hardGates.map((gate) => {
       if (!isRecord(gate)) configurationError("PREDICATE_OPERAND_INVALID");
       if (
-        typeof gate.reasonId !== "string"
-        || !/^reason-[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(gate.reasonId)
-        || typeof gate.processGateId !== "string"
-        || !/^gate-[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(gate.processGateId)
-        || !("incompatibleWhen" in gate)
+        typeof gate.reasonId !== "string" ||
+        !/^reason-[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(gate.reasonId) ||
+        typeof gate.processGateId !== "string" ||
+        !/^gate-[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(gate.processGateId) ||
+        !("incompatibleWhen" in gate)
       ) {
         configurationError("PREDICATE_OPERAND_INVALID");
       }
@@ -282,9 +289,8 @@ export function compilePredicateSet(input: unknown): CompiledPredicateSet {
         incompatibleWhen: compileNode(gate.incompatibleWhen, 1, state),
       });
     });
-    const preferenceRule = input.preferenceRule === undefined
-      ? undefined
-      : compileNode(input.preferenceRule, 1, state);
+    const preferenceRule =
+      input.preferenceRule === undefined ? undefined : compileNode(input.preferenceRule, 1, state);
     return Object.freeze({
       ...(preferenceRule === undefined ? {} : { preferenceRule }),
       hardGates: Object.freeze(hardGates),
@@ -340,5 +346,9 @@ export function evaluateHardGatePredicate(
   resolver: PredicateFieldResolver,
 ): ExclusionOutcome | null {
   const outcome = evaluatePredicate(predicate, resolver);
-  return outcome === "match" ? "incompatible" : outcome === "indeterminate" ? "indeterminate" : null;
+  return outcome === "match"
+    ? "incompatible"
+    : outcome === "indeterminate"
+      ? "indeterminate"
+      : null;
 }

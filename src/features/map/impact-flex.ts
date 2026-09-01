@@ -108,7 +108,10 @@ function materialReference(material: Material, base: string | undefined): MapMat
   return {
     id: material.id,
     name: material.name,
-    href: internalHref(base, { id: "material", slug: material.slug }) as MapMaterialReference["href"],
+    href: internalHref(base, {
+      id: "material",
+      slug: material.slug,
+    }) as MapMaterialReference["href"],
     displayOrder: material.displayOrder,
   };
 }
@@ -136,7 +139,9 @@ function orderedVocabulary<T extends QualitativeRating>(
   });
 }
 
-function labelMap<T extends string>(terms: readonly ImpactFlexAxisTerm<T>[]): ReadonlyMap<T, string> {
+function labelMap<T extends string>(
+  terms: readonly ImpactFlexAxisTerm<T>[],
+): ReadonlyMap<T, string> {
   return new Map(terms.map(({ value, label }) => [value, label]));
 }
 
@@ -144,7 +149,8 @@ function displayRatingFact<T extends string>(
   fact: FactState<T>,
   labels: ReadonlyMap<T, string>,
 ): MapDisplayFact {
-  const valueLabel = (value: T): string => labels.get(value) ?? fail("IMPACT_FLEX_VOCABULARY_INVALID");
+  const valueLabel = (value: T): string =>
+    labels.get(value) ?? fail("IMPACT_FLEX_VOCABULARY_INVALID");
   switch (fact.state) {
     case "known":
       return { state: "known", display: [valueLabel(fact.value)] };
@@ -188,10 +194,7 @@ function resolvedValue<T>(fact: FactState<T>): T | undefined {
   return undefined;
 }
 
-function omissionDetail<T>(
-  axis: Axis,
-  fact: FactState<T>,
-): ImpactFlexOmissionDetail | undefined {
+function omissionDetail<T>(axis: Axis, fact: FactState<T>): ImpactFlexOmissionDetail | undefined {
   switch (fact.state) {
     case "known":
       return undefined;
@@ -205,7 +208,9 @@ function omissionDetail<T>(
       return {
         axis,
         code: "not-applicable",
-        reason: fact.reason ?? `${axis === "impact" ? "Impact resistance" : "Flexibility"} is not applicable.`,
+        reason:
+          fact.reason ??
+          `${axis === "impact" ? "Impact resistance" : "Flexibility"} is not applicable.`,
       };
     case "missing":
       return { axis, code: "not-reported", reason: fact.reason };
@@ -303,14 +308,17 @@ export function buildImpactFlexModel(
       const first = omissionDetails[0]!;
       disposition = {
         disposition: "omitted",
-        code: first.axis === "impact" ? "impact-value-unavailable" : "flexibility-value-unavailable",
+        code:
+          first.axis === "impact" ? "impact-value-unavailable" : "flexibility-value-unavailable",
         reason: `${first.axis === "impact" ? "Impact resistance" : "Flexibility"}: ${first.reason}`,
       };
     } else {
-      const maximum = maximumDifficulty === undefined ? undefined : difficultyOrder.get(maximumDifficulty)!;
-      const actualDifficulty = printDifficulty === undefined ? undefined : difficultyOrder.get(printDifficulty);
-      const outsideDifficulty = maximum !== undefined &&
-        (actualDifficulty === undefined || actualDifficulty > maximum);
+      const maximum =
+        maximumDifficulty === undefined ? undefined : difficultyOrder.get(maximumDifficulty)!;
+      const actualDifficulty =
+        printDifficulty === undefined ? undefined : difficultyOrder.get(printDifficulty);
+      const outsideDifficulty =
+        maximum !== undefined && (actualDifficulty === undefined || actualDifficulty > maximum);
       const searchText = `${material.name}\u0000${material.id}\u0000${material.slug}`
         .normalize("NFC")
         .toLocaleLowerCase("en-US");
@@ -347,52 +355,66 @@ export function buildImpactFlexModel(
   });
 
   drafted.sort((left, right) => {
-    const flexibilityComparison = (flexibilityOrder.get(left.flexibility!) ?? flexibilityAxis.length) -
+    const flexibilityComparison =
+      (flexibilityOrder.get(left.flexibility!) ?? flexibilityAxis.length) -
       (flexibilityOrder.get(right.flexibility!) ?? flexibilityAxis.length);
     if (flexibilityComparison !== 0) return flexibilityComparison;
-    const impactComparison = (impactOrder.get(left.impact!) ?? impactAxis.length) -
+    const impactComparison =
+      (impactOrder.get(left.impact!) ?? impactAxis.length) -
       (impactOrder.get(right.impact!) ?? impactAxis.length);
     if (impactComparison !== 0) return impactComparison;
-    return left.material.displayOrder - right.material.displayOrder ||
-      compareText(left.material.id, right.material.id);
+    return (
+      left.material.displayOrder - right.material.displayOrder ||
+      compareText(left.material.id, right.material.id)
+    );
   });
 
   const records = partitionResult(drafted);
   const cells = flexibilityAxis.flatMap((flexibilityTerm) =>
     impactAxis.flatMap((impactTerm) => {
       const cellRecords = records.plotted
-        .filter(({ impact, flexibility }) =>
-          impact === impactTerm.value && flexibility === flexibilityTerm.value)
+        .filter(
+          ({ impact, flexibility }) =>
+            impact === impactTerm.value && flexibility === flexibilityTerm.value,
+        )
         .sort((left, right) => (left.slot ?? 0) - (right.slot ?? 0));
-      return cellRecords.length === 0 ? [] : [{
-        impact: impactTerm.value,
-        impactLabel: impactTerm.label,
-        flexibility: flexibilityTerm.value,
-        flexibilityLabel: flexibilityTerm.label,
-        count: cellRecords.length,
-        records: cellRecords,
-      } satisfies ImpactFlexCell];
+      return cellRecords.length === 0
+        ? []
+        : [
+            {
+              impact: impactTerm.value,
+              impactLabel: impactTerm.label,
+              flexibility: flexibilityTerm.value,
+              flexibilityLabel: flexibilityTerm.label,
+              count: cellRecords.length,
+              records: cellRecords,
+            } satisfies ImpactFlexCell,
+          ];
     }),
   );
-  const selectedRecord = options.selectedMaterialId === undefined
-    ? undefined
-    : records.all.find(({ material }) => material.id === options.selectedMaterialId);
+  const selectedRecord =
+    options.selectedMaterialId === undefined
+      ? undefined
+      : records.all.find(({ material }) => material.id === options.selectedMaterialId);
 
   return deepFreeze({
     limitation: IMPACT_FLEX_LIMITATION,
     impactAxis,
     flexibilityAxis,
     shapesEnabled: options.encodeDifficultyShapes === true,
-    shapeLegend: options.encodeDifficultyShapes === true
-      ? difficultyAxis.map((term) => ({ ...term, shape: PRINT_DIFFICULTY_SHAPES[term.value] }))
-      : [],
+    shapeLegend:
+      options.encodeDifficultyShapes === true
+        ? difficultyAxis.map((term) => ({ ...term, shape: PRINT_DIFFICULTY_SHAPES[term.value] }))
+        : [],
     records,
     cells,
-    ...(selectedRecord === undefined ? {} : {
-      selected: {
-        record: selectedRecord,
-        outsideFilter: selectedRecord.disposition.disposition === "filtered",
-      },
-    }),
+    ...(selectedRecord === undefined
+      ? {}
+      : {
+          selected: {
+            record: selectedRecord,
+            outsideFilter: selectedRecord.disposition.disposition === "filtered",
+          },
+        }),
   });
 }

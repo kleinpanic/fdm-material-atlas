@@ -41,24 +41,40 @@ const footerLinks = navigation.map(({ label, href }) => ({ label, href }));
   <header class="compare-orientation">
     <p class="technical-eyebrow">Material comparison</p>
     <h1>Compare material families</h1>
-    <p class="reading-measure">Choose two to four materials. Differences retain their fact state, units, conditions, qualifications, and evidence scope.</p>
-    <p class="compare-nonranking"><strong>This comparison does not rank a universally better material.</strong> It shows how published guidance differs across your selected set.</p>
+    <p class="reading-measure">
+      Choose two to four materials. Differences retain their fact state, units, conditions,
+      qualifications, and evidence scope.
+    </p>
+    <p class="compare-nonranking">
+      <strong>This comparison does not rank a universally better material.</strong> It shows how published
+      guidance differs across your selected set.
+    </p>
     <aside class="compare-thermal-caution" aria-label="Thermal comparison caution">
       <strong>Named thermal tests are not directly interchangeable.</strong>
-      Practical service guidance remains separate from Tg, HDT, Vicat softening temperature, melting point, and other named tests. Named observations align only when their represented metric and method are compatible.
+      Practical service guidance remains separate from Tg, HDT, Vicat softening temperature, melting point,
+      and other named tests. Named observations align only when their represented metric and method are
+      compatible.
     </aside>
   </header>
 
   <section id="comparison-matrix" class="compare-experience" aria-label="Material comparison tool">
     <noscript>
-      <p class="compare-noscript">JavaScript is required to validate and update a comparison. You can still <a href={materialsHref}>browse every material reference</a> or <a href={methodHref}>read the comparison method</a>.</p>
+      <p class="compare-noscript">
+        JavaScript is required to validate and update a comparison. You can still <a
+          href={materialsHref}>browse every material reference</a
+        > or <a href={methodHref}>read the comparison method</a>.
+      </p>
     </noscript>
     <CompareIsland model={model} base={base} client:load />
   </section>
 
   <aside class="compare-method-note" aria-labelledby="compare-method-heading">
     <h2 id="compare-method-heading">Use comparison as a screening step</h2>
-    <p>Exact filament formulations differ. Check the product TDS and SDS, then validate representative parts under the intended load, moisture, orientation, chamber, and process history.</p>
+    <p>
+      Exact filament formulations differ. Check the product TDS and SDS, then validate
+      representative parts under the intended load, moisture, orientation, chamber, and process
+      history.
+    </p>
     <nav aria-label="Comparison onward links">
       <a href={homeHref}>Return to the material selector</a>
       <a href={materialsHref}>Browse all materials</a>

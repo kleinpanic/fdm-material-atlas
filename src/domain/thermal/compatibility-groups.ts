@@ -1,9 +1,5 @@
 import type { EvidenceScope } from "../../data/schema/evidence.ts";
-import {
-  MaterialIdSchema,
-  type ClaimId,
-  type MaterialId,
-} from "../../data/schema/ids.ts";
+import { MaterialIdSchema, type ClaimId, type MaterialId } from "../../data/schema/ids.ts";
 import {
   compareThermalObservations,
   ThermalObservationSchema,
@@ -41,8 +37,7 @@ export type ThermalCompatibilityGroup = {
 };
 
 type ThermalPartitionErrorCode =
-  | "THERMAL_PARTITION_INPUT_INVALID"
-  | "THERMAL_PARTITION_DUPLICATE_OBSERVATION";
+  "THERMAL_PARTITION_INPUT_INVALID" | "THERMAL_PARTITION_DUPLICATE_OBSERVATION";
 
 function fail(code: ThermalPartitionErrorCode): never {
   throw new Error(code);
@@ -84,23 +79,31 @@ function publicObservation(observation: ThermalObservation): PartitionedThermalO
 export function partitionCompatibleThermalObservations(
   inputs: readonly ThermalPartitionInput[],
 ): readonly ThermalCompatibilityGroup[] {
-  const normalized = inputs.map((input) => {
-    const material = MaterialIdSchema.safeParse(input.materialId);
-    const observation = ThermalObservationSchema.safeParse(input.observation);
-    if (!material.success || !observation.success) return fail("THERMAL_PARTITION_INPUT_INVALID");
-    return { materialId: material.data, observation: observation.data };
-  }).sort((left, right) => compareText(
-    memberKey(left.materialId, left.observation.id),
-    memberKey(right.materialId, right.observation.id),
-  ));
+  const normalized = inputs
+    .map((input) => {
+      const material = MaterialIdSchema.safeParse(input.materialId);
+      const observation = ThermalObservationSchema.safeParse(input.observation);
+      if (!material.success || !observation.success) return fail("THERMAL_PARTITION_INPUT_INVALID");
+      return { materialId: material.data, observation: observation.data };
+    })
+    .sort((left, right) =>
+      compareText(
+        memberKey(left.materialId, left.observation.id),
+        memberKey(right.materialId, right.observation.id),
+      ),
+    );
 
-  const keys = normalized.map(({ materialId, observation }) => memberKey(materialId, observation.id));
+  const keys = normalized.map(({ materialId, observation }) =>
+    memberKey(materialId, observation.id),
+  );
   if (new Set(keys).size !== keys.length) fail("THERMAL_PARTITION_DUPLICATE_OBSERVATION");
 
   const partitions: { representative: ThermalObservation; members: typeof normalized }[] = [];
   for (const input of normalized) {
-    const group = partitions.find(({ representative }) =>
-      compareThermalObservations(representative, input.observation).comparable);
+    const group = partitions.find(
+      ({ representative }) =>
+        compareThermalObservations(representative, input.observation).comparable,
+    );
     if (group === undefined) {
       partitions.push({ representative: input.observation, members: [input] });
     } else {
@@ -108,17 +111,18 @@ export function partitionCompatibleThermalObservations(
     }
   }
 
-  const groups = partitions.map(({ representative, members }, index): ThermalCompatibilityGroup => ({
-    id: `thermal-group-${String(index + 1).padStart(3, "0")}`,
-    metric: representative.metric,
-    metricLabel: representative.metricLabel,
-    ...(representative.method === undefined ? {} : { method: { ...representative.method } }),
-    members: members.map(({ materialId, observation }) => ({
-      materialId,
-      observation: publicObservation(observation),
-    })),
-  }));
+  const groups = partitions.map(
+    ({ representative, members }, index): ThermalCompatibilityGroup => ({
+      id: `thermal-group-${String(index + 1).padStart(3, "0")}`,
+      metric: representative.metric,
+      metricLabel: representative.metricLabel,
+      ...(representative.method === undefined ? {} : { method: { ...representative.method } }),
+      members: members.map(({ materialId, observation }) => ({
+        materialId,
+        observation: publicObservation(observation),
+      })),
+    }),
+  );
 
   return deepFreeze(groups);
 }
-

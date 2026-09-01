@@ -1,10 +1,7 @@
 import type { BasisRef, EvidenceScope } from "../../data/schema/evidence.ts";
 import type { FactState } from "../../data/schema/fact-state.ts";
 import type { MaterialId } from "../../data/schema/ids.ts";
-import type {
-  Material,
-  ThermalMethod,
-} from "../../data/schema/material.ts";
+import type { Material, ThermalMethod } from "../../data/schema/material.ts";
 import type { TemperatureMeasurement } from "../../data/schema/measurements.ts";
 import { partitionCompatibleThermalObservations } from "../../domain/thermal/compatibility-groups.ts";
 import {
@@ -70,7 +67,10 @@ function materialReference(material: Material, base: string | undefined): MapMat
   return {
     id: material.id,
     name: material.name,
-    href: internalHref(base, { id: "material", slug: material.slug }) as MapMaterialReference["href"],
+    href: internalHref(base, {
+      id: "material",
+      slug: material.slug,
+    }) as MapMaterialReference["href"],
     displayOrder: material.displayOrder,
   };
 }
@@ -89,7 +89,10 @@ function evidenceContext(basis: readonly BasisRef[], qualification?: string): Ma
   };
 }
 
-function evidenceContextFromScopes(scopes: readonly EvidenceScope[], qualification: string): MapEvidenceContext {
+function evidenceContextFromScopes(
+  scopes: readonly EvidenceScope[],
+  qualification: string,
+): MapEvidenceContext {
   const ordered = EVIDENCE_SCOPE_ORDER.filter((scope) => scopes.includes(scope));
   return {
     scopes: ordered,
@@ -117,7 +120,11 @@ function displayTemperatureFact(fact: FactState<TemperatureMeasurement>): MapDis
         condition: fact.condition,
       };
     case "unknown":
-      return { state: "unknown", display: [FACT_STATE_PRESENTATION.unknown.label, fact.reason], reason: fact.reason };
+      return {
+        state: "unknown",
+        display: [FACT_STATE_PRESENTATION.unknown.label, fact.reason],
+        reason: fact.reason,
+      };
     case "not-applicable":
       return {
         state: "not-applicable",
@@ -128,11 +135,17 @@ function displayTemperatureFact(fact: FactState<TemperatureMeasurement>): MapDis
         ...(fact.reason === undefined ? {} : { reason: fact.reason }),
       };
     case "missing":
-      return { state: "missing", display: [FACT_STATE_PRESENTATION.missing.label, fact.reason], reason: fact.reason };
+      return {
+        state: "missing",
+        display: [FACT_STATE_PRESENTATION.missing.label, fact.reason],
+        reason: fact.reason,
+      };
   }
 }
 
-function serviceMeasurement(fact: FactState<TemperatureMeasurement>): MapServiceMeasurement | undefined {
+function serviceMeasurement(
+  fact: FactState<TemperatureMeasurement>,
+): MapServiceMeasurement | undefined {
   let measurement: TemperatureMeasurement;
   if (fact.state === "known") {
     measurement = fact.value;
@@ -146,26 +159,35 @@ function serviceMeasurement(fact: FactState<TemperatureMeasurement>): MapService
     : { shape: "interval", low: measurement.min, high: measurement.max, unit: "degC" };
 }
 
-function endpoints(measurement: MapServiceMeasurement | undefined): readonly [number, number] | undefined {
+function endpoints(
+  measurement: MapServiceMeasurement | undefined,
+): readonly [number, number] | undefined {
   if (measurement === undefined) return undefined;
   return measurement.shape === "point"
     ? [measurement.value, measurement.value]
     : [measurement.low, measurement.high];
 }
 
-function omission(fact: FactState<TemperatureMeasurement>): MapServiceGuidanceRecord["disposition"] {
+function omission(
+  fact: FactState<TemperatureMeasurement>,
+): MapServiceGuidanceRecord["disposition"] {
   switch (fact.state) {
-    case "known": return { disposition: "plotted" };
-    case "conditional": return fact.value === undefined
-      ? { disposition: "omitted", code: "conditional-without-value", reason: fact.condition }
-      : { disposition: "plotted" };
-    case "unknown": return { disposition: "omitted", code: "unknown-value", reason: fact.reason };
-    case "not-applicable": return {
-      disposition: "omitted",
-      code: "not-applicable",
-      reason: fact.reason ?? "Practical service guidance is not applicable.",
-    };
-    case "missing": return { disposition: "omitted", code: "not-reported", reason: fact.reason };
+    case "known":
+      return { disposition: "plotted" };
+    case "conditional":
+      return fact.value === undefined
+        ? { disposition: "omitted", code: "conditional-without-value", reason: fact.condition }
+        : { disposition: "plotted" };
+    case "unknown":
+      return { disposition: "omitted", code: "unknown-value", reason: fact.reason };
+    case "not-applicable":
+      return {
+        disposition: "omitted",
+        code: "not-applicable",
+        reason: fact.reason ?? "Practical service guidance is not applicable.",
+      };
+    case "missing":
+      return { disposition: "omitted", code: "not-reported", reason: fact.reason };
   }
 }
 
@@ -173,9 +195,9 @@ function stableMaterialOrder(left: Material, right: Material): number {
   return left.displayOrder - right.displayOrder || compareText(left.id, right.id);
 }
 
-function partitionResult<T extends { readonly disposition: MapServiceGuidanceRecord["disposition"] }>(
-  all: readonly T[],
-): MapTransformResult<T> {
+function partitionResult<
+  T extends { readonly disposition: MapServiceGuidanceRecord["disposition"] },
+>(all: readonly T[]): MapTransformResult<T> {
   return {
     all,
     plotted: all.filter(({ disposition }) => disposition.disposition === "plotted"),
@@ -197,18 +219,26 @@ export function buildServiceGuidanceModel(
   const query = normalizedQuery(options.query);
   const drafted = materials.map((material) => {
     const measurement = serviceMeasurement(material.serviceTemperature.value);
-    const matches = query === "" || material.name.normalize("NFC").toLocaleLowerCase("en-US").includes(query);
+    const matches =
+      query === "" || material.name.normalize("NFC").toLocaleLowerCase("en-US").includes(query);
     const initialDisposition = omission(material.serviceTemperature.value);
-    const disposition = initialDisposition.disposition === "plotted" && !matches
-      ? { disposition: "filtered" as const, filter: { kind: "search" as const, target: "thermal" as const, query } }
-      : initialDisposition;
+    const disposition =
+      initialDisposition.disposition === "plotted" && !matches
+        ? {
+            disposition: "filtered" as const,
+            filter: { kind: "search" as const, target: "thermal" as const, query },
+          }
+        : initialDisposition;
     return {
       source: material,
       record: {
         material: materialReference(material, base),
         fact: displayTemperatureFact(material.serviceTemperature.value),
         ...(measurement === undefined ? {} : { measurement }),
-        evidence: evidenceContext(material.serviceTemperature.basis, material.serviceTemperature.qualification),
+        evidence: evidenceContext(
+          material.serviceTemperature.basis,
+          material.serviceTemperature.qualification,
+        ),
         disposition,
       } satisfies MapServiceGuidanceRecord,
     };
@@ -223,19 +253,27 @@ export function buildServiceGuidanceModel(
     const rightValue = rightEndpoints?.[index];
     if (leftValue === undefined && rightValue !== undefined) return 1;
     if (leftValue !== undefined && rightValue === undefined) return -1;
-    if (leftValue !== undefined && rightValue !== undefined && leftValue !== rightValue) return leftValue - rightValue;
+    if (leftValue !== undefined && rightValue !== undefined && leftValue !== rightValue)
+      return leftValue - rightValue;
     return stableMaterialOrder(left.source, right.source);
   });
 
   const numericEndpoints = drafted.flatMap(({ record }) => endpoints(record.measurement) ?? []);
-  const domain = numericEndpoints.length === 0 ? undefined : {
-    low: Math.floor((Math.min(...numericEndpoints) - 5) / 10) * 10,
-    high: Math.ceil((Math.max(...numericEndpoints) + 5) / 10) * 10,
-    unit: "degC" as const,
-  };
-  const ticks = domain === undefined
-    ? []
-    : Array.from({ length: Math.floor((domain.high - domain.low) / 10) + 1 }, (_, index) => domain.low + index * 10);
+  const domain =
+    numericEndpoints.length === 0
+      ? undefined
+      : {
+          low: Math.floor((Math.min(...numericEndpoints) - 5) / 10) * 10,
+          high: Math.ceil((Math.max(...numericEndpoints) + 5) / 10) * 10,
+          unit: "degC" as const,
+        };
+  const ticks =
+    domain === undefined
+      ? []
+      : Array.from(
+          { length: Math.floor((domain.high - domain.low) / 10) + 1 },
+          (_, index) => domain.low + index * 10,
+        );
   const records = drafted.map(({ record }) => record);
 
   return deepFreeze({
@@ -243,9 +281,12 @@ export function buildServiceGuidanceModel(
     ticks,
     query,
     sort: options.sort,
-    highlightedMaterialIds: query === ""
-      ? []
-      : records.filter(({ disposition }) => disposition.disposition === "plotted").map(({ material }) => material.id),
+    highlightedMaterialIds:
+      query === ""
+        ? []
+        : records
+            .filter(({ disposition }) => disposition.disposition === "plotted")
+            .map(({ material }) => material.id),
     records: partitionResult(records),
   });
 }
@@ -258,10 +299,12 @@ export function buildNamedThermalModel(
 ): NamedThermalModel {
   const materialById = new Map(materials.map((material) => [material.id, material]));
   const partition = partitionCompatibleThermalObservations(
-    materials.flatMap((material) => material.thermalObservations.map((observation) => ({
-      materialId: material.id,
-      observation,
-    }))),
+    materials.flatMap((material) =>
+      material.thermalObservations.map((observation) => ({
+        materialId: material.id,
+        observation,
+      })),
+    ),
   );
   const methodLabel = (method: Readonly<ThermalMethod> | undefined): string => {
     if (method === undefined) return "Method not represented";
@@ -299,36 +342,44 @@ export function buildNamedThermalModel(
     }),
   }));
 
-  const selectedGroup = selectedGroupId === undefined
-    ? undefined
-    : groups.find(({ id }) => id === selectedGroupId);
+  const selectedGroup =
+    selectedGroupId === undefined ? undefined : groups.find(({ id }) => id === selectedGroupId);
   const selectionReset = selectedGroupId !== undefined && selectedGroup === undefined;
   const orderedMaterials = [...materials].sort(stableMaterialOrder);
-  const selectedRows = selectedGroup === undefined ? undefined : orderedMaterials.flatMap((material) => {
-    const members = selectedGroup.members.filter(({ material: memberMaterial }) => memberMaterial.id === material.id);
-    if (members.length > 0) {
-      return members.map((member): NamedThermalViewRecord => ({
-        material: materialReference(material, base),
-        member,
-        disposition: { disposition: "plotted" },
-      }));
-    }
-    return [{
-      material: materialReference(material, base),
-      disposition: {
-        disposition: "omitted" as const,
-        code: "no-observation-in-group" as const,
-        reason: "No observation in this metric and method group.",
-      },
-    }];
-  });
+  const selectedRows =
+    selectedGroup === undefined
+      ? undefined
+      : orderedMaterials.flatMap((material) => {
+          const members = selectedGroup.members.filter(
+            ({ material: memberMaterial }) => memberMaterial.id === material.id,
+          );
+          if (members.length > 0) {
+            return members.map((member): NamedThermalViewRecord => ({
+              material: materialReference(material, base),
+              member,
+              disposition: { disposition: "plotted" },
+            }));
+          }
+          return [
+            {
+              material: materialReference(material, base),
+              disposition: {
+                disposition: "omitted" as const,
+                code: "no-observation-in-group" as const,
+                reason: "No observation in this metric and method group.",
+              },
+            },
+          ];
+        });
 
   return deepFreeze({
     groups,
-    ...(selectedGroup === undefined ? {} : {
-      selectedGroupId: selectedGroup.id,
-      selectedRecords: partitionResult(selectedRows ?? []),
-    }),
+    ...(selectedGroup === undefined
+      ? {}
+      : {
+          selectedGroupId: selectedGroup.id,
+          selectedRecords: partitionResult(selectedRows ?? []),
+        }),
     selectionReset,
   });
 }

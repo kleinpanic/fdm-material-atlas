@@ -40,4 +40,3 @@ export const AtlasV1Schema = z.strictObject({
 export type VocabularyTerm = z.infer<typeof VocabularyTermSchema>;
 export type VocabularyDefinition = z.infer<typeof VocabularyDefinitionSchema>;
 export type AtlasV1 = z.infer<typeof AtlasV1Schema>;
-

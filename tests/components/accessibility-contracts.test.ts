@@ -26,17 +26,20 @@ describe("state marker accessibility contract", () => {
     ["blocked", "Blocked", "octagon-cross"],
   ] as const;
 
-  it.each(variants)("renders %s as visible text plus a hidden duplicate glyph", async (variant, label, shape) => {
-    const html = await container.renderToString(StateMarker, {
-      props: { variant, label },
-    });
+  it.each(variants)(
+    "renders %s as visible text plus a hidden duplicate glyph",
+    async (variant, label, shape) => {
+      const html = await container.renderToString(StateMarker, {
+        props: { variant, label },
+      });
 
-    expect(html).toContain(`>${label}</span>`);
-    expect(html).toContain(`data-marker-shape="${shape}"`);
-    expect(html).toContain("aria-hidden=\"true\"");
-    expect(html).not.toContain("role=\"status\"");
-    expect(html).not.toContain(" title=");
-  });
+      expect(html).toContain(`>${label}</span>`);
+      expect(html).toContain(`data-marker-shape="${shape}"`);
+      expect(html).toContain('aria-hidden="true"');
+      expect(html).not.toContain('role="status"');
+      expect(html).not.toContain(" title=");
+    },
+  );
 
   it("escapes state label text instead of accepting source HTML", async () => {
     const html = await container.renderToString(StateMarker, {
@@ -59,16 +62,17 @@ describe("fact state accessibility contract", () => {
     const html = await container.renderToString(FactStateValue, { props: { fact } });
 
     expect(html).toContain('data-fact-state="known"');
-    expect(html).toMatch(
-      new RegExp(`class="fact-state-value__value"[^>]*>${expected}</span>`),
-    );
+    expect(html).toMatch(new RegExp(`class="fact-state-value__value"[^>]*>${expected}</span>`));
     expect(html).toContain(">Available</span>");
   });
 
   it.each([
     [{ state: "unknown", reason: "No comparable test was reported." }, "Unknown"],
     [{ state: "conditional", condition: "Only after annealing." }, "Conditional"],
-    [{ state: "not-applicable", reason: "The process does not use a heated bed." }, "Not applicable"],
+    [
+      { state: "not-applicable", reason: "The process does not use a heated bed." },
+      "Not applicable",
+    ],
     [{ state: "missing", reason: "The source does not report this field." }, "Not reported"],
   ] as const)("renders the approved explanatory state label", async (fact, label) => {
     const html = await container.renderToString(FactStateValue, { props: { fact } });
@@ -76,7 +80,7 @@ describe("fact state accessibility contract", () => {
     expect(html).toContain(`data-fact-state="${fact.state}"`);
     expect(html).toContain(`>${label}</span>`);
     expect(html).toContain("data-marker-shape=");
-    expect(html).not.toContain("role=\"status\"");
+    expect(html).not.toContain('role="status"');
   });
 
   it("renders a conditional value and its condition without conflating either with known data", async () => {
@@ -136,7 +140,7 @@ describe("meaningful figure accessibility contract", () => {
       slots: {
         graphic: '<circle cx="10" cy="10" r="4"></circle>',
         legend: '<ul><li><span aria-hidden="true">●</span> Glass transition</li></ul>',
-        alternative: '<dl><dt>Glass transition</dt><dd>Named observation</dd></dl>',
+        alternative: "<dl><dt>Glass transition</dt><dd>Named observation</dd></dl>",
       },
     });
 

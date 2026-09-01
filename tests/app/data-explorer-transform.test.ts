@@ -5,7 +5,10 @@ import {
   exploreData,
   type ExplorerState,
 } from "../../src/features/data-explorer/explore.ts";
-import { buildDataExplorerModel, type DataExplorerModel } from "../../src/features/data-explorer/model.ts";
+import {
+  buildDataExplorerModel,
+  type DataExplorerModel,
+} from "../../src/features/data-explorer/model.ts";
 import { safeExplore } from "../../src/features/data-explorer/safe-explore.ts";
 import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
 
@@ -15,12 +18,20 @@ function withState(patch: Partial<ExplorerState>): ExplorerState {
   return { ...defaultExplorerState(model), ...patch };
 }
 
-function sortableFixture(states: readonly [string, string, number | undefined][]): DataExplorerModel {
+function sortableFixture(
+  states: readonly [string, string, number | undefined][],
+): DataExplorerModel {
   const materials = model.materials.slice(0, states.length).map((material, index) => {
     const [id, state, value] = states[index]!;
-    const cells = material.cells.map((cell) => cell.key === "density"
-      ? { ...cell, states: state === "identity" ? [] : [state], sortKey: { kind: "number", state, ...(value === undefined ? {} : { value }) } }
-      : cell) as DataExplorerModel["materials"][number]["cells"];
+    const cells = material.cells.map((cell) =>
+      cell.key === "density"
+        ? {
+            ...cell,
+            states: state === "identity" ? [] : [state],
+            sortKey: { kind: "number", state, ...(value === undefined ? {} : { value }) },
+          }
+        : cell,
+    ) as DataExplorerModel["materials"][number]["cells"];
     return { ...material, id: id as typeof material.id, cells };
   });
   return { ...model, materials };
@@ -39,17 +50,25 @@ describe("data explorer transform", () => {
   it("combines search, group, fact-state, and evidence-scope filters without deleting row cells", () => {
     const group = "print-process" as const;
     const activeKeys = model.groups.find(({ key }) => key === group)!.fieldKeys;
-    const candidate = model.materials.find((material) => material.cells.some((cell) =>
-      activeKeys.includes(cell.key) && cell.states.includes("known") && cell.scopes.includes("family-guidance")
-    ))!;
+    const candidate = model.materials.find((material) =>
+      material.cells.some(
+        (cell) =>
+          activeKeys.includes(cell.key) &&
+          cell.states.includes("known") &&
+          cell.scopes.includes("family-guidance"),
+      ),
+    )!;
     const query = candidate.name.slice(0, 4).toLocaleLowerCase("en-US");
-    const result = exploreData(model, withState({
-      query,
-      group,
-      factState: "known",
-      evidenceScope: "family-guidance",
-      sort: { field: "print-difficulty", direction: "asc" },
-    }));
+    const result = exploreData(
+      model,
+      withState({
+        query,
+        group,
+        factState: "known",
+        evidenceScope: "family-guidance",
+        sort: { field: "print-difficulty", direction: "asc" },
+      }),
+    );
     expect(result.kind).toBe("exploration");
     if (result.kind !== "exploration") return;
     expect(result.materials.length).toBeGreaterThan(0);
@@ -66,12 +85,14 @@ describe("data explorer transform", () => {
     const token = "exclusive-hidden-group-token";
     const fixture: DataExplorerModel = {
       ...model,
-      materials: [{
-        ...material,
-        cells: material.cells.map((cell) => cell.key === "print-difficulty"
-          ? { ...cell, searchText: [token] }
-          : cell),
-      }],
+      materials: [
+        {
+          ...material,
+          cells: material.cells.map((cell) =>
+            cell.key === "print-difficulty" ? { ...cell, searchText: [token] } : cell,
+          ),
+        },
+      ],
     };
 
     const hidden = exploreData(fixture, {
@@ -86,7 +107,9 @@ describe("data explorer transform", () => {
       group: "print-process",
       sort: { field: "print-difficulty", direction: "asc" },
     });
-    expect(visible.kind === "exploration" && visible.materials.map(({ id }) => id)).toEqual([material.id]);
+    expect(visible.kind === "exploration" && visible.materials.map(({ id }) => id)).toEqual([
+      material.id,
+    ]);
   });
 
   it("filters by exact thermal compatibility group and narrows only thermal member lists", () => {
@@ -98,7 +121,8 @@ describe("data explorer transform", () => {
     for (const material of result.materials) {
       expect(material.cells).toHaveLength(model.groups[0]!.fieldKeys.length);
       for (const cell of material.cells) {
-        if (cell.kind === "thermal") expect(cell.members.every(({ groupId }) => groupId === metric.id)).toBe(true);
+        if (cell.kind === "thermal")
+          expect(cell.members.every(({ groupId }) => groupId === metric.id)).toBe(true);
       }
     }
   });
@@ -110,13 +134,23 @@ describe("data explorer transform", () => {
       ["material-a-known", "known", 1],
     ]);
     const base = { ...defaultExplorerState(fixture), group: "handling-density-cost" as const };
-    const ascending = exploreData(fixture, { ...base, sort: { field: "density", direction: "asc" } });
-    const descending = exploreData(fixture, { ...base, sort: { field: "density", direction: "desc" } });
+    const ascending = exploreData(fixture, {
+      ...base,
+      sort: { field: "density", direction: "asc" },
+    });
+    const descending = exploreData(fixture, {
+      ...base,
+      sort: { field: "density", direction: "desc" },
+    });
     expect(ascending.kind === "exploration" && ascending.materials.map(({ id }) => id)).toEqual([
-      "material-a-known", "material-b-known", "material-z-unknown",
+      "material-a-known",
+      "material-b-known",
+      "material-z-unknown",
     ]);
     expect(descending.kind === "exploration" && descending.materials.map(({ id }) => id)).toEqual([
-      "material-b-known", "material-a-known", "material-z-unknown",
+      "material-b-known",
+      "material-a-known",
+      "material-z-unknown",
     ]);
   });
 
@@ -131,7 +165,10 @@ describe("data explorer transform", () => {
     for (const direction of ["asc", "desc"] as const) {
       const result = exploreData(fixture, { ...base, sort: { field: "density", direction } });
       expect(result.kind === "exploration" && result.materials.map(({ id }) => id)).toEqual([
-        "material-conditional", "material-unknown", "material-missing", "material-na",
+        "material-conditional",
+        "material-unknown",
+        "material-missing",
+        "material-na",
       ]);
     }
   });
@@ -144,13 +181,17 @@ describe("data explorer transform", () => {
     const base = { ...defaultExplorerState(fixture), group: "handling-density-cost" as const };
     for (const direction of ["asc", "desc"] as const) {
       const result = exploreData(fixture, { ...base, sort: { field: "density", direction } });
-      expect(result.kind === "exploration" && result.materials.map(({ id }) => id)).toEqual(["material-a", "material-z"]);
+      expect(result.kind === "exploration" && result.materials.map(({ id }) => id)).toEqual([
+        "material-a",
+        "material-z",
+      ]);
     }
-    expect(() => exploreData(model, {
-      ...defaultExplorerState(model),
-      sort: { field: "thermal-value", direction: "asc" },
-    }))
-      .toThrow("EXPLORER_STATE_INVALID");
+    expect(() =>
+      exploreData(model, {
+        ...defaultExplorerState(model),
+        sort: { field: "thermal-value", direction: "asc" },
+      }),
+    ).toThrow("EXPLORER_STATE_INVALID");
   });
 
   it("resets invalid state through a controlled total boundary with no stale rows", () => {

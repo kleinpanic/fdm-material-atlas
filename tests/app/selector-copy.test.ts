@@ -12,11 +12,15 @@ describe("selector copy contract", () => {
     expect(SELECTOR_COPY).toMatchObject({
       eyebrow: "Material selector",
       heading: "Choose a material that fits your process",
-      taskDescription: "Set an application goal and the process constraints your printer can meet. Results explain alignment points and every hard constraint that removes a material.",
+      taskDescription:
+        "Set an application goal and the process constraints your printer can meet. Results explain alignment points and every hard constraint that removes a material.",
       alignmentHeading: "What the score means",
-      alignmentBody: "Alignment scores reflect only the criteria you selected. They do not rank universal material quality, strength, safety, or engineering suitability.",
-      rankingExplanation: "Results are sorted by alignment points, then by stable material ID when scores tie.",
-      applicableMaximumNote: "The applicable maximum includes only selected choices that define an alignment preference.",
+      alignmentBody:
+        "Alignment scores reflect only the criteria you selected. They do not rank universal material quality, strength, safety, or engineering suitability.",
+      rankingExplanation:
+        "Results are sorted by alignment points, then by stable material ID when scores tie.",
+      applicableMaximumNote:
+        "The applicable maximum includes only selected choices that define an alignment preference.",
       compatibleHeading: "Compatible materials",
       compatibleCountLabel: "Compatible",
       highestAlignment: "Highest alignment",
@@ -27,15 +31,19 @@ describe("selector copy contract", () => {
   it("matches approved no-compatible, recovery, hydration, and empty copy exactly", () => {
     expect(SELECTOR_COPY).toMatchObject({
       noCompatibleHeading: "No materials match every selected constraint",
-      noCompatibleBody: "Every material was removed by at least one selected hard constraint. Your selections have not changed. Review the reasons below, then choose which constraint you want to reconsider.",
+      noCompatibleBody:
+        "Every material was removed by at least one selected hard constraint. Your selections have not changed. Review the reasons below, then choose which constraint you want to reconsider.",
       reviewSecondary: "Review printer and process constraints",
       reviewPrimary: "Choose a different application goal",
-      errorState: "These selector choices could not be evaluated. Reset the selector to the published defaults and try again.",
+      errorState:
+        "These selector choices could not be evaluated. Reset the selector to the published defaults and try again.",
       errorAction: "Reset selector",
       hydrationStatus: "Selector is preparing",
-      noScript: "Interactive filtering needs JavaScript. The published default results remain available below.",
+      noScript:
+        "Interactive filtering needs JavaScript. The published default results remain available below.",
       emptyHeading: "No validated material records are available",
-      emptyBody: "The selector cannot rank materials without a validated public dataset. This build must not be published.",
+      emptyBody:
+        "The selector cannot rank materials without a validated public dataset. This build must not be published.",
     });
   });
 
@@ -69,8 +77,14 @@ describe("selector copy contract", () => {
       SELECTOR_COPY.mapUnavailable,
       SELECTOR_COPY.methodUnavailable,
     ].join(" ");
-    expect(controlled).not.toMatch(/private|stack|path|SELECTOR_|\{|\[|winner|trophy|grade|percentage|certif/i);
-    expect(SELECTOR_COPY.alignmentBody).toContain("universal material quality, strength, safety, or engineering suitability");
-    expect(Object.values(SELECTOR_COPY).join(" ")).not.toMatch(/winner|trophy|grade|percentage|certification/i);
+    expect(controlled).not.toMatch(
+      /private|stack|path|SELECTOR_|\{|\[|winner|trophy|grade|percentage|certif/i,
+    );
+    expect(SELECTOR_COPY.alignmentBody).toContain(
+      "universal material quality, strength, safety, or engineering suitability",
+    );
+    expect(Object.values(SELECTOR_COPY).join(" ")).not.toMatch(
+      /winner|trophy|grade|percentage|certification/i,
+    );
   });
 });

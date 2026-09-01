@@ -8,7 +8,18 @@ describe("atlas island boundary", () => {
     expect(source).toContain("pageModel: AtlasPageModel");
     expect(source).toContain("filterAtlas(pageModel, filterState)");
     expect(source.match(/filterAtlas\(/gu)).toHaveLength(1);
-    for (const forbidden of ["public-atlas", "atlas.v1.json", "loadPublicAtlas", "fetch(", "localStorage", "sessionStorage", "startingProfile", "decisionLanes", "visualizationReferences", "dangerouslySetInnerHTML"]) {
+    for (const forbidden of [
+      "public-atlas",
+      "atlas.v1.json",
+      "loadPublicAtlas",
+      "fetch(",
+      "localStorage",
+      "sessionStorage",
+      "startingProfile",
+      "decisionLanes",
+      "visualizationReferences",
+      "dangerouslySetInnerHTML",
+    ]) {
       expect(source).not.toContain(forbidden);
     }
   });

@@ -31,10 +31,7 @@ function cloneMaterial(material: Material, id: string, slug: string): Material {
   };
 }
 
-function cloneThermal(
-  observation: ThermalObservation,
-  id: string,
-): ThermalObservation {
+function cloneThermal(observation: ThermalObservation, id: string): ThermalObservation {
   return { ...observation, id: id as ThermalObservation["id"] };
 }
 
@@ -60,15 +57,10 @@ describe("loadPublicAtlas", () => {
   });
 
   it("anchors the fixed artifact to the build root instead of the bundled module URL", () => {
-    const source = readFileSync(
-      new URL("../../src/lib/public-atlas.ts", import.meta.url),
-      "utf8",
-    );
+    const source = readFileSync(new URL("../../src/lib/public-atlas.ts", import.meta.url), "utf8");
 
     expect(source).toContain("resolve(process.cwd(), PUBLIC_ATLAS_RELATIVE_PATH)");
-    expect(source).not.toContain(
-      'new URL("../data/public/atlas.v1.json", import.meta.url)',
-    );
+    expect(source).not.toContain('new URL("../data/public/atlas.v1.json", import.meta.url)');
   });
 
   it("redacts a fixed-artifact read failure behind one stable code", async () => {
@@ -117,12 +109,12 @@ describe("selectTracerMaterial", () => {
     const later = cloneMaterial(first, "material-synthetic-zeta", "synthetic-zeta");
     const earlier = cloneMaterial(first, "material-synthetic-aardvark", "synthetic-aardvark");
 
-    expect(
-      selectTracerMaterial({ ...atlas, materials: [later, first, earlier] }).id,
-    ).toBe("material-synthetic-aardvark");
-    expect(
-      selectTracerMaterial({ ...atlas, materials: [earlier, first, later] }).id,
-    ).toBe("material-synthetic-aardvark");
+    expect(selectTracerMaterial({ ...atlas, materials: [later, first, earlier] }).id).toBe(
+      "material-synthetic-aardvark",
+    );
+    expect(selectTracerMaterial({ ...atlas, materials: [earlier, first, later] }).id).toBe(
+      "material-synthetic-aardvark",
+    );
   });
 
   it("fails closed when no canonical material exists", () => {
@@ -159,11 +151,7 @@ describe("buildTracerViewModel", () => {
       ...first,
       thermalObservations: [laterThermal, earlierThermal],
     };
-    const otherMaterial = cloneMaterial(
-      first,
-      "material-synthetic-zeta",
-      "synthetic-zeta",
-    );
+    const otherMaterial = cloneMaterial(first, "material-synthetic-zeta", "synthetic-zeta");
     const forward = {
       ...atlas,
       materials: [otherMaterial, selectedMaterial],
@@ -224,9 +212,9 @@ describe("buildTracerViewModel", () => {
   });
 
   it("fails closed when a process-gate specimen cannot be selected", () => {
-    expect(() =>
-      buildTracerViewModel({ ...minimalAtlas(), processGates: [] }),
-    ).toThrow("TRACER_PROCESS_GATE_REQUIRED");
+    expect(() => buildTracerViewModel({ ...minimalAtlas(), processGates: [] })).toThrow(
+      "TRACER_PROCESS_GATE_REQUIRED",
+    );
   });
 });
 

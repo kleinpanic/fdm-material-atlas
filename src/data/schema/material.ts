@@ -1,11 +1,6 @@
 import * as z from "zod";
 
-import {
-  BasisRefSchema,
-  claimSchema,
-  type BasisRef,
-  type Claim,
-} from "./evidence.ts";
+import { BasisRefSchema, claimSchema, type BasisRef, type Claim } from "./evidence.ts";
 import { factStateSchema, NormalizedTextSchema } from "./fact-state.ts";
 import { ClaimIdSchema, MaterialIdSchema } from "./ids.ts";
 import {
@@ -198,8 +193,7 @@ export type MaterialGuidance = z.infer<typeof MaterialGuidanceSchema>;
 export type Material = z.infer<typeof MaterialSchema>;
 
 export type ThermalCompatibility =
-  | { comparable: true }
-  | { comparable: false; code: "THERMAL_NOT_COMPARABLE" };
+  { comparable: true } | { comparable: false; code: "THERMAL_NOT_COMPARABLE" };
 
 const THERMAL_METHOD_DIMENSIONS = [
   "standard",
@@ -229,12 +223,12 @@ export function compareThermalObservations(
 }
 
 // Compile-time checks keep the public claim types tied to the shared evidence contract.
-type _ServiceTemperatureIsClaim = ServiceTemperatureGuidance extends Claim<z.infer<typeof TemperatureMeasurementSchema>>
-  ? true
-  : never;
+type _ServiceTemperatureIsClaim =
+  ServiceTemperatureGuidance extends Claim<z.infer<typeof TemperatureMeasurementSchema>>
+    ? true
+    : never;
 type _ThermalBasisIsShared = ThermalObservation["basis"] extends BasisRef[] ? true : never;
 const _serviceTemperatureIsClaim: _ServiceTemperatureIsClaim = true;
 const _thermalBasisIsShared: _ThermalBasisIsShared = true;
 void _serviceTemperatureIsClaim;
 void _thermalBasisIsShared;
-

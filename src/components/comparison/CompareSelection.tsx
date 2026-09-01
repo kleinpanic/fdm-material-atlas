@@ -45,9 +45,13 @@ export function CompareSelection({ materials, slots, disabled, error, onChange, 
                 disabled={disabled}
                 aria-invalid={error === null ? undefined : "true"}
                 aria-describedby={error === null ? undefined : "compare-selection-error"}
-                onChange={(event: JSX.TargetedEvent<HTMLSelectElement>) => onChange(index, event.currentTarget.value)}
+                onChange={(event: JSX.TargetedEvent<HTMLSelectElement>) =>
+                  onChange(index, event.currentTarget.value)
+                }
               >
-                <option value="">{required ? "Choose a material" : "No additional material"}</option>
+                <option value="">
+                  {required ? "Choose a material" : "No additional material"}
+                </option>
                 {materials.map((material) => (
                   <option
                     value={material.id}
@@ -62,8 +66,14 @@ export function CompareSelection({ materials, slots, disabled, error, onChange, 
           );
         })}
       </div>
-      {error === null ? null : <p id="compare-selection-error" class="compare-selection__error">{error}</p>}
-      <button type="submit" disabled={disabled}>Update comparison</button>
+      {error === null ? null : (
+        <p id="compare-selection-error" class="compare-selection__error">
+          {error}
+        </p>
+      )}
+      <button type="submit" disabled={disabled}>
+        Update comparison
+      </button>
     </form>
   );
 }

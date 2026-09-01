@@ -1,7 +1,4 @@
-import {
-  MaterialIdSchema,
-  type MaterialId,
-} from "../../data/schema/ids.ts";
+import { MaterialIdSchema, type MaterialId } from "../../data/schema/ids.ts";
 import { internalHref } from "../../lib/routes.ts";
 
 const MATERIAL_KEY = "material";
@@ -29,7 +26,9 @@ export type EncodedCompareUrlState =
 
 const invalid = (code: CompareUrlErrorCode) => Object.freeze({ kind: "invalid" as const, code });
 
-function knownMaterialSet(knownMaterialIds: readonly MaterialId[]): ReadonlySet<MaterialId> | undefined {
+function knownMaterialSet(
+  knownMaterialIds: readonly MaterialId[],
+): ReadonlySet<MaterialId> | undefined {
   if (!Array.isArray(knownMaterialIds) || knownMaterialIds.length === 0) return undefined;
   const parsed: MaterialId[] = [];
   for (const value of knownMaterialIds) {

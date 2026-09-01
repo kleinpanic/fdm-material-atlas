@@ -1,10 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { decisionLaneIds } from "../schema/decision-lane.ts";
-import {
-  permittedPredicateOperators,
-  selectorCriterionIds,
-} from "../schema/selector.ts";
+import { permittedPredicateOperators, selectorCriterionIds } from "../schema/selector.ts";
 import { MATERIAL_SEMANTIC_FIELDS } from "./semantic-fields.ts";
 import { sourceLogicalRoles } from "./source-dto.ts";
 
@@ -38,4 +35,3 @@ export function digestSourceContractDescriptor(): string {
     .update(JSON.stringify(SOURCE_CONTRACT_DESCRIPTOR), "utf8")
     .digest("hex");
 }
-

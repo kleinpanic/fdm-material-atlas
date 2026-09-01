@@ -30,16 +30,23 @@ describe("complete process-gate transform", () => {
 
     expect(model.lanes.map(({ id }) => id)).toEqual(decisionLaneIds);
     expect(model.gates.map(({ id }) => id)).toEqual(
-      [...atlas.processGates].sort((left, right) => left.id.localeCompare(right.id, "en")).map(({ id }) => id),
+      [...atlas.processGates]
+        .sort((left, right) => left.id.localeCompare(right.id, "en"))
+        .map(({ id }) => id),
     );
     expect(model.relationships).toHaveLength(64);
-    expect(model.relationships.filter(({ relationship }) => relationship === "applies")).toHaveLength(13);
-    expect(model.relationships.filter(({ relationship }) => relationship === "not-listed")).toHaveLength(51);
-    expect(new Set(model.relationships.map(({ laneId, gateId }) => `${laneId}\u0000${gateId}`)).size).toBe(64);
-    expect(new Set(model.relationships.map(({ label }) => label))).toEqual(new Set([
-      "Applies — verify this gate",
-      "Not listed for this lane",
-    ]));
+    expect(
+      model.relationships.filter(({ relationship }) => relationship === "applies"),
+    ).toHaveLength(13);
+    expect(
+      model.relationships.filter(({ relationship }) => relationship === "not-listed"),
+    ).toHaveLength(51);
+    expect(
+      new Set(model.relationships.map(({ laneId, gateId }) => `${laneId}\u0000${gateId}`)).size,
+    ).toBe(64);
+    expect(new Set(model.relationships.map(({ label }) => label))).toEqual(
+      new Set(["Applies — verify this gate", "Not listed for this lane"]),
+    );
   });
 
   it("selects a lane with only its directly listed gates and live candidates", () => {
@@ -78,7 +85,9 @@ describe("complete process-gate transform", () => {
       "lane-industrial",
       "lane-support-materials",
     ]);
-    expect(selected.lanes.every(({ candidates, lane }) => candidates === lane.candidates)).toBe(true);
+    expect(selected.lanes.every(({ candidates, lane }) => candidates === lane.candidates)).toBe(
+      true,
+    );
     expect(selected.lanes.every(({ lane }) => lane.href.startsWith("/repo/map/#lane-"))).toBe(true);
 
     const flattened = selected.lanes.flatMap(({ candidates }) => candidates.map(({ id }) => id));
@@ -98,39 +107,62 @@ describe("complete process-gate transform", () => {
 
     const model = buildProcessGateMap(atlas);
     const selected = selectProcessGateContext(model, { kind: "lane", id: lane.id });
-    expect(model.relationships.filter(({ relationship }) => relationship === "applies")).toHaveLength(12);
+    expect(
+      model.relationships.filter(({ relationship }) => relationship === "applies"),
+    ).toHaveLength(12);
     expect(selected.kind).toBe("lane");
     if (selected.kind !== "lane") throw new Error("Expected lane context");
     expect(selected.gates).toEqual([]);
-    expect(selected.noAdditionalGateMessage).toBe("No additional process gate is listed for this lane.");
+    expect(selected.noAdditionalGateMessage).toBe(
+      "No additional process gate is listed for this lane.",
+    );
   });
 
   it("is invariant to relevant registry permutations", () => {
-    expect(buildProcessGateMap(reverseRegistries(cloneAtlas()), "/repo/"))
-      .toEqual(buildProcessGateMap(loadPublicAtlas(), "/repo/"));
+    expect(buildProcessGateMap(reverseRegistries(cloneAtlas()), "/repo/")).toEqual(
+      buildProcessGateMap(loadPublicAtlas(), "/repo/"),
+    );
   });
 
   it.each([
-    ["PROCESS_GATE_LANE_MISSING", (atlas: AtlasV1) => {
-      atlas.decisionLanes.pop();
-    }],
-    ["PROCESS_GATE_LANE_DUPLICATE", (atlas: AtlasV1) => {
-      atlas.decisionLanes[1] = structuredClone(atlas.decisionLanes[0]!);
-    }],
-    ["PROCESS_GATE_REGISTRY_MISSING", (atlas: AtlasV1) => {
-      atlas.processGates.pop();
-    }],
-    ["PROCESS_GATE_REGISTRY_DUPLICATE", (atlas: AtlasV1) => {
-      atlas.processGates[1] = structuredClone(atlas.processGates[0]!);
-    }],
-    ["PROCESS_GATE_REFERENCE_MISSING", (atlas: AtlasV1) => {
-      atlas.decisionLanes[0]!.processGateIds[0] =
-        "gate-missing" as AtlasV1["processGates"][number]["id"];
-    }],
-    ["PROCESS_GATE_REFERENCE_DUPLICATE", (atlas: AtlasV1) => {
-      const lane = atlas.decisionLanes.find(({ processGateIds }) => processGateIds.length > 0)!;
-      lane.processGateIds.push(lane.processGateIds[0]!);
-    }],
+    [
+      "PROCESS_GATE_LANE_MISSING",
+      (atlas: AtlasV1) => {
+        atlas.decisionLanes.pop();
+      },
+    ],
+    [
+      "PROCESS_GATE_LANE_DUPLICATE",
+      (atlas: AtlasV1) => {
+        atlas.decisionLanes[1] = structuredClone(atlas.decisionLanes[0]!);
+      },
+    ],
+    [
+      "PROCESS_GATE_REGISTRY_MISSING",
+      (atlas: AtlasV1) => {
+        atlas.processGates.pop();
+      },
+    ],
+    [
+      "PROCESS_GATE_REGISTRY_DUPLICATE",
+      (atlas: AtlasV1) => {
+        atlas.processGates[1] = structuredClone(atlas.processGates[0]!);
+      },
+    ],
+    [
+      "PROCESS_GATE_REFERENCE_MISSING",
+      (atlas: AtlasV1) => {
+        atlas.decisionLanes[0]!.processGateIds[0] =
+          "gate-missing" as AtlasV1["processGates"][number]["id"];
+      },
+    ],
+    [
+      "PROCESS_GATE_REFERENCE_DUPLICATE",
+      (atlas: AtlasV1) => {
+        const lane = atlas.decisionLanes.find(({ processGateIds }) => processGateIds.length > 0)!;
+        lane.processGateIds.push(lane.processGateIds[0]!);
+      },
+    ],
   ] as const)("fails closed with %s", (code, mutate) => {
     const atlas = cloneAtlas();
     mutate(atlas);

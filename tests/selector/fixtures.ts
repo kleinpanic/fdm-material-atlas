@@ -1,9 +1,5 @@
 import type { AtlasV1 } from "../../src/data/schema/atlas.ts";
-import type {
-  MaterialId,
-  ProcessGateId,
-  SelectorOptionId,
-} from "../../src/data/schema/ids.ts";
+import type { MaterialId, ProcessGateId, SelectorOptionId } from "../../src/data/schema/ids.ts";
 import type { Material } from "../../src/data/schema/material.ts";
 import type {
   SelectorProjectionV1,
@@ -73,11 +69,7 @@ export const selectorScenarios = {
       "selector-primary-goal": "option-goal-support",
       "selector-dryer-capability": "option-dryer-none",
     }),
-    expectedPublicIds: [
-      "material-pva-bvoh",
-      "reason-drying-required",
-      "gate-drying-capability",
-    ],
+    expectedPublicIds: ["material-pva-bvoh", "reason-drying-required", "gate-drying-capability"],
   },
   "industrial-consumer-hardware": {
     key: "industrial-consumer-hardware",
@@ -165,18 +157,16 @@ export const selectorScenarios = {
       "selector-dryer-capability": "option-dryer-available",
       "selector-ventilation-capability": "option-ventilation-engineered",
     }),
-    expectedPublicIds: [
-      "material-peek",
-      "reason-print-difficulty",
-      "gate-industrial-hardware",
-    ],
+    expectedPublicIds: ["material-peek", "reason-print-difficulty", "gate-industrial-hardware"],
   },
 } as const satisfies Readonly<Record<SelectorScenarioKey, SelectorScenarioFixture>>;
 
 /** Clone a validated public Atlas while replacing only explicit synthetic surfaces. */
 export function makeSyntheticAtlas(
   base: AtlasV1,
-  overrides: Partial<Pick<AtlasV1, "materials" | "selector" | "processGates" | "vocabularies">> = {},
+  overrides: Partial<
+    Pick<AtlasV1, "materials" | "selector" | "processGates" | "vocabularies">
+  > = {},
 ): AtlasV1 {
   return { ...base, ...overrides };
 }

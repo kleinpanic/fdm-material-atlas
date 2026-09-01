@@ -1,9 +1,6 @@
 import type { EvidenceScope } from "../../data/schema/evidence.ts";
 import type { FactState } from "../../data/schema/fact-state.ts";
-import type {
-  Material,
-  ThermalObservation,
-} from "../../data/schema/material.ts";
+import type { Material, ThermalObservation } from "../../data/schema/material.ts";
 import type { MaterialSemanticKey } from "../materials/claim-registry.ts";
 
 export type DataAttributeGroupKey =
@@ -17,11 +14,7 @@ export type DataAttributeGroupKey =
   | "starting-profile";
 
 export type DataAttributeValueKind =
-  | "identity"
-  | "fact"
-  | "service-endpoint"
-  | "thermal-metric"
-  | "thermal-value";
+  "identity" | "fact" | "service-endpoint" | "thermal-metric" | "thermal-value";
 
 export type DataAttributeSearchPolicy = "display" | "none";
 export type DataAttributeFilterPolicy = "state-and-scope" | "scope" | "none";

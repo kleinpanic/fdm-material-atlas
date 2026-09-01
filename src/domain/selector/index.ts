@@ -1,7 +1,4 @@
-export {
-  selectMaterials,
-  selectProjectedMaterials,
-} from "./engine.ts";
+export { selectMaterials, selectProjectedMaterials } from "./engine.ts";
 export { resolveExplanationToken } from "./explanations.ts";
 export { compileSelectorProjection } from "./projection.ts";
 

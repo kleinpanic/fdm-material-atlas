@@ -21,7 +21,10 @@ const navigation = [
   { label: "Data", href: dataHref, current: false },
   { label: "Method", href: model.href, current: true },
 ] as const;
-const breadcrumbs = [{ label: "Home", href: homeHref }, { label: "Method and evidence", current: true }] as const;
+const breadcrumbs = [
+  { label: "Home", href: homeHref },
+  { label: "Method and evidence", current: true },
+] as const;
 const footerLinks = [
   { label: "Material selector", href: homeHref },
   { label: "Material atlas", href: materialsHref },
@@ -32,12 +35,27 @@ const footerLinks = [
 ] as const;
 ---
 
-<BaseLayout title="Method and evidence | FDM Material Atlas" description="Understand evidence scope, thermal metrics, selector scoring, public sources, and limitations in the FDM Material Atlas." canonicalPath={model.href} homeHref={homeHref} navigation={navigation} breadcrumbs={breadcrumbs} footerLinks={footerLinks}>
+<BaseLayout
+  title="Method and evidence | FDM Material Atlas"
+  description="Understand evidence scope, thermal metrics, selector scoring, public sources, and limitations in the FDM Material Atlas."
+  canonicalPath={model.href}
+  homeHref={homeHref}
+  navigation={navigation}
+  breadcrumbs={breadcrumbs}
+  footerLinks={footerLinks}
+>
   <header class="method-page-header">
     <p class="technical-eyebrow">Scientific reading guide</p>
     <h1>Method and evidence</h1>
-    <p class="reading-measure">Understand how to interpret material claims, named thermal tests, selector alignment, qualitative guidance, and the public evidence ledger.</p>
-    <p><a href={homeHref}>Use the Material selector</a> or <a href={materialsHref}>browse the Material atlas</a>.</p>
+    <p class="reading-measure">
+      Understand how to interpret material claims, named thermal tests, selector alignment,
+      qualitative guidance, and the public evidence ledger.
+    </p>
+    <p>
+      <a href={homeHref}>Use the Material selector</a> or <a href={materialsHref}
+        >browse the Material atlas</a
+      >.
+    </p>
   </header>
   <MethodReference model={model} />
 </BaseLayout>

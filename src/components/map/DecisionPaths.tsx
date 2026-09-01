@@ -39,12 +39,13 @@ function CandidateControl({
   dispatch: MapDispatch;
 }>) {
   const target = candidateTarget(lane, candidate);
-  const select = () => dispatch({
-    type: "select-material",
-    mode: "decision-paths",
-    laneId: lane.id,
-    materialId: candidate.id,
-  });
+  const select = () =>
+    dispatch({
+      type: "select-material",
+      mode: "decision-paths",
+      laneId: lane.id,
+      materialId: candidate.id,
+    });
   return (
     <li class={`decision-candidate${highlighted ? " is-selected" : ""}`}>
       <button
@@ -53,20 +54,26 @@ function CandidateControl({
         data-material-id={candidate.id}
         aria-pressed={selected}
         data-previewed={highlighted && !selected}
-        onFocus={() => dispatch({
-          type: "preview-selection",
-          mode: "decision-paths",
-          source: "focus",
-          target,
-        })}
+        onFocus={() =>
+          dispatch({
+            type: "preview-selection",
+            mode: "decision-paths",
+            source: "focus",
+            target,
+          })
+        }
         onBlur={() => dispatch({ type: "clear-preview", mode: "decision-paths", source: "focus" })}
-        onMouseEnter={() => dispatch({
-          type: "preview-selection",
-          mode: "decision-paths",
-          source: "hover",
-          target,
-        })}
-        onMouseLeave={() => dispatch({ type: "clear-preview", mode: "decision-paths", source: "hover" })}
+        onMouseEnter={() =>
+          dispatch({
+            type: "preview-selection",
+            mode: "decision-paths",
+            source: "hover",
+            target,
+          })
+        }
+        onMouseLeave={() =>
+          dispatch({ type: "clear-preview", mode: "decision-paths", source: "hover" })
+        }
         onClick={select}
       >
         Highlight {candidate.name} in {lane.label}
@@ -77,7 +84,12 @@ function CandidateControl({
   );
 }
 
-function CandidateControls({ lane, highlightedId, selectedId, dispatch }: Readonly<{
+function CandidateControls({
+  lane,
+  highlightedId,
+  selectedId,
+  dispatch,
+}: Readonly<{
   lane: MapDecisionLane;
   highlightedId: MapMaterialReference["id"] | undefined;
   selectedId: MapMaterialReference["id"] | undefined;
@@ -87,32 +99,39 @@ function CandidateControls({ lane, highlightedId, selectedId, dispatch }: Readon
     return (
       <div class="map-empty-state">
         <h4>No live candidates satisfy this lane rule</h4>
-        <p>The canonical rule returned no material candidates. Review the lane method before publication.</p>
+        <p>
+          The canonical rule returned no material candidates. Review the lane method before
+          publication.
+        </p>
       </div>
     );
   }
   return (
     <>
       <ol class="map-candidate-controls">
-        {lane.visibleCandidates.map((candidate) => CandidateControl({
-          lane,
-          candidate,
-          highlighted: highlightedId === candidate.id,
-          selected: selectedId === candidate.id,
-          dispatch,
-        }))}
+        {lane.visibleCandidates.map((candidate) =>
+          CandidateControl({
+            lane,
+            candidate,
+            highlighted: highlightedId === candidate.id,
+            selected: selectedId === candidate.id,
+            dispatch,
+          }),
+        )}
       </ol>
       {lane.overflowCandidates.length > 0 && (
         <details class="map-candidate-overflow">
           <summary>More live candidates ({lane.overflowCandidates.length})</summary>
           <ol start={lane.visibleCandidates.length + 1}>
-            {lane.overflowCandidates.map((candidate) => CandidateControl({
-              lane,
-              candidate,
-              highlighted: highlightedId === candidate.id,
-              selected: selectedId === candidate.id,
-              dispatch,
-            }))}
+            {lane.overflowCandidates.map((candidate) =>
+              CandidateControl({
+                lane,
+                candidate,
+                highlighted: highlightedId === candidate.id,
+                selected: selectedId === candidate.id,
+                dispatch,
+              }),
+            )}
           </ol>
         </details>
       )}
@@ -120,7 +139,11 @@ function CandidateControls({ lane, highlightedId, selectedId, dispatch }: Readon
   );
 }
 
-function DecisionDiagram({ lane, selectedId, dispatch }: Readonly<{
+function DecisionDiagram({
+  lane,
+  selectedId,
+  dispatch,
+}: Readonly<{
   lane: MapDecisionLane;
   selectedId: MapMaterialReference["id"] | undefined;
   dispatch: MapDispatch;
@@ -145,12 +168,14 @@ function DecisionDiagram({ lane, selectedId, dispatch }: Readonly<{
             data-material-id={candidate.id}
             class={`decision-path-mark${selected ? " is-selected" : ""}`}
             onPointerDown={(event: JSX.TargetedPointerEvent<SVGGElement>) => event.preventDefault()}
-            onClick={() => dispatch({
-              type: "select-material",
-              mode: "decision-paths",
-              laneId: lane.id,
-              materialId: candidate.id,
-            })}
+            onClick={() =>
+              dispatch({
+                type: "select-material",
+                mode: "decision-paths",
+                laneId: lane.id,
+                materialId: candidate.id,
+              })
+            }
           >
             {selected && <circle class="decision-path-mark__selection" cx={x} cy="32" r="12" />}
             <circle class="decision-path-mark__shape" cx={x} cy="32" r="6" />
@@ -163,23 +188,34 @@ function DecisionDiagram({ lane, selectedId, dispatch }: Readonly<{
 
 /** Eight complete canonical paths rendered from the immutable map presentation. */
 export function DecisionPaths({ view, dispatch }: Props) {
-  const active = view.decisionPaths.activeTarget?.mode === "decision-paths"
-    ? view.decisionPaths.activeTarget
-    : undefined;
-  const locked = view.decisionPaths.lockedTarget?.mode === "decision-paths"
-    ? view.decisionPaths.lockedTarget
-    : undefined;
-  const effectiveLaneId = active?.kind === "material" ? active.laneId : active?.kind === "lane" ? active.id : undefined;
+  const active =
+    view.decisionPaths.activeTarget?.mode === "decision-paths"
+      ? view.decisionPaths.activeTarget
+      : undefined;
+  const locked =
+    view.decisionPaths.lockedTarget?.mode === "decision-paths"
+      ? view.decisionPaths.lockedTarget
+      : undefined;
+  const effectiveLaneId =
+    active?.kind === "material" ? active.laneId : active?.kind === "lane" ? active.id : undefined;
   const effectiveMaterialId = active?.kind === "material" ? active.id : undefined;
-  const selectedLaneId = locked?.kind === "material" ? locked.laneId : locked?.kind === "lane" ? locked.id : undefined;
+  const selectedLaneId =
+    locked?.kind === "material" ? locked.laneId : locked?.kind === "lane" ? locked.id : undefined;
   const selectedMaterialId = locked?.kind === "material" ? locked.id : undefined;
 
   return (
-    <section id="decision-paths" class="map-mode map-mode--decision-paths" aria-labelledby="interactive-decision-paths-heading">
+    <section
+      id="decision-paths"
+      class="map-mode map-mode--decision-paths"
+      aria-labelledby="interactive-decision-paths-heading"
+    >
       <header class="map-mode__header">
         <p class="technical-eyebrow">Decision paths</p>
         <h2 id="interactive-decision-paths-heading">Decision paths</h2>
-        <p>Choose one of eight needs to inspect the canonical rule, all live candidates, and every linked process gate.</p>
+        <p>
+          Choose one of eight needs to inspect the canonical rule, all live candidates, and every
+          linked process gate.
+        </p>
       </header>
 
       <nav class="decision-lane-index" aria-label="Decision lane index">
@@ -187,15 +223,24 @@ export function DecisionPaths({ view, dispatch }: Props) {
           {view.decisionPaths.lanes.map((lane, index) => {
             const selected = selectedLaneId === lane.id;
             return (
-              <li class={index === 0 && effectiveLaneId === undefined ? "is-initial-focus" : undefined} key={lane.id}>
+              <li
+                class={
+                  index === 0 && effectiveLaneId === undefined ? "is-initial-focus" : undefined
+                }
+                key={lane.id}
+              >
                 <a href={lane.href}>
-                  {lane.label}: {lane.candidates.length} live {plural(lane.candidates.length, "candidate")}, {lane.processGates.length} {plural(lane.processGates.length, "gate")}
+                  {lane.label}: {lane.candidates.length} live{" "}
+                  {plural(lane.candidates.length, "candidate")}, {lane.processGates.length}{" "}
+                  {plural(lane.processGates.length, "gate")}
                 </a>
                 <button
                   type="button"
                   data-lane-control={true}
                   aria-pressed={selected}
-                  onClick={() => dispatch({ type: "select-lane", mode: "decision-paths", laneId: lane.id })}
+                  onClick={() =>
+                    dispatch({ type: "select-lane", mode: "decision-paths", laneId: lane.id })
+                  }
                 >
                   Highlight {lane.label}
                   {selected && <span class="map-selected-text"> Selected decision lane</span>}
@@ -210,7 +255,9 @@ export function DecisionPaths({ view, dispatch }: Props) {
         type="button"
         class="map-clear-selection"
         onClick={() => dispatch({ type: "clear-selection", mode: "decision-paths", target: "all" })}
-      >Clear lane highlight</button>
+      >
+        Clear lane highlight
+      </button>
 
       <ol class="decision-path-list">
         {view.decisionPaths.lanes.map((lane) => {
@@ -229,26 +276,46 @@ export function DecisionPaths({ view, dispatch }: Props) {
               <header>
                 <p class="technical-eyebrow">Decision lane</p>
                 <h3>{lane.label}</h3>
-                <p>{lane.candidates.length} live {plural(lane.candidates.length, "candidate")}; {lane.processGates.length} {plural(lane.processGates.length, "process gate")}</p>
+                <p>
+                  {lane.candidates.length} live {plural(lane.candidates.length, "candidate")};{" "}
+                  {lane.processGates.length} {plural(lane.processGates.length, "process gate")}
+                </p>
                 {selected && <p class="map-state-label">Selected decision lane</p>}
               </header>
 
-              <div class="map-horizontal-scroll" role="region" aria-label={`${lane.label} candidate path`} tabIndex={0}>
-                <p class="map-scroll-instruction">Scroll horizontally to inspect every candidate mark.</p>
+              <div
+                class="map-horizontal-scroll"
+                role="region"
+                aria-label={`${lane.label} candidate path`}
+                tabIndex={0}
+              >
+                <p class="map-scroll-instruction">
+                  Scroll horizontally to inspect every candidate mark.
+                </p>
                 {DecisionDiagram({ lane, selectedId: candidateHighlightedId, dispatch })}
               </div>
 
               <ol class="decision-path__stages">
                 <li data-decision-stage={true}>
-                  <h4><span aria-hidden="true">1</span> Need</h4>
+                  <h4>
+                    <span aria-hidden="true">1</span> Need
+                  </h4>
                   <p>{lane.need}</p>
                 </li>
                 <li data-decision-stage={true}>
-                  <h4><span aria-hidden="true">2</span> Properties to check</h4>
-                  <ul>{lane.propertyChecks.map((property) => <li key={property.field}>{property.label}</li>)}</ul>
+                  <h4>
+                    <span aria-hidden="true">2</span> Properties to check
+                  </h4>
+                  <ul>
+                    {lane.propertyChecks.map((property) => (
+                      <li key={property.field}>{property.label}</li>
+                    ))}
+                  </ul>
                 </li>
                 <li data-decision-stage={true}>
-                  <h4><span aria-hidden="true">3</span> Live candidates</h4>
+                  <h4>
+                    <span aria-hidden="true">3</span> Live candidates
+                  </h4>
                   {CandidateControls({
                     lane,
                     highlightedId: candidateHighlightedId,
@@ -257,16 +324,26 @@ export function DecisionPaths({ view, dispatch }: Props) {
                   })}
                 </li>
                 <li data-decision-stage={true}>
-                  <h4><span aria-hidden="true">4</span> Verify and process gates</h4>
+                  <h4>
+                    <span aria-hidden="true">4</span> Verify and process gates
+                  </h4>
                   <ul>
-                    {lane.verification.map((statement) => <li key={statement}>{statement}</li>)}
+                    {lane.verification.map((statement) => (
+                      <li key={statement}>{statement}</li>
+                    ))}
                   </ul>
-                  {lane.processGates.length === 0 ? <p>No additional process gate is listed for this lane.</p> : (
+                  {lane.processGates.length === 0 ? (
+                    <p>No additional process gate is listed for this lane.</p>
+                  ) : (
                     <dl>
                       {lane.processGates.map((gate) => (
                         <div key={gate.id}>
-                          <dt><a href={gate.href}>{gate.label}</a></dt>
-                          <dd>{gate.requirement} {gate.verification}</dd>
+                          <dt>
+                            <a href={gate.href}>{gate.label}</a>
+                          </dt>
+                          <dd>
+                            {gate.requirement} {gate.verification}
+                          </dd>
                         </div>
                       ))}
                     </dl>

@@ -1,27 +1,27 @@
 #!/usr/bin/env node
 
-import { realpath } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { realpath } from "node:fs/promises";
+import { resolve } from "node:path";
 
-import { assertRepository } from './lib/repository-guard.mjs';
-import { loadPublicationPolicy } from './lib/publication-policy.mjs';
-import { scanPublication } from './scan-publication.mjs';
-import { isMainModule } from './lib/main-module.mjs';
+import { assertRepository } from "./lib/repository-guard.mjs";
+import { loadPublicationPolicy } from "./lib/publication-policy.mjs";
+import { scanPublication } from "./scan-publication.mjs";
+import { isMainModule } from "./lib/main-module.mjs";
 
-const REMOTE_POLICIES = new Set(['absent', 'any']);
-const DEFAULT_MODES = Object.freeze(['working', 'tracked', 'history']);
+const REMOTE_POLICIES = new Set(["absent", "any"]);
+const DEFAULT_MODES = Object.freeze(["working", "tracked", "history"]);
 
 class PublicationBaselineError extends Error {
   constructor(ruleId) {
     super(`Publication baseline failed: ${ruleId}`);
-    this.name = 'PublicationBaselineError';
+    this.name = "PublicationBaselineError";
     this.ruleId = ruleId;
   }
 }
 
 function controlledRule(error, fallback) {
-  if (typeof error?.ruleCode === 'string') return error.ruleCode;
-  if (typeof error?.ruleId === 'string') return error.ruleId;
+  if (typeof error?.ruleCode === "string") return error.ruleCode;
+  if (typeof error?.ruleId === "string") return error.ruleId;
   return fallback;
 }
 
@@ -51,20 +51,20 @@ function buildReport(surfaces, findings, errors) {
  */
 export async function checkPublication({
   root = process.cwd(),
-  remotePolicy = 'absent',
+  remotePolicy = "absent",
   sensitiveFile,
   artifacts = [],
   env = process.env,
 } = {}) {
   if (!REMOTE_POLICIES.has(remotePolicy) || !Array.isArray(artifacts)) {
-    throw new PublicationBaselineError('arguments-invalid');
+    throw new PublicationBaselineError("arguments-invalid");
   }
 
   let physicalRoot;
   try {
     physicalRoot = await realpath(resolve(root));
   } catch {
-    return buildReport([], [], [{ ruleId: 'repository-inspection-failed', surface: 'repository' }]);
+    return buildReport([], [], [{ ruleId: "repository-inspection-failed", surface: "repository" }]);
   }
 
   const surfaces = [];
@@ -77,10 +77,13 @@ export async function checkPublication({
       expectedRoot: physicalRoot,
       remotePolicy,
     });
-    surfaces.push({ surface: 'repository', scannedCount: 1, findingCount: 0 });
+    surfaces.push({ surface: "repository", scannedCount: 1, findingCount: 0 });
   } catch (error) {
-    errors.push({ ruleId: controlledRule(error, 'repository-inspection-failed'), surface: 'repository' });
-    surfaces.push({ surface: 'repository', scannedCount: 0, findingCount: 0 });
+    errors.push({
+      ruleId: controlledRule(error, "repository-inspection-failed"),
+      surface: "repository",
+    });
+    surfaces.push({ surface: "repository", scannedCount: 0, findingCount: 0 });
     return buildReport(surfaces, findings, errors);
   }
 
@@ -92,13 +95,17 @@ export async function checkPublication({
       sensitiveFile,
     });
   } catch (error) {
-    errors.push({ ruleId: controlledRule(error, 'policy-inspection-failed'), surface: 'policy' });
+    errors.push({ ruleId: controlledRule(error, "policy-inspection-failed"), surface: "policy" });
     return buildReport(surfaces, findings, errors);
   }
 
   const selectedSurfaces = [
     ...DEFAULT_MODES.map((mode) => ({ mode })),
-    ...artifacts.map((artifactPath, artifactOrdinal) => ({ mode: 'artifact', artifactPath, artifactOrdinal })),
+    ...artifacts.map((artifactPath, artifactOrdinal) => ({
+      mode: "artifact",
+      artifactPath,
+      artifactOrdinal,
+    })),
   ];
 
   for (const selected of selectedSurfaces) {
@@ -123,7 +130,7 @@ export async function checkPublication({
     } catch (error) {
       surfaces.push({ surface: selected.mode, scannedCount: 0, findingCount: 0 });
       errors.push({
-        ruleId: controlledRule(error, 'surface-inspection-failed'),
+        ruleId: controlledRule(error, "surface-inspection-failed"),
         surface: selected.mode,
       });
     }
@@ -137,24 +144,24 @@ function parseArguments(argv) {
   const singleUse = new Set();
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
-    if (!['--root', '--remote-policy', '--sensitive-file', '--artifact'].includes(flag)) {
-      throw new PublicationBaselineError('arguments-invalid');
+    if (!["--root", "--remote-policy", "--sensitive-file", "--artifact"].includes(flag)) {
+      throw new PublicationBaselineError("arguments-invalid");
     }
     const value = argv[index + 1];
-    if (!value || value.startsWith('--')) throw new PublicationBaselineError('arguments-invalid');
-    if (flag === '--artifact') {
+    if (!value || value.startsWith("--")) throw new PublicationBaselineError("arguments-invalid");
+    if (flag === "--artifact") {
       options.artifacts.push(value);
     } else {
-      if (singleUse.has(flag)) throw new PublicationBaselineError('arguments-invalid');
+      if (singleUse.has(flag)) throw new PublicationBaselineError("arguments-invalid");
       singleUse.add(flag);
-      if (flag === '--root') options.root = value;
-      if (flag === '--remote-policy') options.remotePolicy = value;
-      if (flag === '--sensitive-file') options.sensitiveFile = value;
+      if (flag === "--root") options.root = value;
+      if (flag === "--remote-policy") options.remotePolicy = value;
+      if (flag === "--sensitive-file") options.sensitiveFile = value;
     }
     index += 1;
   }
   if (options.remotePolicy && !REMOTE_POLICIES.has(options.remotePolicy)) {
-    throw new PublicationBaselineError('arguments-invalid');
+    throw new PublicationBaselineError("arguments-invalid");
   }
   return options;
 }
@@ -167,10 +174,16 @@ async function main() {
     stream.write(`${JSON.stringify(report)}\n`);
     process.exitCode = report.ok ? 0 : 1;
   } catch (error) {
-    const report = buildReport([], [], [{
-      ruleId: controlledRule(error, 'baseline-inspection-failed'),
-      surface: 'command',
-    }]);
+    const report = buildReport(
+      [],
+      [],
+      [
+        {
+          ruleId: controlledRule(error, "baseline-inspection-failed"),
+          surface: "command",
+        },
+      ],
+    );
     process.stderr.write(`${JSON.stringify(report)}\n`);
     process.exitCode = 2;
   }

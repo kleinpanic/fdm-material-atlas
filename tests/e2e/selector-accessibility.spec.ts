@@ -14,7 +14,10 @@ import type {
 type Page = PlaywrightTestArgs["page"];
 
 import { buildSelectorPageModel } from "../../src/features/selector/page-model.ts";
-import { decodeSelectorClientModel, encodeSelectorClientModel } from "../../src/features/selector/client-model.ts";
+import {
+  decodeSelectorClientModel,
+  encodeSelectorClientModel,
+} from "../../src/features/selector/client-model.ts";
 import { selectProjectedMaterials } from "../../src/domain/selector/index.ts";
 import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
 import { PUBLIC_ROUTE_REGISTRY } from "../../src/lib/public-route-registry.ts";
@@ -26,7 +29,9 @@ const test = playwrightTest as unknown as TestType<
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const expect = (playwrightTest as unknown as { expect: (...args: any[]) => any }).expect;
 const AxeBuilder = AxeBuilderImport as unknown as new (options: { page: Page }) => {
-  withTags(tags: string[]): { analyze(): Promise<{ violations: unknown[]; incomplete: unknown[] }> };
+  withTags(tags: string[]): {
+    analyze(): Promise<{ violations: unknown[]; incomplete: unknown[] }>;
+  };
 };
 
 const mode = process.env.ATLAS_TEST_MODE;
@@ -40,7 +45,9 @@ const canonicalPageModel = decodeSelectorClientModel(
 function noCompatiblePageModel() {
   const model = structuredClone(canonicalPageModel);
   for (const material of model.projection.materials) {
-    const field = material.fields.find((candidate) => candidate.field === "process.printDifficulty.order");
+    const field = material.fields.find(
+      (candidate) => candidate.field === "process.printDifficulty.order",
+    );
     if (!field) throw new Error("SYNTHETIC_DIFFICULTY_FIELD_MISSING");
     Object.assign(field, { state: "resolved", value: 3 });
   }
@@ -51,9 +58,13 @@ function noCompatiblePageModel() {
 
 function emittedModuleUrls(): { componentUrl: string; preactUrl: string } {
   const html = readFileSync(resolve(outputRoot, "index.html"), "utf8");
-  const componentPath = html.match(/<astro-island\b[^>]*\bcomponent-url="([^"]+)"/u)?.[1]?.replaceAll("&amp;", "&");
+  const componentPath = html
+    .match(/<astro-island\b[^>]*\bcomponent-url="([^"]+)"/u)?.[1]
+    ?.replaceAll("&amp;", "&");
   if (!componentPath) throw new Error("SELECTOR_COMPONENT_URL_MISSING");
-  const logicalPath = componentPath.startsWith(basePath) ? componentPath.slice(basePath.length) : componentPath.replace(/^\//u, "");
+  const logicalPath = componentPath.startsWith(basePath)
+    ? componentPath.slice(basePath.length)
+    : componentPath.replace(/^\//u, "");
   const source = readFileSync(resolve(outputRoot, logicalPath), "utf8");
   const preactFile = source.match(/from"\.\/(preact\.module\.[^"]+\.js)"/u)?.[1];
   if (!preactFile) throw new Error("PREACT_MODULE_URL_MISSING");
@@ -84,9 +95,11 @@ function colorChannel(value: number): number {
 function luminance(value: string): number {
   const match = value.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/u);
   if (!match) throw new Error("COLOR_FORMAT_INVALID");
-  return 0.2126 * colorChannel(Number(match[1]))
-    + 0.7152 * colorChannel(Number(match[2]))
-    + 0.0722 * colorChannel(Number(match[3]));
+  return (
+    0.2126 * colorChannel(Number(match[1])) +
+    0.7152 * colorChannel(Number(match[2])) +
+    0.0722 * colorChannel(Number(match[3]))
+  );
 }
 
 function contrast(first: string, second: string): number {
@@ -98,25 +111,38 @@ function contrast(first: string, second: string): number {
 async function mountNoCompatibleState(page: Page): Promise<void> {
   const modules = emittedModuleUrls();
   const model = noCompatiblePageModel();
-  await page.evaluate(async ({ componentUrl, preactUrl, pageModel }: {
-    componentUrl: string;
-    preactUrl: string;
-    pageModel: ReturnType<typeof noCompatiblePageModel>;
-  }) => {
-    const island = document.querySelector("astro-island");
-    const host = document.createElement("div");
-    island?.replaceWith(host);
-    const component = await import(componentUrl) as { SelectorIsland: (props: unknown) => unknown };
-    const preact = await import(preactUrl) as {
-      a: (component: unknown, props: unknown) => unknown;
-      n: (node: unknown, parent: Element) => void;
-    };
-    preact.n(preact.a(component.SelectorIsland, { pageModel }), host);
-  }, { ...modules, pageModel: model });
-  await expect(page.getByRole("heading", { name: "No materials match every selected constraint" })).toBeVisible();
+  await page.evaluate(
+    async ({
+      componentUrl,
+      preactUrl,
+      pageModel,
+    }: {
+      componentUrl: string;
+      preactUrl: string;
+      pageModel: ReturnType<typeof noCompatiblePageModel>;
+    }) => {
+      const island = document.querySelector("astro-island");
+      const host = document.createElement("div");
+      island?.replaceWith(host);
+      const component = (await import(componentUrl)) as {
+        SelectorIsland: (props: unknown) => unknown;
+      };
+      const preact = (await import(preactUrl)) as {
+        a: (component: unknown, props: unknown) => unknown;
+        n: (node: unknown, parent: Element) => void;
+      };
+      preact.n(preact.a(component.SelectorIsland, { pageModel }), host);
+    },
+    { ...modules, pageModel: model },
+  );
+  await expect(
+    page.getByRole("heading", { name: "No materials match every selected constraint" }),
+  ).toBeVisible();
 }
 
-test("selector keyboard flow preserves focus and uses one aggregate polite status", async ({ page }) => {
+test("selector keyboard flow preserves focus and uses one aggregate polite status", async ({
+  page,
+}) => {
   await waitForSelector(page);
   const firstGoal = page.getByRole("radio", { name: "Easy prototypes" });
   await firstGoal.focus();
@@ -136,8 +162,12 @@ test("selector keyboard flow preserves focus and uses one aggregate polite statu
   await expect(page.locator("[role=status]")).toHaveCount(1);
   await expect(page.locator("[role=status]")).toHaveAttribute("aria-live", "polite");
   await expect(page.locator("[role=status]")).toHaveAttribute("aria-atomic", "true");
-  await expect(page.locator("[role=status]")).toContainText(/compatible materials; \d+ eliminated\./u);
-  await expect(page.locator(".selector-compatible-list[aria-live], .selector-compatible-list [aria-live]")).toHaveCount(0);
+  await expect(page.locator("[role=status]")).toContainText(
+    /compatible materials; \d+ eliminated\./u,
+  );
+  await expect(
+    page.locator(".selector-compatible-list[aria-live], .selector-compatible-list [aria-live]"),
+  ).toHaveCount(0);
 
   await secondarySummary.focus();
   await page.keyboard.press("Enter");
@@ -146,35 +176,54 @@ test("selector keyboard flow preserves focus and uses one aggregate polite statu
   await page.getByRole("button", { name: "View recommendations" }).focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Compatible materials" })).toBeFocused();
-  const outline = await page.getByRole("heading", { name: "Compatible materials" })
+  const outline = await page
+    .getByRole("heading", { name: "Compatible materials" })
     .evaluate((element: Element) => getComputedStyle(element).outlineWidth);
   expect(outline).toBe("3px");
 });
 
-test("selector reflows at 320px and 200 percent zoom with 44px actions in DOM order", async ({ page }) => {
+test("selector reflows at 320px and 200 percent zoom with 44px actions in DOM order", async ({
+  page,
+}) => {
   for (const state of [
     { width: 320, zoom: "100%" },
     { width: 640, zoom: "200%" },
   ]) {
     await page.setViewportSize({ width: state.width, height: 900 });
     await waitForSelector(page);
-    await page.evaluate((zoom: string) => { document.documentElement.style.zoom = zoom; }, state.zoom);
+    await page.evaluate((zoom: string) => {
+      document.documentElement.style.zoom = zoom;
+    }, state.zoom);
     const layout = await page.evaluate(() => ({
       overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      orderValues: [...document.querySelectorAll<HTMLElement>(".selector-island form, .selector-island [role=status], .selector-island .selector-results")]
-        .map((element) => getComputedStyle(element).order),
-      nowrap: [...document.querySelectorAll<HTMLElement>(".selector-goal span")]
-        .some((element) => getComputedStyle(element).whiteSpace === "nowrap"),
+      orderValues: [
+        ...document.querySelectorAll<HTMLElement>(
+          ".selector-island form, .selector-island [role=status], .selector-island .selector-results",
+        ),
+      ].map((element) => getComputedStyle(element).order),
+      nowrap: [...document.querySelectorAll<HTMLElement>(".selector-goal span")].some(
+        (element) => getComputedStyle(element).whiteSpace === "nowrap",
+      ),
     }));
     expect(layout.overflow).toBeLessThanOrEqual(1);
     expect(layout.orderValues.every((value: string) => value === "0")).toBe(true);
     expect(layout.nowrap).toBe(false);
 
-    const targets = page.locator(".selector-controls label.selector-goal, .selector-controls summary, .selector-controls select, .selector-controls button, .selector-results button, .selector-results summary");
-    const boxes = await targets.evaluateAll((elements: Element[]) => elements.map((element: Element) => {
-      const rect = element.getBoundingClientRect();
-      return { width: rect.width, height: rect.height, visible: rect.width > 0 && rect.height > 0 };
-    }).filter(({ visible }: { visible: boolean }) => visible));
+    const targets = page.locator(
+      ".selector-controls label.selector-goal, .selector-controls summary, .selector-controls select, .selector-controls button, .selector-results button, .selector-results summary",
+    );
+    const boxes = await targets.evaluateAll((elements: Element[]) =>
+      elements
+        .map((element: Element) => {
+          const rect = element.getBoundingClientRect();
+          return {
+            width: rect.width,
+            height: rect.height,
+            visible: rect.width > 0 && rect.height > 0,
+          };
+        })
+        .filter(({ visible }: { visible: boolean }) => visible),
+    );
     expect(boxes.length).toBeGreaterThan(0);
     boxes.forEach(({ width, height }: { width: number; height: number }) => {
       expect(width).toBeGreaterThanOrEqual(44);
@@ -183,7 +232,9 @@ test("selector reflows at 320px and 200 percent zoom with 44px actions in DOM or
   }
 });
 
-test("wide layout keeps controls narrow, results broad, and native radio glyphs compact", async ({ page }) => {
+test("wide layout keeps controls narrow, results broad, and native radio glyphs compact", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await waitForSelector(page);
 
@@ -214,7 +265,9 @@ test("wide layout keeps controls narrow, results broad, and native radio glyphs 
   expect(geometry.radio.height).toBeLessThanOrEqual(24);
 });
 
-test("reduced motion and forced colors retain text, borders, shapes, and focus meaning", async ({ page }) => {
+test("reduced motion and forced colors retain text, borders, shapes, and focus meaning", async ({
+  page,
+}) => {
   await page.emulateMedia({ reducedMotion: "reduce", forcedColors: "active" });
   await waitForSelector(page);
   await page.locator("details.selector-eliminated > summary").click();
@@ -223,23 +276,43 @@ test("reduced motion and forced colors retain text, borders, shapes, and focus m
   const materialName = addName.replace(/^Add /u, "").replace(/ to shortlist$/u, "");
   await addButton.click();
   await expect(page.getByRole("heading", { name: "Shortlist" })).toBeVisible();
-  await expect(page.locator(".selector-shortlist").getByRole("button", {
-    name: `Remove ${materialName} from shortlist`,
-    exact: true,
-  })).toBeVisible();
-  await expect(page.getByText("Compatible with selected constraints", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Blocked by selected constraint", { exact: true }).first()).toBeVisible();
+  await expect(
+    page.locator(".selector-shortlist").getByRole("button", {
+      name: `Remove ${materialName} from shortlist`,
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Compatible with selected constraints", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Blocked by selected constraint", { exact: true }).first(),
+  ).toBeVisible();
   const indeterminate = page.getByText("Cannot verify — treated as incompatible", { exact: true });
-  if (await indeterminate.count() > 0) await expect(indeterminate.first()).toBeVisible();
-  const transitions = await page.locator(".selector-goal").first().evaluate((element: Element) =>
-    getComputedStyle(element).transitionDuration.split(",").map((value) => Number.parseFloat(value) || 0));
+  if ((await indeterminate.count()) > 0) await expect(indeterminate.first()).toBeVisible();
+  const transitions = await page
+    .locator(".selector-goal")
+    .first()
+    .evaluate((element: Element) =>
+      getComputedStyle(element)
+        .transitionDuration.split(",")
+        .map((value) => Number.parseFloat(value) || 0),
+    );
   expect(Math.max(...transitions)).toBeLessThanOrEqual(0.001);
-  const selectedBorder = await page.locator(".selector-goal:has(input:checked)").evaluate((element: Element) => getComputedStyle(element).borderLeftStyle);
+  const selectedBorder = await page
+    .locator(".selector-goal:has(input:checked)")
+    .evaluate((element: Element) => getComputedStyle(element).borderLeftStyle);
   expect(selectedBorder).not.toBe("none");
   await page.getByRole("button", { name: "View recommendations" }).focus();
   await page.keyboard.press("Enter");
-  expect(await page.getByRole("heading", { name: "Compatible materials" }).evaluate((element: Element) => getComputedStyle(element).outlineStyle)).not.toBe("none");
-  const routeContrast = await page.getByRole("link", { name: "View material details" }).first()
+  expect(
+    await page
+      .getByRole("heading", { name: "Compatible materials" })
+      .evaluate((element: Element) => getComputedStyle(element).outlineStyle),
+  ).not.toBe("none");
+  const routeContrast = await page
+    .getByRole("link", { name: "View material details" })
+    .first()
     .evaluate((element: Element) => {
       const style = getComputedStyle(element);
       const background = getComputedStyle(document.body).backgroundColor;
@@ -248,7 +321,9 @@ test("reduced motion and forced colors retain text, borders, shapes, and focus m
   expect(contrast(routeContrast.foreground, routeContrast.background)).toBeGreaterThanOrEqual(4.5);
 });
 
-test("axe passes default, changed, elimination, shortlist, and no-compatible states", async ({ page }) => {
+test("axe passes default, changed, elimination, shortlist, and no-compatible states", async ({
+  page,
+}) => {
   test.setTimeout(90_000);
   await waitForSelector(page);
   await axePasses(page);
@@ -256,7 +331,10 @@ test("axe passes default, changed, elimination, shortlist, and no-compatible sta
   await axePasses(page);
   await page.locator("details.selector-eliminated > summary").click();
   await axePasses(page);
-  await page.getByRole("button", { name: /^Add .+ to shortlist$/u }).first().click();
+  await page
+    .getByRole("button", { name: /^Add .+ to shortlist$/u })
+    .first()
+    .click();
   await axePasses(page);
   await mountNoCompatibleState(page);
   await axePasses(page);

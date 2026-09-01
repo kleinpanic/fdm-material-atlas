@@ -11,7 +11,10 @@ export type SelectorEvaluator = (
 ) => SelectorEngineOutcome;
 
 export type SafeSelectorEvaluation =
-  | Readonly<{ kind: "success"; outcome: Exclude<SelectorEngineOutcome, { kind: "invalid-selection" }> }>
+  | Readonly<{
+      kind: "success";
+      outcome: Exclude<SelectorEngineOutcome, { kind: "invalid-selection" }>;
+    }>
   | Readonly<{ kind: "error"; code: "SELECTOR_EVALUATION_FAILED" }>;
 
 const FAILURE: SafeSelectorEvaluation = Object.freeze({

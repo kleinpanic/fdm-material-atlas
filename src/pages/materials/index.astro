@@ -49,18 +49,34 @@ const footerLinks = [
   <header class="atlas-orientation">
     <p class="technical-eyebrow">Material atlas</p>
     <h1>Browse validated material families</h1>
-    <p class="reading-measure">Search all validated materials, then filter by the properties and process requirements that matter to your printer and use case.</p>
-    <p class="atlas-count"><strong>{pageModel.rows.length}</strong> material families in this reference.</p>
+    <p class="reading-measure">
+      Search all validated materials, then filter by the properties and process requirements that
+      matter to your printer and use case.
+    </p>
+    <p class="atlas-count">
+      <strong>{pageModel.rows.length}</strong> material families in this reference.
+    </p>
   </header>
 
   <section class="atlas-experience" aria-label="Complete material atlas">
-    <noscript><p class="atlas-fallback" data-state="information">Interactive filters are unavailable. All validated materials remain listed below.</p></noscript>
+    <noscript
+      ><p class="atlas-fallback" data-state="information">
+        Interactive filters are unavailable. All validated materials remain listed below.
+      </p></noscript
+    >
     <AtlasIsland pageModel={pageModel} client:load />
   </section>
 
   <aside class="atlas-limitations" aria-labelledby="atlas-limitations-heading">
     <h2 id="atlas-limitations-heading">Use these records as selection guidance</h2>
-    <p>Filament formulations differ. Check the current TDS and SDS for the exact product. Geometry, moisture, load, print orientation, annealing, chamber conditions, and process history can change behavior.</p>
-    <p>This atlas is not an engineering safety certification. Named thermal tests are not directly interchangeable with practical service-temperature guidance.</p>
+    <p>
+      Filament formulations differ. Check the current TDS and SDS for the exact product. Geometry,
+      moisture, load, print orientation, annealing, chamber conditions, and process history can
+      change behavior.
+    </p>
+    <p>
+      This atlas is not an engineering safety certification. Named thermal tests are not directly
+      interchangeable with practical service-temperature guidance.
+    </p>
   </aside>
 </BaseLayout>

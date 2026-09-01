@@ -48,7 +48,11 @@ type SelectedCriterion = Readonly<{
 }>;
 
 type NormalizationResult =
-  | Readonly<{ ok: true; selected: readonly SelectedCriterion[]; selection: NormalizedSelectorSelection }>
+  | Readonly<{
+      ok: true;
+      selected: readonly SelectedCriterion[];
+      selection: NormalizedSelectorSelection;
+    }>
   | Readonly<{ ok: false; issues: readonly SelectorIssue[] }>;
 
 function compareAscii(left: string, right: string): number {
@@ -68,8 +72,13 @@ function invalidProjection(): never {
 }
 
 function validateMaterial(material: unknown): ProjectedSelectorMaterial {
-  if (!isRecord(material) || typeof material.id !== "string" || typeof material.label !== "string"
-    || !Array.isArray(material.fields)) invalidProjection();
+  if (
+    !isRecord(material) ||
+    typeof material.id !== "string" ||
+    typeof material.label !== "string" ||
+    !Array.isArray(material.fields)
+  )
+    invalidProjection();
   const fields = new Set<string>();
   for (const record of material.fields) {
     if (!isRecord(record) || typeof record.field !== "string" || fields.has(record.field)) {
@@ -78,12 +87,16 @@ function validateMaterial(material: unknown): ProjectedSelectorMaterial {
     fields.add(record.field);
     if (record.state === "resolved") {
       const value = record.value;
-      const validValue = typeof value === "string" || typeof value === "boolean"
-        || (typeof value === "number" && Number.isFinite(value))
-        || (Array.isArray(value) && value.every((item) => typeof item === "string"));
+      const validValue =
+        typeof value === "string" ||
+        typeof value === "boolean" ||
+        (typeof value === "number" && Number.isFinite(value)) ||
+        (Array.isArray(value) && value.every((item) => typeof item === "string"));
       if (!validValue) invalidProjection();
     } else if (record.state === "indeterminate") {
-      if (!["unknown", "conditional", "not-applicable", "missing"].includes(String(record.reason))) {
+      if (
+        !["unknown", "conditional", "not-applicable", "missing"].includes(String(record.reason))
+      ) {
         invalidProjection();
       }
     } else {
@@ -94,39 +107,62 @@ function validateMaterial(material: unknown): ProjectedSelectorMaterial {
 }
 
 function prepareProjection(projection: SelectorProjectionV1): PreparedProjection {
-  if (!isRecord(projection)
-    || projection.kind !== "selector-projection"
-    || projection.schemaVersion !== 1
-    || projection.projectionVersion !== 1
-    || projection.stableOrder !== "score-desc-material-asc"
-    || !Array.isArray(projection.criteria)
-    || !Array.isArray(projection.processGates)
-    || !Array.isArray(projection.materials)) invalidProjection();
+  if (
+    !isRecord(projection) ||
+    projection.kind !== "selector-projection" ||
+    projection.schemaVersion !== 1 ||
+    projection.projectionVersion !== 1 ||
+    projection.stableOrder !== "score-desc-material-asc" ||
+    !Array.isArray(projection.criteria) ||
+    !Array.isArray(projection.processGates) ||
+    !Array.isArray(projection.materials)
+  )
+    invalidProjection();
 
   const processGateIds = new Set<string>();
   for (const gate of projection.processGates) {
-    if (!isRecord(gate) || typeof gate.id !== "string" || typeof gate.label !== "string"
-      || processGateIds.has(gate.id)) invalidProjection();
+    if (
+      !isRecord(gate) ||
+      typeof gate.id !== "string" ||
+      typeof gate.label !== "string" ||
+      processGateIds.has(gate.id)
+    )
+      invalidProjection();
     processGateIds.add(gate.id);
   }
 
   const criterionIds = new Set<string>();
   const criteria = [...projection.criteria]
-    .sort((left, right) => left.displayOrder - right.displayOrder || compareAscii(left.id, right.id))
+    .sort(
+      (left, right) => left.displayOrder - right.displayOrder || compareAscii(left.id, right.id),
+    )
     .map((criterion): PreparedCriterion => {
-      if (!isRecord(criterion) || typeof criterion.id !== "string" || criterionIds.has(criterion.id)
-        || typeof criterion.label !== "string" || !hasOnlyFiniteNonnegativeInteger(criterion.displayOrder)
-        || !Array.isArray(criterion.options)
-        || (criterion.role !== "primary" && criterion.role !== "secondary")
-        || criterion.weight !== (criterion.role === "primary" ? 2 : 1)) invalidProjection();
+      if (
+        !isRecord(criterion) ||
+        typeof criterion.id !== "string" ||
+        criterionIds.has(criterion.id) ||
+        typeof criterion.label !== "string" ||
+        !hasOnlyFiniteNonnegativeInteger(criterion.displayOrder) ||
+        !Array.isArray(criterion.options) ||
+        (criterion.role !== "primary" && criterion.role !== "secondary") ||
+        criterion.weight !== (criterion.role === "primary" ? 2 : 1)
+      )
+        invalidProjection();
       criterionIds.add(criterion.id);
 
       const options = new Map<SelectorOptionId, PreparedOption>();
-      for (const option of [...criterion.options]
-        .sort((left, right) => left.displayOrder - right.displayOrder || compareAscii(left.id, right.id))) {
-        if (!isRecord(option) || typeof option.id !== "string" || options.has(option.id as SelectorOptionId)
-          || typeof option.label !== "string" || !hasOnlyFiniteNonnegativeInteger(option.displayOrder)
-          || !Array.isArray(option.hardGates)) invalidProjection();
+      for (const option of [...criterion.options].sort(
+        (left, right) => left.displayOrder - right.displayOrder || compareAscii(left.id, right.id),
+      )) {
+        if (
+          !isRecord(option) ||
+          typeof option.id !== "string" ||
+          options.has(option.id as SelectorOptionId) ||
+          typeof option.label !== "string" ||
+          !hasOnlyFiniteNonnegativeInteger(option.displayOrder) ||
+          !Array.isArray(option.hardGates)
+        )
+          invalidProjection();
         const compiled = compilePredicateSet({
           ...(option.preferenceRule === undefined ? {} : { preferenceRule: option.preferenceRule }),
           hardGates: option.hardGates,
@@ -134,13 +170,18 @@ function prepareProjection(projection: SelectorProjectionV1): PreparedProjection
         for (const gate of compiled.hardGates) {
           if (!processGateIds.has(gate.processGateId)) invalidProjection();
         }
-        options.set(option.id as SelectorOptionId, Object.freeze({
-          definition: option as unknown as ProjectedSelectorOption,
-          compiled,
-        }));
+        options.set(
+          option.id as SelectorOptionId,
+          Object.freeze({
+            definition: option as unknown as ProjectedSelectorOption,
+            compiled,
+          }),
+        );
       }
-      if (typeof criterion.defaultOptionId !== "string"
-        || !options.has(criterion.defaultOptionId as SelectorOptionId)) {
+      if (
+        typeof criterion.defaultOptionId !== "string" ||
+        !options.has(criterion.defaultOptionId as SelectorOptionId)
+      ) {
         invalidProjection();
       }
       return Object.freeze({
@@ -186,8 +227,9 @@ function normalizeSelection(
     prepared.criteria.map(({ definition }) => definition.id),
   );
   const keys = inputKeys(input);
-  const hasUnknownCriterion = keys.some((key) =>
-    typeof key !== "string" || !knownCriterionIds.has(key));
+  const hasUnknownCriterion = keys.some(
+    (key) => typeof key !== "string" || !knownCriterionIds.has(key),
+  );
   const issues: SelectorIssue[] = hasUnknownCriterion
     ? [{ code: "SELECTOR_CRITERION_UNKNOWN" }]
     : [];
@@ -197,22 +239,23 @@ function normalizeSelection(
     const raw = keys.includes(criterion.definition.id)
       ? ownInputValue(input, criterion.definition.id)
       : criterion.definition.defaultOptionId;
-    const option = typeof raw === "string"
-      ? criterion.options.get(raw as SelectorOptionId)
-      : undefined;
+    const option =
+      typeof raw === "string" ? criterion.options.get(raw as SelectorOptionId) : undefined;
     if (!option) {
       issues.push({ code: "SELECTOR_OPTION_UNKNOWN", criterionId: criterion.definition.id });
       continue;
     }
-    selected.push(Object.freeze({
-      selection: Object.freeze({
-        criterionId: criterion.definition.id,
-        optionId: option.definition.id,
-        role: criterion.definition.role,
-        weight: criterion.definition.weight,
+    selected.push(
+      Object.freeze({
+        selection: Object.freeze({
+          criterionId: criterion.definition.id,
+          optionId: option.definition.id,
+          role: criterion.definition.role,
+          weight: criterion.definition.weight,
+        }),
+        option,
       }),
-      option,
-    }));
+    );
   }
 
   if (issues.length > 0) return { ok: false, issues: Object.freeze(issues) };
@@ -274,8 +317,11 @@ function makeContribution(
 }
 
 function finalApplicableMaximum(selected: readonly SelectedCriterion[]): number {
-  return selected.reduce((sum, criterion) =>
-    sum + (criterion.option.compiled.preferenceRule ? criterion.selection.weight : 0), 0);
+  return selected.reduce(
+    (sum, criterion) =>
+      sum + (criterion.option.compiled.preferenceRule ? criterion.selection.weight : 0),
+    0,
+  );
 }
 
 function finalizeCompatible(
@@ -305,9 +351,11 @@ function finalizeEliminated(
   applicableMaximum: number,
   exclusions: readonly ExclusionRecord[],
 ): EliminatedMaterialResult {
-  const ordered = [...exclusions].sort((left, right) =>
-    compareAscii(left.reasonId, right.reasonId)
-    || compareAscii(left.processGateId, right.processGateId));
+  const ordered = [...exclusions].sort(
+    (left, right) =>
+      compareAscii(left.reasonId, right.reasonId) ||
+      compareAscii(left.processGateId, right.processGateId),
+  );
   return Object.freeze({
     kind: "eliminated",
     materialId: material.id,
@@ -354,11 +402,13 @@ export function selectProjectedMaterials(
       for (const gate of selected.option.compiled.hardGates) {
         const gateOutcome = evaluateCompiledPredicate(gate.incompatibleWhen, resolver);
         if (gateOutcome !== "no-match") {
-          exclusions.push(makeExclusion(
-            selected,
-            gate,
-            gateOutcome === "match" ? "incompatible" : "indeterminate",
-          ));
+          exclusions.push(
+            makeExclusion(
+              selected,
+              gate,
+              gateOutcome === "match" ? "incompatible" : "indeterminate",
+            ),
+          );
         }
       }
     }
@@ -370,9 +420,7 @@ export function selectProjectedMaterials(
 
     const contributions = normalized.selected.flatMap((selected) => {
       const rule = selected.option.compiled.preferenceRule;
-      return rule
-        ? [makeContribution(selected, evaluateCompiledPredicate(rule, resolver))]
-        : [];
+      return rule ? [makeContribution(selected, evaluateCompiledPredicate(rule, resolver))] : [];
     });
     compatible.push(finalizeCompatible(material, contributions));
   }
@@ -382,9 +430,13 @@ export function selectProjectedMaterials(
   );
   const orderedCompatible = Object.freeze(
     [...compatible]
-      .sort((left, right) => right.score - left.score || compareAscii(left.materialId, right.materialId))
+      .sort(
+        (left, right) =>
+          right.score - left.score || compareAscii(left.materialId, right.materialId),
+      )
       .map((result, index): CompatibleMaterialResult =>
-        Object.freeze({ ...result, rank: index + 1 })),
+        Object.freeze({ ...result, rank: index + 1 }),
+      ),
   );
 
   if (orderedCompatible.length === 0) {

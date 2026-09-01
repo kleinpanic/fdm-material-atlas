@@ -24,13 +24,15 @@ const { homeHref, navigation } = Astro.props;
 
     <nav aria-label="Primary navigation">
       <ul class="compact-navigation site-navigation">
-        {navigation.map((item) => (
-          <li>
-            <a href={item.href} aria-current={item.current ? "page" : undefined}>
-              {item.label}
-            </a>
-          </li>
-        ))}
+        {
+          navigation.map((item) => (
+            <li>
+              <a href={item.href} aria-current={item.current ? "page" : undefined}>
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
         <li class="site-navigation__repository">
           <a
             class="repository-link"
@@ -131,7 +133,9 @@ const { homeHref, navigation } = Astro.props;
   }
 
   @media (max-width: 39.999rem) {
-    .site-navigation { overflow: visible; }
+    .site-navigation {
+      overflow: visible;
+    }
   }
 
   @media (min-width: 64rem) {
@@ -145,7 +149,11 @@ const { homeHref, navigation } = Astro.props;
       gap: var(--spacing-2);
     }
 
-    .repository-link__compact { display: none; }
-    .repository-link__wide { display: inline; }
+    .repository-link__compact {
+      display: none;
+    }
+    .repository-link__wide {
+      display: inline;
+    }
   }
 </style>

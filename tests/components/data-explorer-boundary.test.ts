@@ -38,7 +38,9 @@ describe("data explorer component boundary", () => {
     expect(controls).not.toContain("query: event.currentTarget.value");
     expect(island).toMatch(/setRawState\(\(previous(?:: unknown)?\)/u);
     expect(island).toContain("update(safeExplore(model, previous).state)");
-    expect(all).not.toMatch(/fetch\s*\(|XMLHttpRequest|localStorage|sessionStorage|indexedDB|dangerouslySetInnerHTML|console\.|window\.location|history\./u);
+    expect(all).not.toMatch(
+      /fetch\s*\(|XMLHttpRequest|localStorage|sessionStorage|indexedDB|dangerouslySetInnerHTML|console\.|window\.location|history\./u,
+    );
   });
 
   it("retains the active group on clear and exposes a controlled reset alert", () => {
@@ -55,7 +57,7 @@ describe("data explorer component boundary", () => {
     expect(table).toContain('scope="col"');
     expect(table).toContain('scope="row"');
     expect(table).toContain("aria-sort");
-    expect(table).toContain('tabIndex={0}');
+    expect(table).toContain("tabIndex={0}");
     expect(table).toContain('role="region"');
     expect(table).toMatch(/<button\b/u);
     expect(table).toContain('field.sort !== "none"');

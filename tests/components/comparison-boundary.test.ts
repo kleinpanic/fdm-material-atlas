@@ -39,7 +39,7 @@ describe("comparison island boundary", () => {
     expect(islandSource).toContain("useEffect");
     expect(islandSource).toContain("decodeCompareUrlState(window.location.search");
     expect(islandSource).toContain("encodeCompareUrlState(");
-    expect(islandSource).toContain("window.history.replaceState(null, \"\", encoded.href)");
+    expect(islandSource).toContain('window.history.replaceState(null, "", encoded.href)');
     expect(islandSource).not.toMatch(/useState\([^\n]*(?:window|location|history)/u);
     expect(islandSource).not.toMatch(/fetch\(|localStorage|sessionStorage/u);
     expect(islandSource).not.toMatch(/data\/schema\/atlas|public-atlas|comparison\/model/u);
@@ -56,16 +56,18 @@ describe("comparison island boundary", () => {
 
   it("renders semantic property-first groups with differences before equal disclosure", () => {
     const model = buildComparisonModel(loadPublicAtlas(), "/");
-    const selected = model.materials.flatMap((left) => model.materials.flatMap((right) => {
-      if (left.id === right.id) return [];
-      const leftThermal = left.cells.find(({ key }) => key === "thermal-value");
-      const rightThermal = right.cells.find(({ key }) => key === "thermal-value");
-      if (leftThermal?.kind !== "thermal" || rightThermal?.kind !== "thermal") return [];
-      const leftGroups = new Set(leftThermal.members.map(({ groupId }) => groupId));
-      return rightThermal.members.some(({ groupId }) => !leftGroups.has(groupId))
-        ? [[left.id, right.id] as const]
-        : [];
-    }))[0];
+    const selected = model.materials.flatMap((left) =>
+      model.materials.flatMap((right) => {
+        if (left.id === right.id) return [];
+        const leftThermal = left.cells.find(({ key }) => key === "thermal-value");
+        const rightThermal = right.cells.find(({ key }) => key === "thermal-value");
+        if (leftThermal?.kind !== "thermal" || rightThermal?.kind !== "thermal") return [];
+        const leftGroups = new Set(leftThermal.members.map(({ groupId }) => groupId));
+        return rightThermal.members.some(({ groupId }) => !leftGroups.has(groupId))
+          ? [[left.id, right.id] as const]
+          : [];
+      }),
+    )[0];
     expect(selected).toBeDefined();
     const result = compareSelection(model, selected);
     expect(result.kind).toBe("comparison");
@@ -86,11 +88,18 @@ describe("comparison island boundary", () => {
 
   it("renders thermal metric identity once while retaining the fact state", () => {
     const model = buildComparisonModel(loadPublicAtlas(), "/");
-    const result = compareSelection(model, model.materials.slice(0, 2).map(({ id }) => id));
+    const result = compareSelection(
+      model,
+      model.materials.slice(0, 2).map(({ id }) => id),
+    );
     expect(result.kind).toBe("comparison");
     if (result.kind !== "comparison") return;
-    const row = result.groups.flatMap(({ differing, equal }) => [...differing, ...equal])
-      .find(({ key, values }) => key === "thermal-metric" && values.some(({ kind }) => kind === "thermal"))!;
+    const row = result.groups
+      .flatMap(({ differing, equal }) => [...differing, ...equal])
+      .find(
+        ({ key, values }) =>
+          key === "thermal-metric" && values.some(({ kind }) => kind === "thermal"),
+      )!;
     const value = row.values.find(({ kind }) => kind === "thermal")!;
     if (value.kind !== "thermal") return;
 

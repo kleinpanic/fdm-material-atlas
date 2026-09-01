@@ -1,10 +1,6 @@
 import type { AtlasV1 } from "../../data/schema/atlas.ts";
 import { decisionLaneIds } from "../../data/schema/decision-lane.ts";
-import type {
-  DecisionLaneId,
-  MaterialId,
-  ProcessGateId,
-} from "../../data/schema/ids.ts";
+import type { DecisionLaneId, MaterialId, ProcessGateId } from "../../data/schema/ids.ts";
 import type { ProcessGateCapability } from "../../data/schema/process-gate.ts";
 import { deriveDecisionLaneMembership } from "../../domain/decision-lanes/membership.ts";
 import { internalFragmentHref, internalHref } from "../../lib/routes.ts";
@@ -91,8 +87,8 @@ function validateRegistries(atlas: AtlasV1): void {
   const uniqueLaneIds = new Set<string>(laneIds);
   if (uniqueLaneIds.size !== laneIds.length) return fail("PROCESS_GATE_LANE_DUPLICATE");
   if (
-    laneIds.length !== decisionLaneIds.length
-    || decisionLaneIds.some((id) => !uniqueLaneIds.has(id))
+    laneIds.length !== decisionLaneIds.length ||
+    decisionLaneIds.some((id) => !uniqueLaneIds.has(id))
   ) {
     return fail("PROCESS_GATE_LANE_MISSING");
   }
@@ -149,9 +145,7 @@ export function buildProcessGateMap(
 ): MapProcessGateModel {
   validateRegistries(atlas);
 
-  const memberships = new Map(
-    deriveDecisionLaneMembership(atlas).map((lane) => [lane.id, lane]),
-  );
+  const memberships = new Map(deriveDecisionLaneMembership(atlas).map((lane) => [lane.id, lane]));
   const gates = [...atlas.processGates]
     .sort((left, right) => compareText(left.id, right.id))
     .map((gate) => gateReference(gate, base));
@@ -160,7 +154,9 @@ export function buildProcessGateMap(
     if (lane === undefined) return fail("PROCESS_GATE_LANE_MISSING");
     const candidates = lane.candidateMaterialIds
       .map((materialId) => materialReference(atlas, materialId, base))
-      .sort((left, right) => left.displayOrder - right.displayOrder || compareText(left.id, right.id));
+      .sort(
+        (left, right) => left.displayOrder - right.displayOrder || compareText(left.id, right.id),
+      );
     return {
       id: lane.id,
       label: lane.label,
@@ -174,15 +170,17 @@ export function buildProcessGateMap(
       new Set<ProcessGateId>(lane.processGates.map(({ id }) => id)),
     ]),
   );
-  const relationships = lanes.flatMap((lane) => gates.map((gate): MapGateRelationship => {
-    const applies = appliedByLane.get(lane.id)?.has(gate.id) === true;
-    return {
-      laneId: lane.id,
-      gateId: gate.id,
-      relationship: applies ? "applies" : "not-listed",
-      label: applies ? "Applies — verify this gate" : "Not listed for this lane",
-    };
-  }));
+  const relationships = lanes.flatMap((lane) =>
+    gates.map((gate): MapGateRelationship => {
+      const applies = appliedByLane.get(lane.id)?.has(gate.id) === true;
+      return {
+        laneId: lane.id,
+        gateId: gate.id,
+        relationship: applies ? "applies" : "not-listed",
+        label: applies ? "Applies — verify this gate" : "Not listed for this lane",
+      };
+    }),
+  );
 
   return deepFreeze({ lanes, gates, relationships });
 }
@@ -215,7 +213,9 @@ export function selectProcessGateContext(
   const relationships = model.relationships.filter(
     ({ gateId, relationship }) => gateId === gate.id && relationship === "applies",
   );
-  const relationshipByLane = new Map(relationships.map((relationship) => [relationship.laneId, relationship]));
+  const relationshipByLane = new Map(
+    relationships.map((relationship) => [relationship.laneId, relationship]),
+  );
   const lanes = model.lanes.flatMap((lane) => {
     const relationship = relationshipByLane.get(lane.id);
     return relationship === undefined ? [] : [{ lane, candidates: lane.candidates, relationship }];

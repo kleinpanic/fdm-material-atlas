@@ -69,11 +69,13 @@ const mainFragment = fragmentHref("main-content");
         {breadcrumbs.length > 0 && <Breadcrumbs items={breadcrumbs} />}
         <slot />
       </main>
-      {Astro.slots.has("support") && (
-        <aside class="page-shell page-support" aria-label="Page support">
-          <slot name="support" />
-        </aside>
-      )}
+      {
+        Astro.slots.has("support") && (
+          <aside class="page-shell page-support" aria-label="Page support">
+            <slot name="support" />
+          </aside>
+        )
+      }
       <SiteFooter links={footerLinks} />
     </div>
   </body>

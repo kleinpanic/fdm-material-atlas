@@ -28,4 +28,3 @@ export const ProcessGateRegistrySchema = z.array(ProcessGateRecordSchema);
 
 export type ProcessGateCapability = z.infer<typeof ProcessGateCapabilitySchema>;
 export type ProcessGateRecord = z.infer<typeof ProcessGateRecordSchema>;
-

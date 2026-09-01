@@ -17,7 +17,10 @@ const material = lane.candidates[0]!;
 const gate = projection.processGates.gates[0]!;
 const group = projection.thermalGroups[0]!;
 
-function run(actions: readonly MapSelectionAction[], initial = createInitialMapState(projection)): MapState {
+function run(
+  actions: readonly MapSelectionAction[],
+  initial = createInitialMapState(projection),
+): MapState {
   return actions.reduce(createMapReducer(projection), initial);
 }
 
@@ -31,7 +34,8 @@ describe("closed map state", () => {
       thermal: { view: "service-guidance", query: "", serviceSort: "canonical" },
       processGates: {},
       impactFlex: { query: "", difficultyShapes: false },
-      announcement: "Interactive map controls are preparing. Every path and structured table is already available.",
+      announcement:
+        "Interactive map controls are preparing. Every path and structured table is already available.",
     });
     expect(state.focusPreview).toBeUndefined();
     expect(state.hoverPreview).toBeUndefined();
@@ -58,7 +62,10 @@ describe("closed map state", () => {
       id: material.id,
     });
 
-    const reset = createMapReducer(projection)(selected, { type: "reset-view", mode: "decision-paths" });
+    const reset = createMapReducer(projection)(selected, {
+      type: "reset-view",
+      mode: "decision-paths",
+    });
     expect(reset.decisionPaths).toEqual({});
     expect(reset.processGates).toEqual({ gateId: gate.id });
     expect(reset.hydrated).toBe(true);
@@ -89,24 +96,34 @@ describe("closed map state", () => {
     });
     const focusedView = buildMapView(projection, focused).decisionPaths;
     expect(focusedView.lockedTarget).toEqual({
-      kind: "material", mode: "decision-paths", laneId: lane.id, id: material.id,
+      kind: "material",
+      mode: "decision-paths",
+      laneId: lane.id,
+      id: material.id,
     });
     expect(focusedView.previewTarget).toEqual(focusTarget);
     expect(focusedView.previewSource).toBe("focus");
     expect(focusedView.activeTarget).toEqual(focusTarget);
 
     const hovered = createMapReducer(projection)(focused, {
-      type: "preview-selection", mode: "decision-paths", source: "hover", target: hoverTarget,
+      type: "preview-selection",
+      mode: "decision-paths",
+      source: "hover",
+      target: hoverTarget,
     });
     expect(buildMapView(projection, hovered).decisionPaths.activeTarget).toEqual(hoverTarget);
 
     const focusRestored = createMapReducer(projection)(hovered, {
-      type: "clear-preview", mode: "decision-paths", source: "hover",
+      type: "clear-preview",
+      mode: "decision-paths",
+      source: "hover",
     });
     expect(buildMapView(projection, focusRestored).decisionPaths.activeTarget).toEqual(focusTarget);
 
     const hoverOnly = createMapReducer(projection)(hovered, {
-      type: "clear-preview", mode: "decision-paths", source: "focus",
+      type: "clear-preview",
+      mode: "decision-paths",
+      source: "focus",
     });
     expect(buildMapView(projection, hoverOnly).decisionPaths.activeTarget).toEqual(hoverTarget);
   });
@@ -119,7 +136,9 @@ describe("closed map state", () => {
     expect(laneSelected.processGates).toEqual({ laneId: lane.id });
 
     const gateSelected = createMapReducer(projection)(laneSelected, {
-      type: "select-gate", mode: "process-gates", gateId: gate.id,
+      type: "select-gate",
+      mode: "process-gates",
+      gateId: gate.id,
     });
     expect(gateSelected.processGates).toEqual({ gateId: gate.id });
     expect(buildMapView(projection, gateSelected).processGates.context).toMatchObject({
@@ -143,21 +162,30 @@ describe("closed map state", () => {
     expect(view.view).toBe("named-observations");
     expect(view.selectedGroup?.id).toBe(group.id);
     expect(view.namedRecords).toHaveLength(23);
-    expect(view.namedRecords.filter(({ disposition }) => disposition.disposition === "filtered"))
-      .toHaveLength(22);
-    expect(view.namedRecords.find(({ material: recordMaterial }) => recordMaterial.id === uniqueMaterial.id)?.disposition)
-      .not.toMatchObject({ disposition: "filtered" });
+    expect(
+      view.namedRecords.filter(({ disposition }) => disposition.disposition === "filtered"),
+    ).toHaveLength(22);
+    expect(
+      view.namedRecords.find(
+        ({ material: recordMaterial }) => recordMaterial.id === uniqueMaterial.id,
+      )?.disposition,
+    ).not.toMatchObject({ disposition: "filtered" });
     expect(view.serviceRecords).toHaveLength(23);
-    expect(view.serviceRecords.filter(({ disposition }) => disposition.disposition === "plotted"))
-      .toHaveLength(1);
-    const highEndpoints = view.serviceRecords.flatMap(({ measurement }) => measurement === undefined
-      ? []
-      : [measurement.shape === "point" ? measurement.value : measurement.high]);
+    expect(
+      view.serviceRecords.filter(({ disposition }) => disposition.disposition === "plotted"),
+    ).toHaveLength(1);
+    const highEndpoints = view.serviceRecords.flatMap(({ measurement }) =>
+      measurement === undefined
+        ? []
+        : [measurement.shape === "point" ? measurement.value : measurement.high],
+    );
     expect(highEndpoints).toEqual([...highEndpoints].sort((left, right) => left - right));
   });
 
   it("derives impact filters without dropping records and labels a selected filtered material", () => {
-    const difficult = projection.impactFlex.records.find(({ printDifficulty }) => printDifficulty === "expert")!;
+    const difficult = projection.impactFlex.records.find(
+      ({ printDifficulty }) => printDifficulty === "expert",
+    )!;
     const state = run([
       { type: "set-mode", mode: "impact-flex-space" },
       { type: "select-material", mode: "impact-flex-space", materialId: difficult.material.id },
@@ -170,8 +198,12 @@ describe("closed map state", () => {
     expect(view.maximumDifficulty).toBe("easy");
     expect(view.shapesEnabled).toBe(true);
     expect(view.selectedOutsideFilter).toBe(true);
-    expect(view.records.find(({ material }) => material.id === difficult.material.id)?.disposition)
-      .toMatchObject({ disposition: "filtered", filter: { kind: "maximum-difficulty", value: "easy" } });
+    expect(
+      view.records.find(({ material }) => material.id === difficult.material.id)?.disposition,
+    ).toMatchObject({
+      disposition: "filtered",
+      filter: { kind: "maximum-difficulty", value: "easy" },
+    });
   });
 
   it("clears stale state and filters with fixed recovery when an event ID is invalid", () => {

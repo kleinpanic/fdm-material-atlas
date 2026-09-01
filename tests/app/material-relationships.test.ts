@@ -17,10 +17,12 @@ describe("decision-lane membership", () => {
     for (const lane of result) {
       const canonical = atlas.decisionLanes.find(({ id }) => id === lane.id)!;
       const expectedCandidates = atlas.materials
-        .filter((material) => evaluatePredicate(
-          canonical.candidateRule,
-          (field) => resolveSelectorField(material, field, atlas.vocabularies),
-        ) === "match")
+        .filter(
+          (material) =>
+            evaluatePredicate(canonical.candidateRule, (field) =>
+              resolveSelectorField(material, field, atlas.vocabularies),
+            ) === "match",
+        )
         .map(({ id }) => id)
         .sort();
       expect([...lane.candidateMaterialIds].sort()).toEqual(expectedCandidates);
@@ -45,7 +47,10 @@ describe("decision-lane membership", () => {
     const lane = atlas.decisionLanes.find(({ id }) => id === "lane-outdoor")!;
     const material = atlas.materials[0]!;
     material.properties.outdoorUv.value = { state: "unknown", reason: "Verify exact formulation." };
-    material.properties.moistureSensitivity.value = { state: "unknown", reason: "Verify exact formulation." };
+    material.properties.moistureSensitivity.value = {
+      state: "unknown",
+      reason: "Verify exact formulation.",
+    };
     const model = deriveDecisionLaneMembership(atlas).find(({ id }) => id === lane.id)!;
 
     expect(model.indeterminateMaterialIds).toContain(material.id);
@@ -53,17 +58,27 @@ describe("decision-lane membership", () => {
   });
 
   it.each([
-    ["RELATIONSHIP_GATE_MISSING", (atlas: AtlasV1) => {
-      atlas.decisionLanes[0]!.processGateIds[0] = "gate-missing" as AtlasV1["processGates"][number]["id"];
-    }],
-    ["RELATIONSHIP_VISUALIZATION_MISSING", (atlas: AtlasV1) => {
-      atlas.visualizationReferences.push({
-        id: "visualization-dangling" as AtlasV1["visualizationReferences"][number]["id"],
-        kind: "decision-path",
-        subject: { kind: "decision-lane-id", decisionLaneId: "lane-missing" as AtlasV1["decisionLanes"][number]["id"] },
-        related: [],
-      });
-    }],
+    [
+      "RELATIONSHIP_GATE_MISSING",
+      (atlas: AtlasV1) => {
+        atlas.decisionLanes[0]!.processGateIds[0] =
+          "gate-missing" as AtlasV1["processGates"][number]["id"];
+      },
+    ],
+    [
+      "RELATIONSHIP_VISUALIZATION_MISSING",
+      (atlas: AtlasV1) => {
+        atlas.visualizationReferences.push({
+          id: "visualization-dangling" as AtlasV1["visualizationReferences"][number]["id"],
+          kind: "decision-path",
+          subject: {
+            kind: "decision-lane-id",
+            decisionLaneId: "lane-missing" as AtlasV1["decisionLanes"][number]["id"],
+          },
+          related: [],
+        });
+      },
+    ],
   ])("fails dangling relationships with %s", (code, mutate) => {
     const atlas = structuredClone(loadPublicAtlas());
     mutate(atlas);

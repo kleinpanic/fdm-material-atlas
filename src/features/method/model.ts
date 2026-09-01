@@ -40,7 +40,11 @@ export type SourceRecordModel = MethodLedgerBase & {
 export type MethodPageModel = {
   readonly href: string;
   readonly copy: typeof METHOD_COPY;
-  readonly contents: readonly { readonly id: string; readonly label: string; readonly href: string }[];
+  readonly contents: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly href: string;
+  }[];
   readonly methods: readonly MethodRecordModel[];
   readonly sources: readonly SourceRecordModel[];
 };
@@ -56,7 +60,9 @@ const CONTENTS = [
   ["limitations", "Limitations"],
 ] as const;
 
-function fail(code: string): never { throw new Error(code); }
+function fail(code: string): never {
+  throw new Error(code);
+}
 
 function deepFreeze<T>(value: T): T {
   if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
@@ -69,7 +75,9 @@ function deepFreeze<T>(value: T): T {
 function useModel(base: string | undefined, use: EvidenceUse): MethodUseModel {
   return {
     ...use,
-    scopeLabel: METHOD_COPY.evidenceScopes.find(({ id }) => id === use.scope)?.label ?? fail("METHOD_SCOPE_INVALID"),
+    scopeLabel:
+      METHOD_COPY.evidenceScopes.find(({ id }) => id === use.scope)?.label ??
+      fail("METHOD_SCOPE_INVALID"),
     href: internalFragmentHref(base, { id: "material", slug: use.materialSlug }, use.claimAnchor),
   };
 }

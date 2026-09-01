@@ -8,11 +8,13 @@ import {
 } from "../../src/data/schema/material.ts";
 import { syntheticIds } from "../fixtures/schema-values.ts";
 
-const basis = [{
-  kind: "method" as const,
-  methodId: syntheticIds.method,
-  scope: "representative-product" as const,
-}];
+const basis = [
+  {
+    kind: "method" as const,
+    methodId: syntheticIds.method,
+    scope: "representative-product" as const,
+  },
+];
 
 function observation(overrides: Record<string, unknown> = {}) {
   return {
@@ -48,10 +50,12 @@ describe("service-temperature and named thermal separation", () => {
       basis,
     });
     expect(parsed.value).toMatchObject({ state: "known" });
-    expect(ThermalObservationSchema.safeParse({
-      ...observation(),
-      metric: "service-temperature",
-    }).success).toBe(false);
+    expect(
+      ThermalObservationSchema.safeParse({
+        ...observation(),
+        metric: "service-temperature",
+      }).success,
+    ).toBe(false);
   });
 
   it.each([
@@ -82,16 +86,24 @@ describe("service-temperature and named thermal separation", () => {
     expect(parsed.qualification).toContain("not interchangeable");
     expect(parsed.basis).toEqual(basis);
 
-    expect(ThermalObservationSchema.parse(observation({
-      measurement: {
-        state: "conditional",
-        condition: "Only after a reviewed conditioning step",
-        value: { shape: "exact", value: 81, unit: "degC" },
-      },
-    })).measurement).toMatchObject({ state: "conditional" });
-    expect(ThermalObservationSchema.parse(observation({
-      measurement: { state: "not-applicable", reason: "No applicable transition" },
-    })).measurement).toEqual({ state: "not-applicable", reason: "No applicable transition" });
+    expect(
+      ThermalObservationSchema.parse(
+        observation({
+          measurement: {
+            state: "conditional",
+            condition: "Only after a reviewed conditioning step",
+            value: { shape: "exact", value: 81, unit: "degC" },
+          },
+        }),
+      ).measurement,
+    ).toMatchObject({ state: "conditional" });
+    expect(
+      ThermalObservationSchema.parse(
+        observation({
+          measurement: { state: "not-applicable", reason: "No applicable transition" },
+        }),
+      ).measurement,
+    ).toEqual({ state: "not-applicable", reason: "No applicable transition" });
   });
 
   it("requires a specific label, qualification, and evidence without echoing rejected input", () => {
@@ -104,7 +116,9 @@ describe("service-temperature and named thermal separation", () => {
       const result = ThermalObservationSchema.safeParse(invalid);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(JSON.stringify(result.error.issues)).not.toContain("service-temperature-synthetic-secret");
+        expect(JSON.stringify(result.error.issues)).not.toContain(
+          "service-temperature-synthetic-secret",
+        );
       }
     }
   });
@@ -119,11 +133,26 @@ describe("thermal observation compatibility", () => {
 
   it.each([
     ["metric", observation({ metric: "vicat-softening" })],
-    ["standard", observation({ method: { ...observation().method as object, standard: "Synthetic standard C" } })],
-    ["load", observation({ method: { ...observation().method as object, loadMpa: 0.45 } })],
-    ["annealing", observation({ method: { ...observation().method as object, annealed: true } })],
-    ["conditioning", observation({ method: { ...observation().method as object, conditioning: "Wet specimen" } })],
-    ["other conditions", observation({ method: { ...observation().method as object, otherConditions: "Different geometry" } })],
+    [
+      "standard",
+      observation({
+        method: { ...(observation().method as object), standard: "Synthetic standard C" },
+      }),
+    ],
+    ["load", observation({ method: { ...(observation().method as object), loadMpa: 0.45 } })],
+    ["annealing", observation({ method: { ...(observation().method as object), annealed: true } })],
+    [
+      "conditioning",
+      observation({
+        method: { ...(observation().method as object), conditioning: "Wet specimen" },
+      }),
+    ],
+    [
+      "other conditions",
+      observation({
+        method: { ...(observation().method as object), otherConditions: "Different geometry" },
+      }),
+    ],
   ])("returns a stable non-comparable code for mismatched %s", (_dimension, candidate) => {
     const left = ThermalObservationSchema.parse(observation());
     const right = ThermalObservationSchema.parse(candidate);
@@ -134,19 +163,22 @@ describe("thermal observation compatibility", () => {
   });
 
   it("distinguishes separately named observations in the other metric category", () => {
-    const left = ThermalObservationSchema.parse(observation({
-      metric: "other",
-      metricLabel: "Synthetic thermal test A",
-    }));
-    const right = ThermalObservationSchema.parse(observation({
-      id: "claim-alpha-other-two",
-      metric: "other",
-      metricLabel: "Synthetic thermal test B",
-    }));
+    const left = ThermalObservationSchema.parse(
+      observation({
+        metric: "other",
+        metricLabel: "Synthetic thermal test A",
+      }),
+    );
+    const right = ThermalObservationSchema.parse(
+      observation({
+        id: "claim-alpha-other-two",
+        metric: "other",
+        metricLabel: "Synthetic thermal test B",
+      }),
+    );
     expect(compareThermalObservations(left, right)).toEqual({
       comparable: false,
       code: "THERMAL_NOT_COMPARABLE",
     });
   });
 });
-

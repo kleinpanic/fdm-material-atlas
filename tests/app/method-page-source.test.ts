@@ -8,10 +8,11 @@ describe("method page source", () => {
   it("builds one complete static model in the shared shell", () => {
     expect(page).toContain("buildMethodPageModel(loadPublicAtlas(), base)");
     expect(page).toContain("<MethodReference model={model} />");
-    expect(page).toContain('canonicalPath={model.href}');
+    expect(page).toContain("canonicalPath={model.href}");
     expect(page).toContain('internalHref(base, { id: "home" })');
     expect(page).toContain('internalHref(base, { id: "materials" })');
-    for (const forbidden of ["client:", "fetch(", "set:html", "window.", "document."]) expect(page).not.toContain(forbidden);
+    for (const forbidden of ["client:", "fetch(", "set:html", "window.", "document."])
+      expect(page).not.toContain(forbidden);
   });
 
   it("provides approved orientation, shell links, and a single h1", () => {

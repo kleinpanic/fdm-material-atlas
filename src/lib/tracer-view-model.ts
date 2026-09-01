@@ -1,8 +1,5 @@
 import type { AtlasV1 } from "../data/schema/atlas.ts";
-import type {
-  BasisRef,
-  EvidenceScope,
-} from "../data/schema/evidence.ts";
+import type { BasisRef, EvidenceScope } from "../data/schema/evidence.ts";
 import type {
   Material,
   ThermalMethod,
@@ -10,10 +7,7 @@ import type {
   ThermalObservation,
 } from "../data/schema/material.ts";
 import type { TemperatureMeasurement } from "../data/schema/measurements.ts";
-import type {
-  ProcessGateCapability,
-  ProcessGateRecord,
-} from "../data/schema/process-gate.ts";
+import type { ProcessGateCapability, ProcessGateRecord } from "../data/schema/process-gate.ts";
 import {
   EVIDENCE_SCOPE_ORDER,
   projectFactState,
@@ -70,10 +64,7 @@ function compareStableText(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function stableFirst<T>(
-  values: readonly T[],
-  key: (value: T) => string,
-): T | undefined {
+function stableFirst<T>(values: readonly T[], key: (value: T) => string): T | undefined {
   let selected: T | undefined;
   for (const value of values) {
     if (selected === undefined || compareStableText(key(value), key(selected)) < 0) {
@@ -115,8 +106,7 @@ function projectEvidenceScope(reference: BasisRef): TracerEvidenceScope {
 /** Select the first canonical public material ID without mutating Atlas order. */
 export function selectTracerMaterial(atlas: AtlasV1): Material {
   return (
-    stableFirst(atlas.materials, (material) => material.id) ??
-    fail("TRACER_MATERIAL_REQUIRED")
+    stableFirst(atlas.materials, (material) => material.id) ?? fail("TRACER_MATERIAL_REQUIRED")
   );
 }
 
@@ -125,10 +115,7 @@ function selectThermal(material: Material): ThermalObservation | undefined {
 }
 
 function selectProcessGate(atlas: AtlasV1): ProcessGateRecord {
-  return (
-    stableFirst(atlas.processGates, (gate) => gate.id) ??
-    fail("TRACER_PROCESS_GATE_REQUIRED")
-  );
+  return stableFirst(atlas.processGates, (gate) => gate.id) ?? fail("TRACER_PROCESS_GATE_REQUIRED");
 }
 
 /** Build the static tracer entirely from validated canonical Atlas records. */

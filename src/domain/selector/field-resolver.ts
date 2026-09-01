@@ -1,12 +1,8 @@
-import type {
-  VocabularyDefinition,
-} from "../../data/schema/atlas.ts";
+import type { VocabularyDefinition } from "../../data/schema/atlas.ts";
 import type { FactState } from "../../data/schema/fact-state.ts";
 import type { VocabularyId } from "../../data/schema/ids.ts";
 import type { Material } from "../../data/schema/material.ts";
-import type {
-  SelectorField,
-} from "../../data/schema/selector.ts";
+import type { SelectorField } from "../../data/schema/selector.ts";
 import type {
   ProjectedSelectorFieldRecord,
   ProjectedSelectorMaterial,
@@ -194,7 +190,11 @@ function resolveCanonicalField(
     case "properties.dimensionalStability":
       return resolveKnown(field, material.properties.dimensionalStability.value, (value) => value);
     case "properties.dimensionalStability.order":
-      return resolveOrderedFact(field, material.properties.dimensionalStability.value, vocabularies);
+      return resolveOrderedFact(
+        field,
+        material.properties.dimensionalStability.value,
+        vocabularies,
+      );
     case "process.printDifficulty":
       return resolveKnown(field, material.process.printDifficulty.value, (value) => value);
     case "process.printDifficulty.order":
@@ -268,6 +268,6 @@ export function containsNormalizedSelectorLiteral(
   if (resolution.state !== "resolved" || !Array.isArray(resolution.value)) return false;
   const normalizedCandidates = candidates.map(normalizeText);
   return resolution.value.some((text) =>
-    normalizedCandidates.some((candidate) => text.includes(candidate))
+    normalizedCandidates.some((candidate) => text.includes(candidate)),
   );
 }

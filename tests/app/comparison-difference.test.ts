@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  compareSelection,
-} from "../../src/features/comparison/difference.ts";
+import { compareSelection } from "../../src/features/comparison/difference.ts";
 import type { ComparisonValueCell } from "../../src/features/comparison/contracts.ts";
 import { buildComparisonModel } from "../../src/features/comparison/model.ts";
 import { safeCompare } from "../../src/features/comparison/safe-compare.ts";
@@ -57,18 +55,21 @@ describe("comparison difference transform", () => {
     const mutableRightCell = rightCell as MutableComparisonValueCell;
 
     mutableRightCell.display = [...leftCell.display, "Different rendered copy"];
-    mutableRightCell.evidence = [{
-      label: "Different evidence record",
-      scope: "family-guidance",
-      scopeLabel: "Family guidance",
-      href: "/method/#source-different",
-    }];
+    mutableRightCell.evidence = [
+      {
+        label: "Different evidence record",
+        scope: "family-guidance",
+        scopeLabel: "Family guidance",
+        href: "/method/#source-different",
+      },
+    ];
     mutableRightCell.equality = structuredClone(leftCell.equality);
 
     const outcome = compareSelection(candidate, [left!.id, right!.id]);
     expect(outcome.kind).toBe("comparison");
     if (outcome.kind !== "comparison") return;
-    const row = outcome.groups.flatMap(({ differing, equal }) => [...differing, ...equal])
+    const row = outcome.groups
+      .flatMap(({ differing, equal }) => [...differing, ...equal])
       .find(({ key }) => key === "family-or-fill");
     expect(row?.differs).toBe(false);
   });
@@ -91,7 +92,8 @@ describe("comparison difference transform", () => {
       const [left, right] = candidate.materials;
       const leftCell = left!.cells.find(({ key }) => key === "family-or-fill")!;
       const rightCell = right!.cells.find(({ key }) => key === "family-or-fill")!;
-      if (leftCell.kind !== "value" || rightCell.kind !== "value") throw new Error("TEST_CELL_INVALID");
+      if (leftCell.kind !== "value" || rightCell.kind !== "value")
+        throw new Error("TEST_CELL_INVALID");
       const mutableLeftCell = leftCell as MutableComparisonValueCell;
       const mutableRightCell = rightCell as MutableComparisonValueCell;
       mutableLeftCell.equality = equality;
@@ -99,32 +101,47 @@ describe("comparison difference transform", () => {
       let outcome = compareSelection(candidate, [left!.id, right!.id]);
       expect(outcome.kind).toBe("comparison");
       if (outcome.kind !== "comparison") continue;
-      expect(outcome.groups.flatMap(({ equal }) => equal).some(({ key }) => key === "family-or-fill")).toBe(true);
+      expect(
+        outcome.groups.flatMap(({ equal }) => equal).some(({ key }) => key === "family-or-fill"),
+      ).toBe(true);
 
       mutableRightCell.equality = [...equality, ["changed"]];
       outcome = compareSelection(candidate, [left!.id, right!.id]);
       expect(outcome.kind).toBe("comparison");
       if (outcome.kind !== "comparison") continue;
-      expect(outcome.groups.flatMap(({ differing }) => differing).some(({ key }) => key === "family-or-fill")).toBe(true);
+      expect(
+        outcome.groups
+          .flatMap(({ differing }) => differing)
+          .some(({ key }) => key === "family-or-fill"),
+      ).toBe(true);
     }
   });
 
   it("uses comparison-only absence for missing compatible thermal members", () => {
-    const pair = model.materials.flatMap((left) => model.materials.flatMap((right) => {
-      if (left.id === right.id) return [];
-      const leftCell = left.cells.find(({ key }) => key === "thermal-value");
-      const rightCell = right.cells.find(({ key }) => key === "thermal-value");
-      if (leftCell?.kind !== "thermal" || rightCell?.kind !== "thermal") return [];
-      const leftGroups = new Set(leftCell.members.map(({ groupId }) => groupId));
-      return rightCell.members.some(({ groupId }) => !leftGroups.has(groupId)) ? [[left.id, right.id] as const] : [];
-    }))[0];
+    const pair = model.materials.flatMap((left) =>
+      model.materials.flatMap((right) => {
+        if (left.id === right.id) return [];
+        const leftCell = left.cells.find(({ key }) => key === "thermal-value");
+        const rightCell = right.cells.find(({ key }) => key === "thermal-value");
+        if (leftCell?.kind !== "thermal" || rightCell?.kind !== "thermal") return [];
+        const leftGroups = new Set(leftCell.members.map(({ groupId }) => groupId));
+        return rightCell.members.some(({ groupId }) => !leftGroups.has(groupId))
+          ? [[left.id, right.id] as const]
+          : [];
+      }),
+    )[0];
     expect(pair).toBeDefined();
     const outcome = compareSelection(model, pair!);
     expect(outcome.kind).toBe("comparison");
     if (outcome.kind !== "comparison") return;
-    const thermalRows = outcome.groups.flatMap(({ differing }) => differing)
+    const thermalRows = outcome.groups
+      .flatMap(({ differing }) => differing)
       .filter(({ key }) => key === "thermal-value");
-    expect(thermalRows.some(({ values }) => values.some(({ kind }) => kind === "no-comparable-observation"))).toBe(true);
+    expect(
+      thermalRows.some(({ values }) =>
+        values.some(({ kind }) => kind === "no-comparable-observation"),
+      ),
+    ).toBe(true);
   });
 
   it("returns one data-free safe failure and no stale result", () => {

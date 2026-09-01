@@ -12,11 +12,15 @@ describe("data explorer model", () => {
 
     expect(model.groups).toHaveLength(8);
     expect(model.fields).toHaveLength(32);
-    expect(model.fields.map(({ key }) => key)).toEqual(DATA_ATTRIBUTE_REGISTRY.map(({ key }) => key));
+    expect(model.fields.map(({ key }) => key)).toEqual(
+      DATA_ATTRIBUTE_REGISTRY.map(({ key }) => key),
+    );
     expect(model.materials).toHaveLength(23);
     for (const material of model.materials) {
       expect(material.cells).toHaveLength(32);
-      expect(material.cells.map(({ key }) => key)).toEqual(DATA_ATTRIBUTE_REGISTRY.map(({ key }) => key));
+      expect(material.cells.map(({ key }) => key)).toEqual(
+        DATA_ATTRIBUTE_REGISTRY.map(({ key }) => key),
+      );
       expect(material.href).toMatch(/^\/atlas-preview\/materials\/[a-z0-9-]+\/$/u);
     }
   });
@@ -30,7 +34,9 @@ describe("data explorer model", () => {
       condition: "Depends on the exact filler formulation.",
     };
 
-    const material = buildDataExplorerModel(atlas, "/").materials.find(({ id }) => id === target.id)!;
+    const material = buildDataExplorerModel(atlas, "/").materials.find(
+      ({ id }) => id === target.id,
+    )!;
     expect(material.family).toBe("Represented polymer family");
     expect(material.familyQualifier).toBe("Conditional — Depends on the exact filler formulation.");
   });
@@ -69,10 +75,21 @@ describe("data explorer model", () => {
       }
     };
     visit(model);
-    expect([...keys]).not.toEqual(expect.arrayContaining([
-      "atlas", "selector", "decisionLanes", "processGates", "visualizationReferences",
-      "sources", "methods", "basis", "note", "externalUrl", "displayOrder",
-    ]));
+    expect([...keys]).not.toEqual(
+      expect.arrayContaining([
+        "atlas",
+        "selector",
+        "decisionLanes",
+        "processGates",
+        "visualizationReferences",
+        "sources",
+        "methods",
+        "basis",
+        "note",
+        "externalUrl",
+        "displayOrder",
+      ]),
+    );
     expect(serialized).not.toMatch(/https?:\/\//u);
     expect(serialized).not.toMatch(/claim-[a-z0-9-]+/u);
   });
@@ -84,7 +101,9 @@ describe("data explorer model", () => {
 
     const duplicate = structuredClone(loadPublicAtlas()) as AtlasV1;
     duplicate.materials.push(structuredClone(duplicate.materials[0]!));
-    expect(() => buildDataExplorerModel(duplicate, "/")).toThrow("DATA_EXPLORER_MATERIAL_DUPLICATE");
+    expect(() => buildDataExplorerModel(duplicate, "/")).toThrow(
+      "DATA_EXPLORER_MATERIAL_DUPLICATE",
+    );
 
     const missingEvidence = structuredClone(loadPublicAtlas()) as AtlasV1;
     missingEvidence.methods = [];
