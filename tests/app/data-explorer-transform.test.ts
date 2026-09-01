@@ -119,7 +119,10 @@ describe("data explorer transform", () => {
       const result = exploreData(fixture, { ...base, sort: { field: "density", direction } });
       expect(result.kind === "exploration" && result.materials.map(({ id }) => id)).toEqual(["material-a", "material-z"]);
     }
-    expect(() => exploreData(model, withState({ sort: { field: "thermal-value", direction: "asc" } })))
+    expect(() => exploreData(model, {
+      ...defaultExplorerState(model),
+      sort: { field: "thermal-value", direction: "asc" },
+    }))
       .toThrow("EXPLORER_STATE_INVALID");
   });
 

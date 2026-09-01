@@ -14,6 +14,7 @@ import type {
 
 export type ExplorerView = "table" | "records";
 export type ExplorerSortDirection = "asc" | "desc";
+export type ExplorerSortableField = Exclude<MaterialSemanticKey, "thermal-value">;
 
 export type ExplorerState = Readonly<{
   query: string;
@@ -22,7 +23,7 @@ export type ExplorerState = Readonly<{
   factState: "all" | ExplorerFactState;
   evidenceScope: "all" | EvidenceScope;
   view: ExplorerView;
-  sort: Readonly<{ field: MaterialSemanticKey; direction: ExplorerSortDirection }>;
+  sort: Readonly<{ field: ExplorerSortableField; direction: ExplorerSortDirection }>;
 }>;
 
 export type ExploredMaterial = Readonly<{
@@ -122,7 +123,7 @@ function validateState(model: DataExplorerModel, input: unknown): ExplorerState 
     factState: state.factState as ExplorerState["factState"],
     evidenceScope: state.evidenceScope as ExplorerState["evidenceScope"],
     view: state.view,
-    sort: { field: field.key, direction: sort.direction },
+    sort: { field: field.key as ExplorerSortableField, direction: sort.direction },
   };
 }
 
@@ -167,7 +168,7 @@ function compareValues(left: string | number, right: string | number): number {
 function compareRows(
   left: ExploredMaterial,
   right: ExploredMaterial,
-  field: MaterialSemanticKey,
+  field: ExplorerSortableField,
   direction: ExplorerSortDirection,
 ): number {
   const leftCell = left.cells.find(({ key }) => key === field) ?? fail("EXPLORER_MODEL_INVALID");

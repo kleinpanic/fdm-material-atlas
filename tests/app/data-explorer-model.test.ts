@@ -78,5 +78,9 @@ describe("data explorer model", () => {
     const duplicate = structuredClone(loadPublicAtlas()) as AtlasV1;
     duplicate.materials.push(structuredClone(duplicate.materials[0]!));
     expect(() => buildDataExplorerModel(duplicate, "/")).toThrow("DATA_EXPLORER_MATERIAL_DUPLICATE");
+
+    const missingEvidence = structuredClone(loadPublicAtlas()) as AtlasV1;
+    missingEvidence.methods = [];
+    expect(() => buildDataExplorerModel(missingEvidence, "/")).toThrow();
   });
 });
