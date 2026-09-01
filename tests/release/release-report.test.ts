@@ -1,0 +1,121 @@
+import { describe, expect, it } from "vitest";
+
+import { renderReleaseReport } from "../../tools/render-release-report.mjs";
+import { DIGEST, REPO_DIGEST, ROOT_DIGEST, SHA } from "./release-evidence.test";
+import { barrier } from "./review-barrier.test";
+
+export function verifiedEvidence() {
+  return {
+    schemaVersion: 1,
+    cycleId: "release-20260901-01",
+    stage: "verified",
+    commitSha: SHA,
+    startedAt: "2026-09-01T18:00:00.000Z",
+    reason: "candidate-updated",
+    priorVerifiedCycle: null,
+    candidate: {
+      observedAt: "2026-09-01T18:10:00.000Z",
+      product: {
+        materialCount: 23,
+        sourceRecordCount: 22,
+        canonicalSchemaVersion: 1,
+        canonicalDigest: DIGEST,
+        stack: ["Astro 7", "Preact 10", "Tailwind CSS 4", "TypeScript 6"],
+        routes: ["/", "/materials/", "/compare/", "/data/", "/map/", "/method/"],
+        selectorContractVersion: 1,
+        selectorArchitecture: "Deterministic pure scoring engine with hard gates and reason records.",
+        visualizationModes: ["decision-path", "thermal-range", "process-gates", "impact-flex"],
+        visualizationArchitecture: "Static projections with lazy interactive islands.",
+        workflows: ["CI", "Pages", "Dependency review"],
+        majorDirectories: ["public/data", "src", "tests", "tools"],
+        limitations: ["No license decision has been recorded."],
+      },
+      quality: {
+        rootArtifactDigest: ROOT_DIGEST,
+        repositoryArtifactDigest: REPO_DIGEST,
+        checks: [{ id: "ci-all", status: "passed", observedAt: "2026-09-01T18:11:00.000Z" }],
+      },
+      reviewBarrier: barrier(),
+    },
+    publication: {
+      observedAt: "2026-09-01T18:20:00.000Z",
+      repository: {
+        nameWithOwner: "kleinpanic/fdm-material-atlas",
+        url: "https://github.com/kleinpanic/fdm-material-atlas",
+        visibility: "PUBLIC",
+        defaultBranch: "main",
+      },
+      history: { refCount: 4, commitCount: 215, authorMismatchCount: 0, findingCount: 0 },
+      policy: { scanSessionId: "scan-20260901-01", activePatternCount: 2, status: "passed" },
+    },
+    deployment: {
+      observedAt: "2026-09-01T18:30:00.000Z",
+      workflow: {
+        databaseId: 55,
+        file: ".github/workflows/pages.yml",
+        event: "push",
+        branch: "main",
+        ref: "refs/heads/main",
+        sha: SHA,
+        runAttempt: 1,
+        jobs: [
+          { name: "build", databaseId: 101, conclusion: "success" },
+          { name: "deploy", databaseId: 102, conclusion: "success" },
+          { name: "probe", databaseId: 103, conclusion: "success" },
+        ],
+      },
+      pages: {
+        environment: "github-pages",
+        artifact: { id: 201, name: "github-pages", digest: DIGEST, producerJobId: 101 },
+        deployConsumerJobId: 102,
+        url: "https://kleinpanic.github.io/fdm-material-atlas/",
+        status: "built",
+        httpsEnforced: true,
+      },
+    },
+    verification: {
+      observedAt: "2026-09-01T18:40:00.000Z",
+      live: { routeCount: 29, assetCount: 53, findingCount: 0, status: "passed" },
+      remote: { refCount: 4, commitCount: 215, findingCount: 0, status: "passed" },
+      accessibility: { status: "passed", scope: "representative-live-routes" },
+      performance: { status: "passed", scope: "root-repository-pages" },
+    },
+  };
+}
+
+describe("fact-only completion report", () => {
+  it("renders Markdown and JSON only from verified observations", () => {
+    const markdown = renderReleaseReport(verifiedEvidence(), { format: "markdown" });
+    expect(markdown).toContain("https://github.com/kleinpanic/fdm-material-atlas");
+    expect(markdown).toContain("https://kleinpanic.github.io/fdm-material-atlas/");
+    expect(markdown).toContain("23 materials");
+    expect(markdown).toContain("22 source records");
+    expect(markdown).toContain("No license decision has been recorded.");
+    const json = JSON.parse(renderReleaseReport(verifiedEvidence(), { format: "json" }));
+    expect(json.observed.commitSha).toBe(SHA);
+    expect(json.observed.routes).toHaveLength(6);
+  });
+
+  it("refuses incomplete or non-verified evidence", () => {
+    expect(() => renderReleaseReport({ ...verifiedEvidence(), stage: "deployed" }, { format: "markdown" })).toThrowError(
+      expect.objectContaining({ code: "RELEASE_REPORT_NOT_VERIFIED" }),
+    );
+    const missing = verifiedEvidence();
+    delete (missing.candidate.product as { routes?: string[] }).routes;
+    expect(() => renderReleaseReport(missing, { format: "markdown" })).toThrow();
+  });
+
+  it("rejects uncontrolled URLs and raw diagnostics without reproducing them", () => {
+    const value = verifiedEvidence();
+    const rejected = "https://private.invalid/sensitive";
+    value.publication.repository.url = rejected;
+    let message = "";
+    try {
+      renderReleaseReport(value, { format: "markdown" });
+    } catch (error) {
+      message = String(error);
+    }
+    expect(message).toContain("RELEASE_EVIDENCE_VALUE_INVALID");
+    expect(message).not.toContain(rejected);
+  });
+});
