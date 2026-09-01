@@ -153,7 +153,9 @@ function actions(claim: MaterialDetailClaim): readonly ComparisonEvidenceAction[
 }
 
 function claimDescriptor(key: MaterialSemanticKey): MaterialClaimDescriptor | undefined {
-  return MATERIAL_CLAIM_REGISTRY.find(({ semanticKeys }) => semanticKeys.includes(key));
+  return MATERIAL_CLAIM_REGISTRY.find(({ semanticKeys }) =>
+    (semanticKeys as readonly MaterialSemanticKey[]).includes(key)
+  );
 }
 
 function scalarClaim(
@@ -216,9 +218,11 @@ function serviceEndpointCell(
   } else {
     fact = claim.value as FactState<unknown>;
   }
-  const shape = claim.value.state === "known" || (claim.value.state === "conditional" && claim.value.value !== undefined)
+  const shape = claim.value.state === "known"
     ? claim.value.value.shape
-    : "without-measurement";
+    : claim.value.state === "conditional" && claim.value.value !== undefined
+      ? claim.value.value.shape
+      : "without-measurement";
   const display = fact.state === "known"
     ? [`${String(fact.value)} °C`]
     : fact.state === "conditional" && fact.value !== undefined
