@@ -242,10 +242,13 @@ async function inspectRoute(mode, route, expectedExport, files, exactPatterns) {
 }
 
 async function scanBoundedPublication(rootOutput, repositoryOutput, sensitiveFile) {
-  if (typeof sensitiveFile !== "string" || sensitiveFile === "") fail("SENSITIVE_INPUT_REQUIRED");
   let policy;
   try {
-    policy = await loadPublicationPolicy({ root: PROJECT_ROOT, sensitiveFile, env: process.env });
+    policy = await loadPublicationPolicy({
+      root: PROJECT_ROOT,
+      ...(typeof sensitiveFile === "string" && sensitiveFile !== "" ? { sensitiveFile } : {}),
+      env: process.env,
+    });
   } catch {
     fail("SENSITIVE_INPUT_INVALID");
   }

@@ -21,6 +21,8 @@
     "verify:selector-build": "node tools/verify-build-modes.mjs selector",
     "verify:selector": "npm run build:test-modes && npm run verify:selector-build",
     "verify:phase6-build": "node tools/verify-phase6-build.mjs",
+    "test:phase7-smoke": "vitest run tests/app/comparison-model.test.ts tests/app/comparison-difference.test.ts tests/app/compare-url-state.test.ts tests/app/compare-page-source.test.ts tests/app/data-attribute-registry.test.ts tests/app/data-explorer-model.test.ts tests/app/data-explorer-transform.test.ts tests/app/data-page-source.test.ts tests/app/public-route-registry.test.ts tests/components/comparison-boundary.test.ts tests/components/data-explorer-boundary.test.ts tests/app/phase7-build-verifier.test.ts",
+    "verify:phase7-build": "node tools/verify-build-modes.mjs phase7",
     "preview:root": "node tools/verify-build-modes.mjs serve root",
     "preview:repository": "node tools/verify-build-modes.mjs serve repository",
     "test:e2e:root": "ATLAS_TEST_MODE=root playwright test",

@@ -7,6 +7,7 @@ import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { loadExactPatterns } from "./lib/publication-policy.mjs";
+import { verifyPhase7Build } from "./verify-phase7-build.mjs";
 import { SelectorBuildError, verifySelectorBuild } from "./verify-selector-build.mjs";
 
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -420,7 +421,12 @@ async function main() {
     await serveMode(process.argv[3]);
     return;
   }
-  if (process.argv.length !== 3 || !["build", "browser", "selector"].includes(command)) fail("ARGUMENTS_INVALID");
+  if (process.argv.length !== 3 || !["build", "browser", "selector", "phase7"].includes(command)) fail("ARGUMENTS_INVALID");
+  if (command === "phase7") {
+    const report = await verifyPhase7Build();
+    process.stdout.write(`${JSON.stringify({ ok: true, command, routeCount: report.routeCount, modes: report.modes })}\n`);
+    return;
+  }
   const reports = command === "build"
     ? await buildAndInspect()
     : command === "browser"
