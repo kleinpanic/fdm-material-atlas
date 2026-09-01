@@ -78,7 +78,7 @@ describe("process gate renderer", () => {
     expect(laneHtml).toContain("Selected");
     for (const candidate of lane.candidates) expect(laneHtml).toContain(candidate.href);
 
-    const gate = projection.processGates.gates.find(({ id }) => id === "gate-enclosure")!;
+    const gate = projection.processGates.gates.find(({ id }) => id === "gate-enclosure-capability")!;
     const gateHtml = renderGate([{ type: "select-gate", mode: "process-gates", gateId: gate.id }]);
     expect(gateHtml).toContain("Selected process gate");
     expect(gateHtml).toContain(gate.capabilityLabel);
