@@ -328,7 +328,9 @@ function thermalCell(
       const groupId = index.byObservation.get(`${material.id}\u0000${observation.id}`) ?? fail("COMPARISON_THERMAL_GROUP_MISSING");
       const detail = detailClaims.find(({ claimId }) => claimId === observation.id) ?? fail("COMPARISON_CLAIM_MISSING");
       const scopes = sortedScopes(observation.basis);
-      const groupIdentity: SemanticTuple = ["thermal-group", groupId, thermalIdentity(observation)];
+      // Group membership is established only by compareThermalObservations().
+      // Do not add a second client-side comparability rule through display text.
+      const groupIdentity: SemanticTuple = ["thermal-group", groupId];
       return {
         groupId,
         metric: observation.metric,
