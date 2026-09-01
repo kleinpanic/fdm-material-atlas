@@ -178,7 +178,7 @@ export function DecisionPaths({ view, dispatch }: Props) {
     <section id="decision-paths" class="map-mode map-mode--decision-paths" aria-labelledby="interactive-decision-paths-heading">
       <header class="map-mode__header">
         <p class="technical-eyebrow">Decision paths</p>
-        <h2 id="interactive-decision-paths-heading">Follow a need through properties, candidates, and process gates</h2>
+        <h2 id="interactive-decision-paths-heading">Decision paths</h2>
         <p>Choose one of eight needs to inspect the canonical rule, all live candidates, and every linked process gate.</p>
       </header>
 

@@ -27,7 +27,7 @@ const LANE_LABELS = Object.freeze([
   "High heat and sustained load", "Industrial", "Decorative fills", "Support materials",
 ]);
 const STATIC_ALTERNATIVES = Object.freeze([
-  "Follow a need through properties, candidates, and process gates",
+  "Decision paths",
   "Practical service guidance",
   "Compare only matching metric and method groups.",
   "Process-gate relationships by decision lane",

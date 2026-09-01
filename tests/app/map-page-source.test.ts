@@ -39,6 +39,8 @@ describe("static-first map page source", () => {
       "Read paths and plots as guidance",
       "Candidate status means that a material satisfies the published lane rule. It is not a universal recommendation, safety approval, or engineering certification.",
       "Explore visualization modes",
+      "Decision paths",
+      "Choose one of eight needs to inspect the canonical rule, all live candidates, and every linked process gate.",
       "Interactive highlighting is unavailable. All decision paths and structured visualization data remain readable below.",
     ]) expect(page).toContain(copy);
 

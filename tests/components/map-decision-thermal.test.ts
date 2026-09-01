@@ -94,6 +94,8 @@ describe("decision path renderer", () => {
     expect(count(html, "data-decision-stage=\"true\"")).toBe(32);
     expect(count(html, "data-lane-control=\"true\"")).toBe(8);
     expect(html).toContain("Need");
+    expect(html).toContain('<h2 id="interactive-decision-paths-heading">Decision paths</h2>');
+    expect(html).toContain("Choose one of eight needs to inspect the canonical rule, all live candidates, and every linked process gate.");
     expect(html).toContain("Properties to check");
     expect(html).toContain("Live candidates");
     expect(html).toContain("Verify and process gates");

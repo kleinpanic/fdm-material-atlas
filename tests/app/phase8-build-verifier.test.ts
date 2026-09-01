@@ -104,7 +104,7 @@ function island(base: string): string {
   const prefix = base === "/" ? "" : base.slice(0, -1);
   const props = JSON.stringify({ projection: projection(base) }).replaceAll("'", "&#39;");
   const staticAlternatives = [
-    "Follow a need through properties, candidates, and process gates",
+    "Decision paths",
     "Practical service guidance",
     "Compare only matching metric and method groups.",
     "Process-gate relationships by decision lane",
