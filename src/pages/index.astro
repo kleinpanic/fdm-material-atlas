@@ -1,7 +1,10 @@
 ---
 import { SelectorIsland } from "../components/selector/SelectorIsland.tsx";
 import { SelectorStaticResults } from "../components/selector/SelectorStaticResults.tsx";
+import { buildSelectorBootstrap } from "../features/selector/bootstrap.ts";
+import { decodeSelectorClientModel } from "../features/selector/client-model.ts";
 import { buildSelectorPageModel } from "../features/selector/page-model.ts";
+import { prepareSelectorPresentationEvaluator } from "../features/selector/runtime-evaluator.ts";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { loadPublicAtlas } from "../lib/public-atlas.ts";
 import { PUBLIC_ROUTE_REGISTRY } from "../lib/public-route-registry.ts";
@@ -11,6 +14,11 @@ import "../styles/selector.css";
 const base = import.meta.env.BASE_URL;
 const atlas = loadPublicAtlas();
 const pageModel = buildSelectorPageModel(atlas, base, PUBLIC_ROUTE_REGISTRY);
+const runtimeModel = decodeSelectorClientModel(pageModel);
+const defaultPresentation = prepareSelectorPresentationEvaluator(runtimeModel)(
+  runtimeModel.defaults,
+);
+const selectorBootstrap = buildSelectorBootstrap(runtimeModel, defaultPresentation);
 const homeHref = internalHref(base, { id: "home" });
 const materialsHref = internalHref(base, { id: "materials" });
 const compareHref = internalHref(base, { id: "compare" });
@@ -72,14 +80,14 @@ const footerLinks = [
       </p>
     </noscript>
     <div class="selector-island">
-      <SelectorIsland pageModel={pageModel} client:load />
+      <SelectorIsland pageModel={pageModel} bootstrap={selectorBootstrap} client:load />
       <div
         id="selector-results-mount"
         class="selector-results-mount selector-results-host"
         data-selector-results-owner="server"
         aria-busy="false"
       >
-        <SelectorStaticResults pageModel={pageModel} />
+        <SelectorStaticResults pageModel={runtimeModel} presentation={defaultPresentation} />
       </div>
     </div>
   </section>

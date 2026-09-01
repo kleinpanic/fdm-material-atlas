@@ -2,11 +2,8 @@
 import type { RefObject } from "preact";
 
 import type { MaterialId } from "../../data/schema/ids.ts";
-import {
-  decodeSelectorClientModel,
-  type SelectorClientModel,
-} from "../../features/selector/client-model.ts";
-import { prepareSelectorPresentationEvaluator } from "../../features/selector/runtime-evaluator.ts";
+import type { SelectorRuntimePageModel } from "../../features/selector/client-model.ts";
+import type { SelectorPresentation } from "../../features/selector/presentation.ts";
 import { presentShortlist } from "../../features/selector/shortlist.ts";
 import { SelectorResults } from "./SelectorResults.tsx";
 
@@ -14,12 +11,13 @@ const EMPTY_HEADING_REF = { current: null } as RefObject<HTMLHeadingElement>;
 const NOOP = () => undefined;
 
 /** Complete default results rendered only by Astro; the browser does not hydrate this tree. */
-export function SelectorStaticResults({ pageModel }: Readonly<{ pageModel: SelectorClientModel }>) {
-  const runtimeModel = decodeSelectorClientModel(pageModel);
-  const presentation = prepareSelectorPresentationEvaluator(runtimeModel)(runtimeModel.defaults);
+export function SelectorStaticResults({
+  pageModel,
+  presentation,
+}: Readonly<{ pageModel: SelectorRuntimePageModel; presentation: SelectorPresentation }>) {
   return (
     <SelectorResults
-      pageModel={runtimeModel}
+      pageModel={pageModel}
       presentation={presentation}
       shortlist={presentShortlist([], [])}
       showAll={false}

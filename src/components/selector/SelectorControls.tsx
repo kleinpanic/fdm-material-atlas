@@ -2,11 +2,11 @@
 import type { JSX, RefObject } from "preact";
 import { useLayoutEffect, useRef } from "preact/hooks";
 
-import type { SelectorRuntimePageModel } from "../../features/selector/client-model.ts";
+import type { SelectorControlsModel } from "../../features/selector/bootstrap.ts";
 import { SELECTOR_COPY } from "../../features/selector/copy.ts";
 
 type Props = Readonly<{
-  pageModel: SelectorRuntimePageModel;
+  pageModel: SelectorControlsModel;
   selection: Readonly<Record<string, string>>;
   primaryFirstRef: RefObject<HTMLInputElement>;
   secondaryDetailsRef: RefObject<HTMLDetailsElement>;

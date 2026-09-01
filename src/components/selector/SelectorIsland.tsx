@@ -1,11 +1,16 @@
 /** @jsxImportSource preact */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 
 import {
   decodeSelectorClientModel,
   type SelectorClientModel,
   type SelectorRuntimePageModel,
 } from "../../features/selector/client-model.ts";
+import {
+  buildSelectorBootstrap,
+  selectorPresentationAnnouncement,
+  type SelectorBootstrap,
+} from "../../features/selector/bootstrap.ts";
 import type { MaterialId } from "../../data/schema/ids.ts";
 import { isMaterialIdValue } from "../../data/schema/public-id-values.ts";
 import { SELECTOR_COPY } from "../../features/selector/copy.ts";
@@ -21,24 +26,13 @@ import {
 import { SelectorControls } from "./SelectorControls.tsx";
 import type { SelectorResultsProps } from "./SelectorResults.tsx";
 
-type Props = Readonly<{ pageModel: SelectorClientModel }>;
+type Props = Readonly<{ pageModel: SelectorClientModel; bootstrap?: SelectorBootstrap }>;
 type ResultsRenderer = typeof import("./render-selector-results.tsx");
 const RESULTS_MOUNT_ID = "selector-results-mount";
 
-function aggregateAnnouncement(presentation: SelectorPresentation): string {
-  if (presentation.kind === "ranked") {
-    return `${presentation.compatible.length} compatible materials; ${presentation.eliminated.length} eliminated.${presentation.compatible[0] ? ` Highest alignment is ${presentation.compatible[0].materialLabel}.` : ""}`;
-  }
-  if (presentation.kind === "no-compatible") {
-    return "No compatible materials. Your selections were not changed.";
-  }
-  if (presentation.kind === "error") return SELECTOR_COPY.errorState;
-  return presentation.body;
-}
-
 function SelectorStatus({ message, immediate }: Readonly<{ message: string; immediate: boolean }>) {
-  const [announcement, setAnnouncement] = useState<string>(SELECTOR_COPY.hydrationStatus);
-  const previousMessage = useRef<string>(SELECTOR_COPY.hydrationStatus);
+  const [announcement, setAnnouncement] = useState<string>(message);
+  const previousMessage = useRef<string>(message);
 
   useEffect(() => {
     if (previousMessage.current === message) return;
@@ -58,15 +52,19 @@ function SelectorStatus({ message, immediate }: Readonly<{ message: string; imme
   );
 }
 
-export function SelectorIsland({ pageModel }: Props) {
-  const runtimeModel = useMemo(() => {
-    try {
-      return decodeSelectorClientModel(pageModel);
-    } catch {
-      return null;
-    }
-  }, [pageModel]);
-  if (runtimeModel === null) {
+function recoverBootstrap(pageModel: SelectorClientModel): SelectorBootstrap | null {
+  try {
+    const runtimeModel = decodeSelectorClientModel(pageModel);
+    const evaluate = prepareSelectorPresentationEvaluator(runtimeModel);
+    return buildSelectorBootstrap(runtimeModel, evaluate(runtimeModel.defaults));
+  } catch {
+    return null;
+  }
+}
+
+export function SelectorIsland({ pageModel, bootstrap }: Props) {
+  const initialBootstrap = bootstrap ?? recoverBootstrap(pageModel);
+  if (initialBootstrap === null) {
     return (
       <div class="selector-controls-runtime">
         <section class="selector-error" role="alert">
@@ -77,16 +75,27 @@ export function SelectorIsland({ pageModel }: Props) {
       </div>
     );
   }
-  return <SelectorRuntimeIsland pageModel={runtimeModel} />;
+  return <SelectorRuntimeIsland pageModel={pageModel} bootstrap={initialBootstrap} />;
 }
 
-function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRuntimePageModel }>) {
+type PreparedRuntime = Readonly<{
+  pageModel: SelectorRuntimePageModel;
+  evaluate: ReturnType<typeof prepareSelectorPresentationEvaluator>;
+}>;
+
+type EvaluatedState = Readonly<{
+  pageModel: SelectorRuntimePageModel;
+  presentation: SelectorPresentation;
+}>;
+
+function SelectorRuntimeIsland({
+  pageModel,
+  bootstrap,
+}: Readonly<{ pageModel: SelectorClientModel; bootstrap: SelectorBootstrap }>) {
   const [selection, setSelection] = useState<Readonly<Record<string, string>>>(
-    () => pageModel.defaults,
+    () => bootstrap.defaults,
   );
-  const [evaluationInput, setEvaluationInput] = useState<Readonly<Record<string, unknown>>>(
-    () => pageModel.defaults,
-  );
+  const [evaluated, setEvaluated] = useState<EvaluatedState | null>(null);
   const [announcementOverride, setAnnouncementOverride] = useState<string | null>(null);
   const [shortlistIds, setShortlistIds] = useState<ShortlistState>([]);
   const [showAll, setShowAll] = useState(false);
@@ -107,21 +116,41 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
   const disposedRef = useRef(false);
   const latestResultsPropsRef = useRef<SelectorResultsProps | null>(null);
   const staticActionRef = useRef<(action: string, materialId?: string) => void>(() => undefined);
+  const runtimeRef = useRef<PreparedRuntime | null>(null);
 
-  const evaluatePresentation = useMemo(
-    () => prepareSelectorPresentationEvaluator(pageModel),
-    [pageModel],
-  );
-  const presentation = useMemo(
-    () => evaluatePresentation(evaluationInput),
-    [evaluatePresentation, evaluationInput],
-  );
+  const prepareRuntime = (): PreparedRuntime | null => {
+    if (runtimeRef.current) return runtimeRef.current;
+    try {
+      const runtimeModel = decodeSelectorClientModel(pageModel);
+      return (runtimeRef.current ??= Object.freeze({
+        pageModel: runtimeModel,
+        evaluate: prepareSelectorPresentationEvaluator(runtimeModel),
+      }));
+    } catch {
+      setAnnouncementOverride(SELECTOR_COPY.errorState);
+      return null;
+    }
+  };
+
+  const evaluateForResults = (input: Readonly<Record<string, unknown>>): boolean => {
+    const runtime = prepareRuntime();
+    if (!runtime) return false;
+    setEvaluated(
+      Object.freeze({ pageModel: runtime.pageModel, presentation: runtime.evaluate(input) }),
+    );
+    setResultsActive(true);
+    return true;
+  };
+
+  const presentation = evaluated?.presentation;
   const compatibleIds =
-    presentation.kind === "ranked"
+    presentation?.kind === "ranked"
       ? presentation.compatible.map(({ materialId }) => materialId)
-      : [];
+      : bootstrap.defaultCompatibleIds;
   const shortlist = presentShortlist(shortlistIds, compatibleIds);
-  const announcement = announcementOverride ?? aggregateAnnouncement(presentation);
+  const announcement =
+    announcementOverride ??
+    (presentation ? selectorPresentationAnnouncement(presentation) : bootstrap.defaultAnnouncement);
 
   const focusResultsHeading = () => {
     const mount = document.getElementById(RESULTS_MOUNT_ID);
@@ -151,8 +180,8 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
   };
 
   const reset = () => {
-    setSelection(pageModel.defaults);
-    setEvaluationInput(pageModel.defaults);
+    setSelection(bootstrap.defaults);
+    if (evaluated) evaluateForResults(bootstrap.defaults);
     const transition = reduceShortlist(shortlistIds, { type: "criteria-reset" });
     setShortlistIds(transition.ids);
     setAnnouncementOverride("Selector reset to published defaults.");
@@ -170,44 +199,47 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
     pendingFocusIntentRef.current = transition.focusIntent;
     setShortlistIds(transition.ids);
     if (transition.announcement) setAnnouncementOverride(transition.announcement);
-    setResultsActive(true);
+    evaluateForResults(selection);
   };
 
-  const resultsProps: SelectorResultsProps = {
-    pageModel,
-    presentation,
-    shortlist,
-    showAll,
-    eliminationsOpen,
-    resultsHeadingRef,
-    shortlistHeadingRef,
-    registerResultControl: (materialId, element) => {
-      if (element) resultControlRefs.current.set(materialId, element);
-      else resultControlRefs.current.delete(materialId);
-    },
-    onShowAll: () => setShowAll(true),
-    onEliminationsToggle: setEliminationsOpen,
-    onToggleShortlist: (materialId) =>
-      applyShortlist(
-        shortlistIds.includes(materialId)
-          ? { type: "remove", materialId, currentResultIds: compatibleIds }
-          : { type: "add", materialId },
-      ),
-    onClearShortlist: () => applyShortlist({ type: "clear" }),
-    onReview: (target) => {
-      if (target === "secondary-summary") {
-        if (secondaryDetailsRef.current) secondaryDetailsRef.current.open = true;
-        secondarySummaryRef.current?.focus();
-      } else {
-        primaryFirstRef.current?.focus();
+  const resultsProps: SelectorResultsProps | null = evaluated
+    ? {
+        pageModel: evaluated.pageModel,
+        presentation: evaluated.presentation,
+        shortlist,
+        showAll,
+        eliminationsOpen,
+        resultsHeadingRef,
+        shortlistHeadingRef,
+        registerResultControl: (materialId, element) => {
+          if (element) resultControlRefs.current.set(materialId, element);
+          else resultControlRefs.current.delete(materialId);
+        },
+        onShowAll: () => setShowAll(true),
+        onEliminationsToggle: setEliminationsOpen,
+        onToggleShortlist: (materialId) =>
+          applyShortlist(
+            shortlistIds.includes(materialId)
+              ? { type: "remove", materialId, currentResultIds: compatibleIds }
+              : { type: "add", materialId },
+          ),
+        onClearShortlist: () => applyShortlist({ type: "clear" }),
+        onReview: (target) => {
+          if (target === "secondary-summary") {
+            if (secondaryDetailsRef.current) secondaryDetailsRef.current.open = true;
+            secondarySummaryRef.current?.focus();
+          } else {
+            primaryFirstRef.current?.focus();
+          }
+        },
+        onReset: reset,
       }
-    },
-    onReset: reset,
-  };
+    : null;
   latestResultsPropsRef.current = resultsProps;
 
   useLayoutEffect(() => {
-    if (!resultsActive || renderQueuedRef.current || activationFailedRef.current) return;
+    if (!resultsActive || !resultsProps || renderQueuedRef.current || activationFailedRef.current)
+      return;
     const mount = document.getElementById(RESULTS_MOUNT_ID);
     if (!mount) {
       activationFailedRef.current = true;
@@ -273,7 +305,7 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
       applyShortlist({ type: "add", materialId: materialId as MaterialId });
     } else if (action === "show-all") {
       setShowAll(true);
-      setResultsActive(true);
+      evaluateForResults(selection);
     }
   };
 
@@ -309,7 +341,7 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
   return (
     <div class="selector-controls-runtime">
       <SelectorControls
-        pageModel={pageModel}
+        pageModel={bootstrap.controls}
         selection={selection}
         primaryFirstRef={primaryFirstRef}
         secondaryDetailsRef={secondaryDetailsRef}
@@ -318,14 +350,12 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
           const next = { ...selection, [criterionId]: optionId };
           setAnnouncementOverride(null);
           setSelection(next);
-          setEvaluationInput(next);
+          evaluateForResults(next);
           setShortlistIds(reduceShortlist(shortlistIds, { type: "criteria-changed" }).ids);
-          setResultsActive(true);
         }}
         onInvalid={(criterionId) => {
           setAnnouncementOverride(null);
-          setEvaluationInput({ ...selection, [criterionId]: null });
-          setResultsActive(true);
+          evaluateForResults({ ...selection, [criterionId]: null });
         }}
         onView={focusResultsHeading}
         onReset={reset}
