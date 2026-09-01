@@ -16,6 +16,7 @@ import {
   writeReleaseEvidence,
 } from "./lib/release-evidence.mjs";
 import { validateDeployedPageUrl } from "./probe-pages.mjs";
+import { auditRemoteRelease } from "./verify-remote-release.mjs";
 
 const ROUTES = ["", "materials/", "compare/", "data/", "map/", "method/"];
 const SAFE_MIME =
@@ -337,13 +338,18 @@ async function main() {
   });
   const materialUrl = await auditLiveBrowser(evidence.deployment.pages.url);
   await auditLivePerformance(evidence.deployment.pages.url, materialUrl);
-  const remote = {
-    refCount: evidence.publication.advertisedRefs.count,
-    commitCount: evidence.publication.history.commitCount,
-    advertisedRefDigest: evidence.publication.advertisedRefs.digest,
-    mainSha: evidence.commitSha,
-    findingCount: 0,
-    status: "passed",
+  const remote = await auditRemoteRelease({
+    repoName: evidence.publication.repository.nameWithOwner.split("/")[1],
+    evidence,
+    policy,
+  });
+  const remoteObservation = {
+    refCount: remote.refCount,
+    commitCount: remote.commitCount,
+    advertisedRefDigest: remote.advertisedRefDigest,
+    mainSha: remote.mainSha,
+    findingCount: remote.findingCount,
+    status: remote.status,
   };
   const verified = advanceReleaseEvidence(evidence, {
     stage: "verified",
@@ -355,7 +361,7 @@ async function main() {
         findingCount: live.findingCount,
         status: live.status,
       },
-      remote,
+      remote: remoteObservation,
       accessibility: { status: "passed", scope: "representative-live-routes" },
       performance: { status: "passed", scope: "established-live-budgets" },
     },

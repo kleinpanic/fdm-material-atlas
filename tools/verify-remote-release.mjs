@@ -403,18 +403,21 @@ async function main() {
   const policy = await readProtectedPolicyFromFd({ fd: 3 });
   closeSync(3);
   const evidence = parseReleaseEvidence(JSON.parse(await readFile(args.evidence, "utf8")));
+  const report = await auditRemoteRelease({
+    repoName: args["repo-name"],
+    evidence,
+    policy,
+  });
+  process.stdout.write(`${JSON.stringify(report)}\n`);
+}
+
+/** Run the complete remote audit with an already-consumed in-memory protected policy. */
+export async function auditRemoteRelease({ repoName, evidence, policy }) {
   if (!new Set(["published", "deployed"]).has(evidence.stage))
     fail("REMOTE_EVIDENCE_STAGE_INVALID");
   const view = JSON.parse(
-    (
-      await command("gh", [
-        "repo",
-        "view",
-        args["repo-name"],
-        "--json",
-        "nameWithOwner,defaultBranchRef",
-      ])
-    ).stdout,
+    (await command("gh", ["repo", "view", repoName, "--json", "nameWithOwner,defaultBranchRef"]))
+      .stdout,
   );
   if (view.defaultBranchRef?.name !== "main") fail("REMOTE_TARGET_INVALID");
   const repository = `https://github.com/${view.nameWithOwner}.git`;
@@ -505,7 +508,16 @@ async function main() {
     artifacts,
     policy,
   });
-  process.stdout.write(`${JSON.stringify(report)}\n`);
+  if (
+    report.refCount !== evidence.publication.advertisedRefs.count ||
+    report.advertisedRefDigest !== evidence.publication.advertisedRefs.digest ||
+    report.commitCount !== evidence.publication.history.commitCount ||
+    Object.keys(report.identityClasses).some(
+      (key) => report.identityClasses[key] !== evidence.publication.identityClasses[key],
+    )
+  )
+    fail("REMOTE_BASELINE_DRIFT");
+  return report;
 }
 
 if (await isMainModule(import.meta.url)) {
