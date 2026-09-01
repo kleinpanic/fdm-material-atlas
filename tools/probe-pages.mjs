@@ -46,6 +46,9 @@ const PROHIBITED_CONTENT = Object.freeze([
 
 /** Stable, data-free failure exposed by the importable API and CLI. */
 export class PagesProbeError extends Error {
+  /** @type {string} */
+  code;
+
   constructor(code) {
     super(code);
     Object.defineProperty(this, "name", { value: "PagesProbeError" });
