@@ -244,7 +244,7 @@ export function buildServiceGuidanceModel(
   });
 }
 
-/** Implemented by the exact named-observation task after its RED gate. */
+/** Build exact named-test groups and an optional complete selected-group view. */
 export function buildNamedThermalModel(
   materials: readonly Material[],
   base: string | undefined,
