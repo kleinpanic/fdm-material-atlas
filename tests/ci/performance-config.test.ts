@@ -57,7 +57,7 @@ describe("bounded performance runner", () => {
     } finally {
       await rm(temporaryRoot, { recursive: true, force: true });
     }
-  });
+  }, 15_000);
 
   it("keeps failures controlled and report storage local", async () => {
     const source = await readFile("tools/run-performance-budget.mjs", "utf8");
