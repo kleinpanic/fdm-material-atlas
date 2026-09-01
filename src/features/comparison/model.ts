@@ -5,7 +5,6 @@ import type { MaterialId } from "../../data/schema/ids.ts";
 import {
   type Material,
   type ThermalMethod,
-  type ThermalObservation,
 } from "../../data/schema/material.ts";
 import { partitionCompatibleThermalObservations } from "../../domain/thermal/compatibility-groups.ts";
 import {

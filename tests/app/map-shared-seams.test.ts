@@ -121,6 +121,10 @@ describe("Phase 8 shared map seams", () => {
     })));
     const expected = partitionCompatibleThermalObservations(inputs);
     const permuted = partitionCompatibleThermalObservations([...inputs].reverse());
+    const originalByKey = new Map(inputs.map(({ materialId, observation }) => [
+      `${materialId}\0${observation.id}`,
+      observation,
+    ] as const));
 
     expect(JSON.stringify(permuted)).toBe(JSON.stringify(expected));
     expect(expected.map(({ members }) => members.length).sort((left, right) => right - left))
@@ -129,7 +133,11 @@ describe("Phase 8 shared map seams", () => {
     for (const group of expected) {
       for (const left of group.members) {
         for (const right of group.members) {
-          expect(compareThermalObservations(left.observation, right.observation).comparable).toBe(true);
+          const leftOriginal = originalByKey.get(`${left.materialId}\0${left.observation.id}`);
+          const rightOriginal = originalByKey.get(`${right.materialId}\0${right.observation.id}`);
+          expect(leftOriginal).toBeDefined();
+          expect(rightOriginal).toBeDefined();
+          expect(compareThermalObservations(leftOriginal!, rightOriginal!).comparable).toBe(true);
         }
       }
     }
