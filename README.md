@@ -1,41 +1,71 @@
 # FDM Material Atlas
 
-FDM Material Atlas is a public, static reference for comparing common FDM/FFF material families. It combines a transparent constraint-based selector with material reference pages, process guidance, evidence notes, and decision-oriented visualizations.
+FDM Material Atlas is a public, static decision aid for FDM/FFF material selection. Its selector-first experience ranks compatible material families, explains every score and exclusion, and links each result to reference data, process guidance, evidence, and interactive decision maps.
 
-The selector is a screening tool. Its score measures alignment with the criteria that a user selects; it does not measure universal material quality. Exact filament formulations differ, and starting profiles are calibration starting points rather than guaranteed settings or maxima. Check current TDS and SDS documents before safety-critical or engineering use.
+The atlas supports early screening and comparison. It does not declare one material universally best.
 
-## Local development
+## Product routes
+
+- `/` — interactive selector and explained recommendations
+- `/materials/` — searchable material atlas
+- `/materials/<slug>/` — one generated detail page for each material family
+- `/compare/` — side-by-side comparison of shortlisted materials
+- `/map/` — decision paths and scientific visualizations
+- `/data/` — advanced table and data explorer
+- `/method/` — definitions, evidence, scoring method, and limitations
+
+All routes are generated as static files. Internal links support both root deployment and a GitHub Pages repository base path.
+
+## Local setup
 
 Use Node.js 22 and npm.
 
 ```sh
 npm ci
 npm run validate:data
-npm test
+npm run test:unit
 npm run typecheck
 npm run build:root
 ```
 
-Run `npm run test:e2e` after `npm run build:test-modes` for the browser suite.
+Useful focused and release checks are:
+
+- `npm run test:selector` for deterministic recommendation rules and regression cases.
+- `npm run test:integration` for repository publication boundaries.
+- `npm run build:test-modes` followed by `npm run test:e2e` for root-path and repository-path browser tests.
+- `npm run ci:quality` for formatting, lint, types, canonical-data validation, unit tests, and integration tests.
+- `npm run ci:all` for the complete local release gate.
 
 ## Architecture
 
-- Astro generates the public routes as static HTML.
-- TypeScript and Zod validate the canonical public dataset at build time.
-- Preact islands provide bounded interactivity for the selector and data tools.
-- Shared view models supply the selector, atlas, detail, comparison, map, and method surfaces.
-- CSS tokens define typography, spacing, process states, caution states, and data encodings.
+Astro, TypeScript, and Tailwind CSS form the static application foundation. Zod validates public data at build time. Small Preact islands add interaction only where a static page needs it. Shared domain and view-model modules supply the selector, atlas, detail, comparison, map, data, and method surfaces. The browser does not query a content service.
 
-The canonical publishable dataset is `src/data/public/atlas.v1.json`. It contains normalized material facts, controlled vocabularies, source records, methodology records, selector rules, process gates, and decision lanes. Application routes do not contact a private data service or external spreadsheet.
+The canonical public Atlas is [`src/data/public/atlas.v1.json`](src/data/public/atlas.v1.json). Its `schemaVersion` identifies the accepted envelope. The envelope holds materials, evidence sources, method records, selector rules, process gates, decision lanes, visualization references, and controlled vocabularies. Schema modules in [`src/data/schema/`](src/data/schema/) validate structure, identifiers, references, and cross-record invariants. Pages and visualizations derive from this one committed artifact; they do not keep separate copies of material facts.
 
-## Quality checks
+## Selector method
 
-The test suite covers data integrity, deterministic selector ranking and exclusions, route generation, visualization transforms, keyboard behavior, responsive layout, and accessibility states. GitHub Actions validates data, runs unit tests and type checks, builds the repository-path deployment, and publishes GitHub Pages only after the deployment checks pass.
+The engine is deterministic and independently tested. A selected primary goal has a weight of two points. Each applicable secondary preference has a weight of one point. Hard constraints remove incompatible or indeterminate materials before preference scoring. The result explains awarded points and every exclusion.
 
-## Data maintenance
+Scores measure alignment with the selected criteria. They do not measure universal quality or engineering superiority. Equal scores use the stable `score-desc-material-asc` order: score descending, then public material ID ascending. UI components render the engine result and do not implement a second ranking algorithm.
 
-Authorized maintainers update the canonical public snapshot locally, review the resulting diff, run the complete validation suite, and submit the change through a pull request. Private acquisition credentials and upstream-source metadata do not belong in this repository, its Actions configuration, or build output.
+## Evidence and limits
 
-## Method limits
+Claims identify their evidence basis. The supported scopes distinguish direct product-specific values, representative product examples, family-level guidance, qualitative heuristic guidance, starting-profile guidance, and derived selector logic. A representative value does not become a universal family specification.
 
-Service-temperature guidance and named thermal tests such as Tg, HDT, Vicat softening temperature, and melting point are distinct concepts. Values from unlike methods are not directly interchangeable. Geometry, moisture, load, print orientation, annealing, chamber conditions, and process history can materially change part behavior. This project is a selection aid, not an engineering safety certification.
+Service-temperature guidance is separate from named observations such as Tg, HDT, Vicat softening temperature, and melting point. Values from different metrics or methods are not directly comparable or interchangeable. Check the metric, method, load, conditioning, and grade before comparison.
+
+Exact filament formulations differ. Geometry, moisture, load, print orientation, annealing, chamber conditions, and process history can change part behavior. Every starting profile is a calibration starting point, not a guaranteed setting or maximum. Check current TDS and SDS documents for the exact product. This atlas is not an engineering safety certification.
+
+## Deployment and publication boundary
+
+The Pages workflow installs exact dependencies, runs the release checks, builds the repository-path artifact, and permits deployment only after its required jobs pass. The repository has no verified live-site link in this document yet; release closure adds one only after the deployed location is observed.
+
+The committed public Atlas is the application’s complete content input. Repository files, browser bundles, build output, and workflow logs must not contain acquisition locations, account details, access material, or internal engineering records. Publication checks scan the tracked tree, history, artifacts, and release logs before closure.
+
+## Maintenance
+
+Read [Maintaining the Atlas](docs/MAINTAINING.md) before changing the schema, material facts, evidence, selector rules, or release configuration. Data changes use a reviewed pull request and the same deterministic validation path as application changes.
+
+## License status
+
+No license has been selected. Copyright law therefore reserves the rights that are not expressly granted.
