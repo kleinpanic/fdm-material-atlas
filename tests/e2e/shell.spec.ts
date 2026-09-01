@@ -152,7 +152,7 @@ test("the decision map and repository action reflow without document overflow", 
   await page.goto("map/");
   await expect(page.getByRole("link", { name: "View source on GitHub (opens in a new tab)" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Start with the job. End with what to verify.",
+    "Trace material choices through properties and process gates",
   );
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
