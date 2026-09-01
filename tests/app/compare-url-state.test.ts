@@ -15,17 +15,15 @@ const E = id("material-synthetic-epsilon");
 const KNOWN = Object.freeze([A, B, C, D, E]);
 
 describe("compare URL state", () => {
-  it.each([
-    "material-",
-    "material-UPPER",
-    "material-two--segments",
-    `material-${"a".repeat(152)}`,
-  ])("rejects the bounded material ID edge case %s", (materialId) => {
-    expect(decodeCompareUrlState(`?material=${materialId}&material=${B}`, KNOWN)).toEqual({
-      kind: "invalid",
-      code: "COMPARE_URL_MATERIAL_INVALID",
-    });
-  });
+  it.each(["material-", "material-UPPER", "material-two--segments", `material-${"a".repeat(152)}`])(
+    "rejects the bounded material ID edge case %s",
+    (materialId) => {
+      expect(decodeCompareUrlState(`?material=${materialId}&material=${B}`, KNOWN)).toEqual({
+        kind: "invalid",
+        code: "COMPARE_URL_MATERIAL_INVALID",
+      });
+    },
+  );
 
   it("round-trips two through four known IDs in insertion order", () => {
     for (const [base, expectedPrefix] of [
