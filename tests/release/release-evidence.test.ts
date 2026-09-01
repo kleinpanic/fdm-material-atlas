@@ -1,4 +1,4 @@
-import { chmod, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -139,6 +139,24 @@ describe("release evidence boundary", () => {
     expect((await stat(destination)).mode & 0o777).toBe(0o600);
     await expect(
       writeReleaseEvidence(join(root, "tracked.json"), draft(), { root }),
+    ).rejects.toMatchObject({
+      code: "RELEASE_EVIDENCE_DESTINATION_UNSAFE",
+    });
+  });
+
+  it("rejects an ignored destination whose parent escapes through a symlink", async () => {
+    const root = await mkdtemp(join(tmpdir(), "atlas-evidence-root-"));
+    const outside = await mkdtemp(join(tmpdir(), "atlas-evidence-outside-"));
+    await writeFile(join(root, ".gitignore"), "escape/release.json\n");
+    const { execFile } = await import("node:child_process");
+    await new Promise<void>((resolve, reject) =>
+      execFile("git", ["init", "-q"], { cwd: root }, (error) =>
+        error ? reject(error) : resolve(),
+      ),
+    );
+    await symlink(outside, join(root, "escape"));
+    await expect(
+      writeReleaseEvidence(join(root, "escape/release.json"), draft(), { root }),
     ).rejects.toMatchObject({
       code: "RELEASE_EVIDENCE_DESTINATION_UNSAFE",
     });
