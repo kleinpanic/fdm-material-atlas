@@ -1,5 +1,8 @@
 import type { FactState } from "../../src/data/schema/fact-state.ts";
 import type { MaterialId } from "../../src/data/schema/ids.ts";
+import type { MapProjection } from "../../src/features/map/contracts.ts";
+import { compileMapProjection } from "../../src/features/map/projection.ts";
+import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
 
 export const phase8FactStates = {
   known: { state: "known", value: 42 },
@@ -55,3 +58,32 @@ export const phase8InvalidPublicReferences = Object.freeze([
   "source-synthetic-record",
   "material missing namespace",
 ]);
+
+export const phase8OmissionRecoveryReason =
+  "Impact resistance is unavailable in this controlled test projection.";
+
+/**
+ * Build a test-only projection that makes the real map component render both
+ * an explicit scientific omission and its bounded recovery state.
+ */
+export function phase8OmissionRecoveryProjection(base: string): MapProjection {
+  const projection = structuredClone(compileMapProjection(loadPublicAtlas(), base)) as MapProjection;
+  const first = projection.impactFlex.records[0];
+  if (first === undefined) throw new Error("PHASE8_OMISSION_FIXTURE_MISSING");
+  const { impact: _impact, slot: _slot, shape: _shape, ...withoutImpact } = first;
+  (projection.impactFlex.records as MapProjection["impactFlex"]["records"][number][])[0] = {
+    ...withoutImpact,
+    impactFact: {
+      state: "unknown",
+      display: ["Unknown", phase8OmissionRecoveryReason],
+      reason: phase8OmissionRecoveryReason,
+    },
+    disposition: {
+      disposition: "omitted",
+      code: "impact-value-unavailable",
+      reason: `Impact resistance: ${phase8OmissionRecoveryReason}`,
+    },
+  };
+  (projection.lanes as MapProjection["lanes"][number][]).pop();
+  return projection;
+}
