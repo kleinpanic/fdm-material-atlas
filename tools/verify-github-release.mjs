@@ -2,16 +2,28 @@
 
 import { execFile as nodeExecFile } from "node:child_process";
 import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { promisify } from "node:util";
 
-import { advanceReleaseEvidence } from "./lib/release-evidence.mjs";
+import {
+  advanceReleaseEvidence,
+  attachPrepushEvidence,
+  parseReleaseEvidence,
+  writeReleaseEvidence,
+} from "./lib/release-evidence.mjs";
 import { isMainModule } from "./lib/main-module.mjs";
 
 const execFile = promisify(nodeExecFile);
 const SHA = /^[a-f0-9]{40}$/u;
 const NAME = /^[A-Za-z0-9_.-]{1,100}$/u;
 const MAX_OUTPUT = 2 * 1024 * 1024;
-const SAFE_ENV = Object.freeze({ PATH: process.env.PATH, LANG: "C", LC_ALL: "C" });
+const MAX_PREPUSH_AGE_MS = 15 * 60 * 1000;
+const SAFE_ENV = Object.freeze({
+  PATH: process.env.PATH,
+  HOME: process.env.HOME,
+  LANG: "C",
+  LC_ALL: "C",
+});
 const STAGES = new Set(["established-target", "existing-prepush", "existing-post-push", "run"]);
 const WORKFLOWS = Object.freeze({
   ".github/workflows/ci.yml": Object.freeze(["quality", "build", "browser", "performance"]),
@@ -82,7 +94,16 @@ function sortedRefs(value) {
       )
     )
       fail("GITHUB_REF_TOPOLOGY_INVALID");
-    return { name: ref.name, sha: ref.sha };
+    const kind =
+      ref.name === "refs/heads/main"
+        ? "main"
+        : ref.name.startsWith("refs/heads/dependabot/")
+          ? "dependabot"
+          : ref.name.endsWith("/head")
+            ? "pull-head"
+            : "pull-merge";
+    if (ref.kind !== undefined && ref.kind !== kind) fail("GITHUB_REF_TOPOLOGY_INVALID");
+    return { name: ref.name, sha: ref.sha, kind };
   });
   parsed.sort((left, right) => left.name.localeCompare(right.name, "en"));
   if (new Set(parsed.map((ref) => ref.name)).size !== parsed.length)
@@ -105,6 +126,11 @@ function expectedInput(value) {
     expected.defaultBranch !== "main"
   )
     fail("GITHUB_INPUT_INVALID");
+  if (
+    expected.authenticatedOwner !== undefined &&
+    (typeof expected.authenticatedOwner !== "string" || !NAME.test(expected.authenticatedOwner))
+  )
+    fail("GITHUB_INPUT_INVALID");
   return {
     ...expected,
     ...(expected.refBaseline === undefined
@@ -124,6 +150,8 @@ function verifyTarget(expected, rawEvidence) {
   )
     fail("GITHUB_AUTH_INVALID");
   const login = auth.logins[0];
+  if (expected.authenticatedOwner !== undefined && login !== expected.authenticatedOwner)
+    fail("GITHUB_AUTH_INVALID");
   const repository = object(evidence.repository);
   const owner = object(repository.owner);
   if (
@@ -161,6 +189,8 @@ function proofFromTarget(stage, expected, target) {
     stage,
     candidateSha: expected.candidateSha,
     priorRemoteMainSha: expected.priorRemoteMainSha,
+    authenticatedOwner: expected.authenticatedOwner,
+    repositoryName: expected.repositoryName,
     refCount: target.refs.length,
     refNamesDigest: digest(refNames),
     refDigest: digest(target.refs),
@@ -430,10 +460,12 @@ function activeAuthLogins(value) {
 export async function collectGitHubReleaseEvidence({
   expected: rawExpected,
   stage,
+  prepush,
   run = defaultRun,
 }) {
   const expected = expectedInput(rawExpected);
-  if (!new Set(["established-target", "existing-prepush"]).has(stage)) fail("GITHUB_INPUT_INVALID");
+  if (!new Set(["established-target", "existing-prepush", "existing-post-push"]).has(stage))
+    fail("GITHUB_INPUT_INVALID");
   const authStatus = parseJson(
     (await runRead(run, "gh", ["auth", "status", "--active", "--json", "hosts"])).stdout,
     "GITHUB_AUTH_INVALID",
@@ -472,9 +504,30 @@ export async function collectGitHubReleaseEvidence({
       relation = "diverged";
     }
   }
+  const mergeSyntheses = [];
+  if (stage === "existing-post-push" && expected.refBaseline) {
+    const prior = new Map(expected.refBaseline.map((ref) => [ref.name, ref.sha]));
+    for (const ref of refs.filter(
+      (entry) => entry.kind === "pull-merge" && prior.get(entry.name) !== entry.sha,
+    )) {
+      const commit = parseJson(
+        (await runRead(run, "gh", ["api", `repos/${target}/git/commits/${ref.sha}`])).stdout,
+      );
+      mergeSyntheses.push({
+        ref: ref.name,
+        sha: ref.sha,
+        parents: Array.isArray(commit.parents) ? commit.parents.map((parent) => parent?.sha) : [],
+        signature:
+          commit.verification?.verified === true && commit.verification?.reason === "valid"
+            ? "valid"
+            : "invalid",
+      });
+    }
+  }
   return verifyGitHubRelease({
     stage,
     expected,
+    prepush,
     evidence: {
       auth: { logins },
       repository,
@@ -483,17 +536,452 @@ export async function collectGitHubReleaseEvidence({
       refs,
       relation,
       localHeadSha,
+      mergeSyntheses,
     },
   });
 }
 
-async function main() {
-  if (process.argv.length !== 7) fail("GITHUB_INPUT_INVALID");
-  const [, , stage, repositoryName, candidateSha, priorRemoteMainSha, defaultBranch] = process.argv;
-  const report = await collectGitHubReleaseEvidence({
-    stage,
-    expected: { repositoryName, candidateSha, priorRemoteMainSha, defaultBranch },
+function normalizeRun(raw, workflowId) {
+  return {
+    id: raw.id,
+    workflowId: raw.workflow_id ?? workflowId,
+    event: raw.event,
+    branch: raw.head_branch,
+    ref: raw.head_branch === "main" ? "refs/heads/main" : "",
+    sha: raw.head_sha,
+    attempt: raw.run_attempt,
+    status: raw.status,
+    conclusion: raw.conclusion,
+  };
+}
+
+async function collectWorkflowRun({ run, target, candidateSha, workflowPath, jobNames, pages }) {
+  const workflowFile = workflowPath.split("/").at(-1);
+  const workflow = parseJson(
+    (await runRead(run, "gh", ["api", `repos/${target}/actions/workflows/${workflowFile}`])).stdout,
+  );
+  const runs = parseJson(
+    (
+      await runRead(run, "gh", [
+        "api",
+        `repos/${target}/actions/workflows/${workflow.id}/runs?event=push&branch=main&per_page=100`,
+      ])
+    ).stdout,
+  );
+  const matches = (Array.isArray(runs.workflow_runs) ? runs.workflow_runs : []).filter(
+    (entry) =>
+      entry?.head_sha === candidateSha &&
+      entry?.event === "push" &&
+      entry?.head_branch === "main" &&
+      entry?.status === "completed" &&
+      entry?.conclusion === "success",
+  );
+  if (matches.length !== 1) fail("GITHUB_RUN_INVALID");
+  const selected = normalizeRun(matches[0], workflow.id);
+  const attempts = [];
+  for (let attempt = 1; attempt <= selected.attempt; attempt += 1) {
+    const rawAttempt = parseJson(
+      (
+        await runRead(run, "gh", [
+          "api",
+          `repos/${target}/actions/runs/${selected.id}/attempts/${attempt}`,
+        ])
+      ).stdout,
+    );
+    attempts.push(normalizeRun(rawAttempt, workflow.id));
+  }
+  const rawJobs = parseJson(
+    (
+      await runRead(run, "gh", [
+        "api",
+        `repos/${target}/actions/runs/${selected.id}/attempts/${selected.attempt}/jobs?filter=all&per_page=100`,
+      ])
+    ).stdout,
+  );
+  const jobs = (Array.isArray(rawJobs.jobs) ? rawJobs.jobs : []).map((job) => ({
+    id: job.id,
+    name: job.name,
+    runId: selected.id,
+    attempt: selected.attempt,
+    status: job.status,
+    conclusion: job.conclusion,
+    environment: job.name === "deploy" && pages ? "github-pages" : null,
+  }));
+  let artifact = null;
+  let deployment = null;
+  let pagesObservation = null;
+  if (pages) {
+    const artifacts = parseJson(
+      (
+        await runRead(run, "gh", [
+          "api",
+          `repos/${target}/actions/runs/${selected.id}/artifacts?per_page=100`,
+        ])
+      ).stdout,
+    );
+    const matches = (Array.isArray(artifacts.artifacts) ? artifacts.artifacts : []).filter(
+      (entry) => entry?.name === "github-pages" && entry?.expired !== true,
+    );
+    if (matches.length !== 1) fail("GITHUB_ARTIFACT_INVALID");
+    const build = jobs.find((job) => job.name === "build");
+    artifact = {
+      id: matches[0].id,
+      name: matches[0].name,
+      digest: matches[0].digest,
+      runId: matches[0].workflow_run?.id ?? selected.id,
+      attempt: selected.attempt,
+      producerJobId: build?.id,
+    };
+    const rawDeployments = parseJson(
+      (
+        await runRead(run, "gh", [
+          "api",
+          `repos/${target}/deployments?sha=${candidateSha}&environment=github-pages&per_page=100`,
+        ])
+      ).stdout,
+    );
+    const deployments = (Array.isArray(rawDeployments) ? rawDeployments : []).filter(
+      (entry) => entry?.sha === candidateSha && entry?.environment === "github-pages",
+    );
+    if (deployments.length !== 1) fail("GITHUB_DEPLOYMENT_INVALID");
+    const statuses = parseJson(
+      (
+        await runRead(run, "gh", [
+          "api",
+          `repos/${target}/deployments/${deployments[0].id}/statuses?per_page=100`,
+        ])
+      ).stdout,
+    );
+    if (!Array.isArray(statuses) || statuses[0]?.state !== "success")
+      fail("GITHUB_DEPLOYMENT_INVALID");
+    const deploy = jobs.find((job) => job.name === "deploy");
+    deployment = {
+      id: deployments[0].id,
+      runId: selected.id,
+      attempt: selected.attempt,
+      environment: "github-pages",
+      sha: candidateSha,
+      ref: "refs/heads/main",
+      consumerJobId: deploy?.id,
+      status: "success",
+    };
+    pagesObservation = { artifact, deployment };
+  }
+  const evidence = {
+    workflow: { id: workflow.id, path: workflow.path, state: workflow.state },
+    run: selected,
+    attempts,
+    jobs,
+    artifact,
+    deployment,
+  };
+  const proof = verifyGitHubRelease({
+    stage: "run",
+    expected: {
+      repositoryName: target.split("/")[1],
+      candidateSha,
+      priorRemoteMainSha: candidateSha,
+      defaultBranch: "main",
+      workflowPath,
+      jobNames,
+    },
+    evidence,
   });
+  return { proof, workflow, selected, jobs, pagesObservation };
+}
+
+export async function collectGitHubDeploymentEvidence({ expected, run = defaultRun, now }) {
+  const authStatus = parseJson(
+    (await runRead(run, "gh", ["auth", "status", "--active", "--json", "hosts"])).stdout,
+    "GITHUB_AUTH_INVALID",
+  );
+  const logins = activeAuthLogins(authStatus);
+  const user = parseJson((await runRead(run, "gh", ["api", "user"])).stdout);
+  if (user.login !== logins[0] || user.login !== expected.authenticatedOwner)
+    fail("GITHUB_AUTH_INVALID");
+  const target = `${user.login}/${expected.repositoryName}`;
+  const repository = parseJson(
+    (
+      await runRead(run, "gh", [
+        "repo",
+        "view",
+        target,
+        "--json",
+        "name,owner,nameWithOwner,visibility,viewerPermission,defaultBranchRef",
+      ])
+    ).stdout,
+  );
+  const pagesRaw = parseJson((await runRead(run, "gh", ["api", `repos/${target}/pages`])).stdout);
+  const origin = (await runRead(run, "git", ["remote", "get-url", "origin"])).stdout.trim();
+  const refs = parseLsRemote((await runRead(run, "git", ["ls-remote", "origin"])).stdout);
+  const targetState = verifyTarget(
+    {
+      ...expected,
+      priorRemoteMainSha: expected.candidateSha,
+      defaultBranch: "main",
+    },
+    {
+      auth: { logins },
+      repository,
+      origin,
+      pages: pagesFromApi(pagesRaw),
+      refs,
+    },
+  );
+  if (targetState.mainSha !== expected.candidateSha) fail("GITHUB_REMOTE_MAIN_CHANGED");
+  const ci = await collectWorkflowRun({
+    run,
+    target,
+    candidateSha: expected.candidateSha,
+    workflowPath: ".github/workflows/ci.yml",
+    jobNames: WORKFLOWS[".github/workflows/ci.yml"],
+    pages: false,
+  });
+  const pages = await collectWorkflowRun({
+    run,
+    target,
+    candidateSha: expected.candidateSha,
+    workflowPath: ".github/workflows/pages.yml",
+    jobNames: WORKFLOWS[".github/workflows/pages.yml"],
+    pages: true,
+  });
+  const expectedUrl = `https://${expected.authenticatedOwner}.github.io/${expected.repositoryName}/`;
+  const pageUrl = pagesRaw.html_url ?? pagesRaw.htmlUrl;
+  if (pageUrl !== expectedUrl) fail("GITHUB_PAGES_SETTINGS_INVALID");
+  return {
+    proofs: [ci.proof, pages.proof],
+    observation: {
+      observedAt: now(),
+      workflow: {
+        databaseId: pages.workflow.id,
+        file: pages.workflow.path,
+        event: pages.selected.event,
+        branch: pages.selected.branch,
+        ref: pages.selected.ref,
+        sha: pages.selected.sha,
+        runAttempt: pages.selected.attempt,
+        jobs: pages.jobs.map((job) => ({
+          name: job.name,
+          databaseId: job.id,
+          conclusion: job.conclusion,
+        })),
+      },
+      pages: {
+        environment: "github-pages",
+        artifact: {
+          id: pages.pagesObservation.artifact.id,
+          name: pages.pagesObservation.artifact.name,
+          digest: pages.pagesObservation.artifact.digest,
+          producerJobId: pages.pagesObservation.artifact.producerJobId,
+        },
+        deployConsumerJobId: pages.pagesObservation.deployment.consumerJobId,
+        url: pageUrl,
+        status: "built",
+        httpsEnforced: true,
+      },
+    },
+  };
+}
+
+export function parseGitHubReleaseArguments(argv) {
+  if (!Array.isArray(argv) || argv.length !== 6) fail("GITHUB_INPUT_INVALID");
+  const values = new Map();
+  for (let index = 0; index < argv.length; index += 2) {
+    const flag = argv[index];
+    const value = argv[index + 1];
+    if (!new Set(["--stage", "--repo-name", "--evidence"]).has(flag) || values.has(flag))
+      fail("GITHUB_INPUT_INVALID");
+    if (typeof value !== "string" || value.length < 1) fail("GITHUB_INPUT_INVALID");
+    values.set(flag, value);
+  }
+  const stage = values.get("--stage");
+  const repositoryName = values.get("--repo-name");
+  const evidencePath = values.get("--evidence");
+  if (
+    !new Set(["existing-prepush", "existing-post-push", "deployed"]).has(stage) ||
+    !NAME.test(repositoryName) ||
+    typeof evidencePath !== "string"
+  )
+    fail("GITHUB_INPUT_INVALID");
+  return Object.freeze({ stage, repositoryName, evidencePath });
+}
+
+function baselineExpected(parsed, repositoryName) {
+  if (parsed.stage !== "candidate") fail("GITHUB_PREPUSH_EVIDENCE_INVALID");
+  const baseline = parsed.candidate?.targetBaseline;
+  if (
+    !baseline ||
+    baseline.repositoryName !== repositoryName ||
+    baseline.candidateSha !== parsed.commitSha ||
+    baseline.branch !== "main" ||
+    baseline.fullRef !== "refs/heads/main"
+  )
+    fail("GITHUB_PREPUSH_EVIDENCE_INVALID");
+  return {
+    baseline,
+    expected: {
+      authenticatedOwner: baseline.authenticatedOwner,
+      repositoryName,
+      candidateSha: parsed.commitSha,
+      priorRemoteMainSha: baseline.priorRemoteMainSha,
+      defaultBranch: baseline.branch,
+      refBaseline: baseline.advertisedRefs.refs,
+    },
+  };
+}
+
+function canonicalProof(value) {
+  return { ...value, proofDigest: digest(value) };
+}
+
+function timestampAfter(value) {
+  return new Date(Date.parse(value) + 1).toISOString();
+}
+
+function persistedPrepushAsVerifierProof(parsed) {
+  const baseline = parsed.candidate.targetBaseline;
+  const proof = parsed.candidate.prepushEvidence;
+  if (!proof) fail("GITHUB_PREPUSH_EVIDENCE_INVALID");
+  const target = { refs: sortedRefs(baseline.advertisedRefs.refs) };
+  const reconstructed = proofFromTarget(
+    "existing-prepush",
+    {
+      candidateSha: parsed.commitSha,
+      priorRemoteMainSha: baseline.priorRemoteMainSha,
+      authenticatedOwner: baseline.authenticatedOwner,
+      repositoryName: baseline.repositoryName,
+    },
+    target,
+  );
+  if (
+    reconstructed.refDigest !== proof.refTopologyDigest ||
+    reconstructed.settingsDigest !== proof.settingsDigest
+  )
+    fail("GITHUB_PREPUSH_EVIDENCE_INVALID");
+  return reconstructed;
+}
+
+function publicationObservation(parsed, update, observedAt) {
+  const baseline = parsed.candidate.targetBaseline;
+  const operationFields = {
+    kind: update,
+    priorSha: baseline.priorRemoteMainSha,
+    resultSha: parsed.commitSha,
+    observedAt,
+  };
+  return {
+    observedAt: timestampAfter(observedAt),
+    targetBaseline: baseline,
+    prepushEvidence: parsed.candidate.prepushEvidence,
+    operation: canonicalProof(operationFields),
+    repository: {
+      nameWithOwner: baseline.nameWithOwner,
+      url: baseline.repositoryUrl,
+      visibility: "PUBLIC",
+      defaultBranch: "main",
+    },
+    advertisedRefs: {
+      count: baseline.advertisedRefs.count,
+      digest: baseline.advertisedRefs.digest,
+    },
+    identityClasses: baseline.identityClasses,
+    history: baseline.history,
+    policy: baseline.policy,
+  };
+}
+
+async function defaultReadEvidence(path) {
+  try {
+    return JSON.parse(await readFile(path, "utf8"));
+  } catch {
+    fail("GITHUB_INPUT_INVALID");
+  }
+}
+
+export async function executeGitHubReleaseStage({
+  args,
+  root = process.cwd(),
+  readEvidence = defaultReadEvidence,
+  writeEvidence = writeReleaseEvidence,
+  collect = collectGitHubReleaseEvidence,
+  collectDeployment = collectGitHubDeploymentEvidence,
+  now = () => new Date().toISOString(),
+}) {
+  const raw = await readEvidence(args.evidencePath);
+  const parsed = parseReleaseEvidence(raw);
+  if (args.stage === "deployed") {
+    if (
+      parsed.stage !== "published" ||
+      parsed.candidate?.targetBaseline?.repositoryName !== args.repositoryName
+    )
+      fail("GITHUB_INPUT_INVALID");
+    const baseline = parsed.candidate.targetBaseline;
+    const result = await collectDeployment({
+      expected: {
+        authenticatedOwner: baseline.authenticatedOwner,
+        repositoryName: baseline.repositoryName,
+        candidateSha: parsed.commitSha,
+      },
+      now,
+    });
+    const next = advanceReleaseEvidence(parsed, {
+      stage: "deployed",
+      observation: result.observation,
+    });
+    await writeEvidence(args.evidencePath, next, { root });
+    return Object.freeze({ ok: true, code: "GITHUB_DEPLOYMENT_RECORDED", stage: next.stage });
+  }
+  const { baseline, expected } = baselineExpected(parsed, args.repositoryName);
+  if (args.stage === "existing-prepush") {
+    const proof = await collect({ stage: args.stage, expected });
+    if (
+      proof?.code !== "GITHUB_PREPUSH_VERIFIED" ||
+      proof.candidateSha !== parsed.commitSha ||
+      proof.priorRemoteMainSha !== baseline.priorRemoteMainSha ||
+      proof.authenticatedOwner !== baseline.authenticatedOwner ||
+      proof.repositoryName !== baseline.repositoryName ||
+      proof.refDigest !== baseline.advertisedRefs.digest
+    )
+      fail("GITHUB_PREPUSH_EVIDENCE_INVALID");
+    const proofFields = {
+      observedAt: now(),
+      candidateSha: parsed.commitSha,
+      priorRemoteMainSha: baseline.priorRemoteMainSha,
+      fullRef: baseline.fullRef,
+      refTopologyDigest: baseline.advertisedRefs.digest,
+      settingsDigest: proof.settingsDigest,
+      authenticatedOwner: baseline.authenticatedOwner,
+      repositoryName: baseline.repositoryName,
+      status: "passed",
+    };
+    const next = attachPrepushEvidence(parsed, canonicalProof(proofFields));
+    await writeEvidence(args.evidencePath, next, { root });
+    return Object.freeze({ ok: true, code: "GITHUB_PREPUSH_RECORDED", stage: next.stage });
+  }
+  const prepush = parsed.candidate.prepushEvidence;
+  const observedAt = now();
+  const age = Date.parse(observedAt) - Date.parse(prepush?.observedAt ?? "");
+  if (!Number.isFinite(age) || age <= 0 || age > MAX_PREPUSH_AGE_MS)
+    fail("GITHUB_PREPUSH_EVIDENCE_INVALID");
+  const verifierProof = persistedPrepushAsVerifierProof(parsed);
+  const proof = await collect({ stage: args.stage, expected, prepush: verifierProof });
+  if (
+    proof?.code !== "GITHUB_POSTPUSH_VERIFIED" ||
+    proof.candidateSha !== parsed.commitSha ||
+    !new Set(["no-op", "fast-forward"]).has(proof.update)
+  )
+    fail("GITHUB_POSTPUSH_INVALID");
+  const next = advanceReleaseEvidence(parsed, {
+    stage: "published",
+    observation: publicationObservation(parsed, proof.update, observedAt),
+  });
+  await writeEvidence(args.evidencePath, next, { root });
+  return Object.freeze({ ok: true, code: "GITHUB_PUBLICATION_RECORDED", stage: next.stage });
+}
+
+async function main() {
+  const args = parseGitHubReleaseArguments(process.argv.slice(2));
+  const report = await executeGitHubReleaseStage({ args });
   process.stdout.write(`${JSON.stringify(report)}\n`);
 }
 

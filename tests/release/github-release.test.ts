@@ -8,12 +8,7 @@ import {
   parseGitHubReleaseArguments,
   verifyGitHubRelease,
 } from "../../tools/verify-github-release.mjs";
-import {
-  candidateObservationFixture,
-  PRIOR_SHA,
-  SHA,
-  targetBaselineFixture,
-} from "./fixtures.js";
+import { candidateObservationFixture, PRIOR_SHA, SHA, targetBaselineFixture } from "./fixtures.js";
 
 const PRIOR = "1".repeat(40);
 const CANDIDATE = "2".repeat(40);
@@ -593,7 +588,10 @@ describe("release evidence CLI contract", () => {
   });
 
   it.each([
-    ["missing baseline", (value: ReturnType<typeof candidateRelease>) => delete value.candidate.targetBaseline],
+    [
+      "missing baseline",
+      (value: ReturnType<typeof candidateRelease>) => delete value.candidate.targetBaseline,
+    ],
     [
       "wrong repository",
       (value: ReturnType<typeof candidateRelease>) =>
@@ -641,7 +639,7 @@ describe("release evidence CLI contract", () => {
         current.candidate.targetBaseline.advertisedRefs.digest;
     }
     refreshPrepushProof(current);
-    let written: any;
+    let written: unknown;
     const result = await executeGitHubReleaseStage({
       args: {
         stage: "existing-post-push",
@@ -661,7 +659,11 @@ describe("release evidence CLI contract", () => {
       }),
       now: () => "2026-09-01T18:20:00.000Z",
     });
-    expect(result).toMatchObject({ ok: true, code: "GITHUB_PUBLICATION_RECORDED", stage: "published" });
+    expect(result).toMatchObject({
+      ok: true,
+      code: "GITHUB_PUBLICATION_RECORDED",
+      stage: "published",
+    });
     expect(written).toMatchObject({
       stage: "published",
       publication: {
@@ -696,7 +698,7 @@ describe("release evidence CLI contract", () => {
   it("advances published evidence only from exact Pages workflow and artifact evidence", async () => {
     const candidate = candidateRelease({ includePrepush: true });
     refreshPrepushProof(candidate);
-    let published: any;
+    let published: unknown;
     await executeGitHubReleaseStage({
       args: {
         stage: "existing-post-push",
@@ -714,7 +716,7 @@ describe("release evidence CLI contract", () => {
       }),
       now: () => "2026-09-01T18:20:00.000Z",
     });
-    let deployed: any;
+    let deployed: unknown;
     const deployment = {
       observedAt: "2026-09-01T18:30:00.000Z",
       workflow: {
