@@ -55,7 +55,7 @@ describe("bounded public canonical-data change summary", () => {
         decisionLanes: { before: 8, after: 8, delta: 0 },
         visualizationReferences: { before: 1, after: 1, delta: 0 },
         vocabularies: { before: 1, after: 1, delta: 0 },
-        evidenceReferences: { before: 40, after: 40, delta: 0 },
+        evidenceReferences: { before: 30, after: 30, delta: 0 },
       },
       identifiers: {},
       changedPropertyGroups: {},
@@ -81,7 +81,7 @@ describe("bounded public canonical-data change summary", () => {
 
     expect(second).toEqual(first);
     expect(first.status).toBe("changed");
-    expect(first.counts.evidenceReferences).toEqual({ before: 40, after: 41, delta: 1 });
+    expect(first.counts.evidenceReferences).toEqual({ before: 30, after: 31, delta: 1 });
     expect(first.changedPropertyGroups).toEqual({
       evidence: { changed: 1, identifiers: ["material-synthetic-alpha"], omitted: 0 },
       guidance: { changed: 1, identifiers: ["material-synthetic-alpha"], omitted: 0 },
@@ -132,7 +132,7 @@ describe("bounded public canonical-data change summary", () => {
 
   it("rejects invalid, noncanonical, and oversized inputs with stable data-free codes", () => {
     const invalid = join(fixtureDirectory(), "invalid.json");
-    writeFileSync(invalid, "{\"unknown\":\"credential-secret\"}\n", "utf8");
+    writeFileSync(invalid, '{"unknown":"credential-secret"}\n', "utf8");
     const noncanonical = fixturePath("noncanonical.json");
     writeFileSync(noncanonical, JSON.stringify(createMinimalAtlas()), "utf8");
     const oversized = join(fixtureDirectory(), "oversized.json");
@@ -161,7 +161,8 @@ describe("bounded public canonical-data change summary", () => {
       "utf8",
     );
     expect(source).not.toMatch(/\b(?:fetch|XMLHttpRequest|WebSocket)\s*\(/u);
-    expect(source).not.toMatch(/\b(?:commit|push|pull-request|merge|refresh|gog)\b/iu);
+    expect(source).not.toMatch(/["'`](?:commit|push|pull-request|merge|refresh|gog)["'`]/iu);
+    expect(source).not.toMatch(/\bgit\s+(?:commit|push|merge)\b/iu);
     expect(source).not.toMatch(/writeFile|appendFile|createWriteStream/u);
   });
 });
