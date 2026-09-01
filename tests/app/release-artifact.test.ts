@@ -53,12 +53,12 @@ describe("release artifact validator", () => {
   });
 
   it.each([
-    ["<a href=\"/missing/\">Missing</a>", "ARTIFACT_LOCAL_TARGET_MISSING"],
-    ["<a href=\"/#missing\">Missing</a>", "ARTIFACT_FRAGMENT_MISSING"],
-    ["<a href=\"/../escape/\">Escape</a>", "ARTIFACT_PATH_TRAVERSAL"],
-    ["<a href=\"javascript:alert(1)\">Unsafe</a>", "ARTIFACT_PROTOCOL_UNSAFE"],
-    ["<script src=\"https://cdn.example/app.js\"></script>", "ARTIFACT_REMOTE_ASSET"],
-    ["<script src=\"/assets/site.css\"></script>", "ARTIFACT_EXTENSION_INVALID"],
+    ['<a href="/missing/">Missing</a>', "ARTIFACT_LOCAL_TARGET_MISSING"],
+    ['<a href="/#missing">Missing</a>', "ARTIFACT_FRAGMENT_MISSING"],
+    ['<a href="/../escape/">Escape</a>', "ARTIFACT_PATH_TRAVERSAL"],
+    ['<a href="javascript:alert(1)">Unsafe</a>', "ARTIFACT_PROTOCOL_UNSAFE"],
+    ['<script src="https://cdn.example/app.js"></script>', "ARTIFACT_REMOTE_ASSET"],
+    ['<script src="/assets/site.css"></script>', "ARTIFACT_EXTENSION_INVALID"],
   ])("rejects an unsafe emitted reference with %s", async (markup, code) => {
     const { output } = await fixture();
     await writeFile(
