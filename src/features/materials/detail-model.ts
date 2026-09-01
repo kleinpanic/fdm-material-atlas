@@ -119,6 +119,8 @@ export type MaterialDetailModel = {
       readonly sharedLanes: readonly {
         readonly id: DecisionLaneId;
         readonly label: string;
+        readonly currentState: "candidate" | "indeterminate";
+        readonly relatedState: "candidate" | "indeterminate";
       }[];
     }[];
   };
@@ -289,14 +291,22 @@ export function buildMaterialDetailModels(
       name: string;
       state: "candidate" | "indeterminate";
       details: RouteAction;
-      sharedLanes: { id: DecisionLaneId; label: string }[];
+      sharedLanes: {
+        id: DecisionLaneId;
+        label: string;
+        currentState: "candidate" | "indeterminate";
+        relatedState: "candidate" | "indeterminate";
+      }[];
     }>();
     for (const lane of relationships) {
-      const currentInLane = lane.candidateMaterialIds.includes(material.id)
-        || lane.indeterminateMaterialIds.includes(material.id);
-      if (!currentInLane) continue;
-      for (const state of ["candidate", "indeterminate"] as const) {
-        const relatedIds = state === "candidate" ? lane.candidateMaterialIds : lane.indeterminateMaterialIds;
+      const currentState = lane.candidateMaterialIds.includes(material.id)
+        ? "candidate" as const
+        : lane.indeterminateMaterialIds.includes(material.id)
+          ? "indeterminate" as const
+          : undefined;
+      if (currentState === undefined) continue;
+      for (const relatedState of ["candidate", "indeterminate"] as const) {
+        const relatedIds = relatedState === "candidate" ? lane.candidateMaterialIds : lane.indeterminateMaterialIds;
         for (const relatedId of relatedIds) {
           if (relatedId === material.id) continue;
           const relatedMaterial = materialById.get(relatedId);
@@ -305,17 +315,16 @@ export function buildMaterialDetailModels(
           const existing = relatedById.get(relatedId);
           if (existing) {
             if (!existing.sharedLanes.some(({ id }) => id === lane.id)) {
-              existing.sharedLanes.push({ id: lane.id, label: lane.label });
+              existing.sharedLanes.push({ id: lane.id, label: lane.label, currentState, relatedState });
             }
-            if (state === "candidate") existing.state = "candidate";
           } else {
             relatedById.set(relatedId, {
               id: relatedId,
               slug: relatedMaterial.slug,
               name: relatedMaterial.name,
-              state,
+              state: currentState === "candidate" && relatedState === "candidate" ? "candidate" : "indeterminate",
               details: route.details,
-              sharedLanes: [{ id: lane.id, label: lane.label }],
+              sharedLanes: [{ id: lane.id, label: lane.label, currentState, relatedState }],
             });
           }
         }
@@ -324,6 +333,9 @@ export function buildMaterialDetailModels(
     const relatedMaterials = [...relatedById.values()]
       .map((related) => ({
         ...related,
+        state: related.sharedLanes.every(({ currentState, relatedState }) =>
+          currentState === "candidate" && relatedState === "candidate"
+        ) ? "candidate" as const : "indeterminate" as const,
         sharedLanes: related.sharedLanes.sort((left, right) =>
           (laneOrder.get(left.id) ?? Number.MAX_SAFE_INTEGER) - (laneOrder.get(right.id) ?? Number.MAX_SAFE_INTEGER)
         ),

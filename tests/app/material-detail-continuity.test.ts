@@ -83,6 +83,36 @@ describe("material detail continuity", () => {
     }
   });
 
+  it("classifies every shared lane from both endpoint states", () => {
+    const models = buildMaterialDetailModels(loadPublicAtlas(), "/");
+    const nylon = models.find(({ id }) => id === "material-nylon-pa6")!;
+    const paCf = models.find(({ id }) => id === "material-pa-cf")!;
+    const pa12 = models.find(({ id }) => id === "material-pa12-nylon")!;
+
+    const currentIndeterminate = nylon.continuity.relatedMaterials.find(({ id }) => id === paCf.id)!;
+    expect(currentIndeterminate.state).toBe("indeterminate");
+    expect(currentIndeterminate.sharedLanes).toContainEqual(expect.objectContaining({
+      id: "lane-high-heat-sustained-load",
+      currentState: "indeterminate",
+      relatedState: "candidate",
+    }));
+
+    const relatedIndeterminate = paCf.continuity.relatedMaterials.find(({ id }) => id === nylon.id)!;
+    expect(relatedIndeterminate.state).toBe("indeterminate");
+    expect(relatedIndeterminate.sharedLanes).toContainEqual(expect.objectContaining({
+      id: "lane-high-heat-sustained-load",
+      currentState: "candidate",
+      relatedState: "indeterminate",
+    }));
+
+    const mixed = nylon.continuity.relatedMaterials.find(({ id }) => id === pa12.id)!;
+    expect(mixed.state).toBe("indeterminate");
+    expect(mixed.sharedLanes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: "lane-high-heat-sustained-load", currentState: "indeterminate", relatedState: "candidate" }),
+      expect.objectContaining({ id: "lane-impact-flex", currentState: "candidate", relatedState: "candidate" }),
+    ]));
+  });
+
   it("keeps closed compare and map capabilities href-free without guessing targets", () => {
     const closedRegistry: PublicRouteRegistry = {
       materialDetails: [],

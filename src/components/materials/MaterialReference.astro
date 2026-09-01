@@ -140,8 +140,15 @@ const sections = [
                     {" — "}{related.state === "candidate" ? "Candidate" : "Needs verification"}
                   </p>
                   <p class="material-related__context">
-                    Shared {related.sharedLanes.length === 1 ? "lane" : "lanes"}: {related.sharedLanes.map(({ label }) => label).join(", ")}
+                    Shared {related.sharedLanes.length === 1 ? "lane" : "lanes"}:
                   </p>
+                  <ul class="material-related__lanes">
+                    {related.sharedLanes.map((lane) => (
+                      <li>
+                        {lane.label} — {model.name} {lane.currentState === "candidate" ? "is a candidate" : "needs verification"}; {related.name} {lane.relatedState === "candidate" ? "is a candidate" : "needs verification"}
+                      </li>
+                    ))}
+                  </ul>
                 </li>
               ))}
             </ul>
