@@ -149,6 +149,7 @@ async function fixture(
     scriptSrc?: string;
     componentUrl?: string;
     materialHtml?: string;
+    fontPreloads?: "valid" | "missing" | "duplicate" | "external";
   } = {},
 ) {
   const root = await mkdtemp(join(tmpdir(), "selector-build-"));
@@ -161,6 +162,19 @@ async function fixture(
   const island = `<astro-island component-url="${asset}" renderer-url="${base}_astro/client.js" props="${props.replaceAll("&", "&amp;").replaceAll('"', "&quot;")}"></astro-island>`;
   await mkdir(join(root, "_astro"), { recursive: true });
   await mkdir(join(root, "materials/pla"), { recursive: true });
+  await writeFile(join(root, "_astro/plex-sans.woff2"), "sans-font");
+  await writeFile(join(root, "_astro/plex-mono.woff2"), "mono-font");
+  const fontPreloads =
+    options.fontPreloads === "missing"
+      ? ""
+      : options.fontPreloads === "external"
+        ? '<link rel="preload" as="font" type="font/woff2" href="https://outside.example/font.woff2">' +
+          `<link rel="preload" as="font" type="font/woff2" href="${base}_astro/plex-mono.woff2">`
+        : `<link rel="preload" as="font" type="font/woff2" href="${base}_astro/plex-sans.woff2">` +
+          `<link rel="preload" as="font" type="font/woff2" href="${base}_astro/plex-mono.woff2">` +
+          (options.fontPreloads === "duplicate"
+            ? `<link rel="preload" as="font" type="font/woff2" href="${base}_astro/plex-mono.woff2">`
+            : "");
   const script =
     options.scriptSrc === undefined
       ? `<script>${options.inlineScript ?? "window.__selectorBoot=1"}</script>`
@@ -170,7 +184,7 @@ async function fixture(
     : `<script id="selector-client-model" type="application/json">${payload}</script>${options.duplicatePayload ? `<script id="selector-client-model" type="application/json">${payload}</script>` : ""}`;
   await writeFile(
     join(root, "index.html"),
-    `<!doctype html><a href="${base}materials/pla/">PLA</a>${island}${options.secondIsland ? island : ""}${payloadScript}${script}`,
+    `<!doctype html>${fontPreloads}<a href="${base}materials/pla/">PLA</a>${island}${options.secondIsland ? island : ""}${payloadScript}${script}`,
   );
   await writeFile(
     join(root, "materials/pla/index.html"),
@@ -213,6 +227,7 @@ describe("selector production build verifier", () => {
       islandCount: 1,
       inlineScriptCount: 1,
       deferredPayloadCount: 1,
+      fontPreloadCount: 2,
       reachableJavaScriptCount: 3,
       availableHrefCount: 0,
     });
@@ -220,6 +235,17 @@ describe("selector production build verifier", () => {
     expect(report.totalGzipBytes).toBeLessThanOrEqual(100 * 1024);
     expect(report.indexHtmlBytes).toBeGreaterThan(0);
     expect(report.selectorEntryJavaScriptBytes).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ["missing", "missing"],
+    ["duplicate", "duplicate"],
+    ["external", "external"],
+  ] as const)("fails closed for %s controlled font preloads", async (_label, fontPreloads) => {
+    const { root, base } = await fixture({ fontPreloads });
+    expect(await codeFor(() => verifySelectorBuild({ outputRoot: root, base }))).toBe(
+      "SELECTOR_FONT_PRELOAD_INVALID",
+    );
   });
 
   it("accepts exact raw boundaries and fails one byte over either cap", async () => {
