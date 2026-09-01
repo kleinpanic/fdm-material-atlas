@@ -63,7 +63,7 @@ describe("Phase 8 shared map seams", () => {
       "conditional",
       "not-applicable",
       "missing",
-    ] satisfies FactState<string>["state"][]);
+    ] satisfies FactState<number>["state"][]);
     expect(phase8CandidateSets.zero).toHaveLength(0);
     expect(phase8CandidateSets.one).toHaveLength(1);
     expect(phase8CandidateSets.eight).toHaveLength(8);
@@ -95,6 +95,7 @@ describe("Phase 8 shared map seams", () => {
       "basis",
     ];
     for (const key of prohibitedKeys) expect(serialized).not.toContain(`\"${key}\"`);
+    expect(serialized).not.toMatch(/(?:https?:)?\/\//u);
   });
 
   it("retains the Phase 6 live decision-lane membership authority", () => {

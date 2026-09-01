@@ -2,12 +2,12 @@ import type { FactState } from "../../src/data/schema/fact-state.ts";
 import type { MaterialId } from "../../src/data/schema/ids.ts";
 
 export const phase8FactStates = {
-  known: { state: "known", value: "invented-known-value" },
+  known: { state: "known", value: 42 },
   unknown: { state: "unknown", reason: "Synthetic value is unknown." },
   conditionalWithValue: {
     state: "conditional",
     condition: "Synthetic condition applies.",
-    value: "invented-conditional-value",
+    value: 84,
   },
   conditionalWithoutValue: {
     state: "conditional",
@@ -15,7 +15,7 @@ export const phase8FactStates = {
   },
   notApplicable: { state: "not-applicable", reason: "Synthetic case does not apply." },
   missing: { state: "missing", reason: "Synthetic value is not reported." },
-} as const satisfies Readonly<Record<string, FactState<string>>>;
+} as const satisfies Readonly<Record<string, FactState<number>>>;
 
 function materialId(index: number): MaterialId {
   return `material-synthetic-${String(index).padStart(2, "0")}` as MaterialId;
@@ -50,9 +50,8 @@ export const phase8StaleSelections = Object.freeze({
 });
 
 export const phase8InvalidPublicReferences = Object.freeze([
-  "https://invalid.example/synthetic",
+  "materials/synthetic-without-leading-slash",
   "../synthetic-parent",
   "source-synthetic-record",
   "material missing namespace",
 ]);
-
