@@ -6,6 +6,7 @@ import {
   type SelectorClientModel,
   type SelectorRuntimePageModel,
 } from "../../features/selector/client-model.ts";
+import { decodeSelectorDeferredPayload } from "../../features/selector/deferred-payload.ts";
 import {
   buildSelectorBootstrap,
   selectorPresentationAnnouncement,
@@ -26,7 +27,7 @@ import {
 import { SelectorControls } from "./SelectorControls.tsx";
 import type { SelectorResultsProps } from "./SelectorResults.tsx";
 
-type Props = Readonly<{ pageModel: SelectorClientModel; bootstrap?: SelectorBootstrap }>;
+type Props = Readonly<{ pageModel?: SelectorClientModel; bootstrap?: SelectorBootstrap }>;
 type ResultsRenderer = typeof import("./render-selector-results.tsx");
 const RESULTS_MOUNT_ID = "selector-results-mount";
 
@@ -52,8 +53,9 @@ function SelectorStatus({ message, immediate }: Readonly<{ message: string; imme
   );
 }
 
-function recoverBootstrap(pageModel: SelectorClientModel): SelectorBootstrap | null {
+function recoverBootstrap(pageModel: SelectorClientModel | undefined): SelectorBootstrap | null {
   try {
+    if (!pageModel) return null;
     const runtimeModel = decodeSelectorClientModel(pageModel);
     const evaluate = prepareSelectorPresentationEvaluator(runtimeModel);
     return buildSelectorBootstrap(runtimeModel, evaluate(runtimeModel.defaults));
@@ -75,7 +77,9 @@ export function SelectorIsland({ pageModel, bootstrap }: Props) {
       </div>
     );
   }
-  return <SelectorRuntimeIsland pageModel={pageModel} bootstrap={initialBootstrap} />;
+  return (
+    <SelectorRuntimeIsland {...(pageModel ? { pageModel } : {})} bootstrap={initialBootstrap} />
+  );
 }
 
 type PreparedRuntime = Readonly<{
@@ -91,7 +95,7 @@ type EvaluatedState = Readonly<{
 function SelectorRuntimeIsland({
   pageModel,
   bootstrap,
-}: Readonly<{ pageModel: SelectorClientModel; bootstrap: SelectorBootstrap }>) {
+}: Readonly<{ pageModel?: SelectorClientModel; bootstrap: SelectorBootstrap }>) {
   const [selection, setSelection] = useState<Readonly<Record<string, string>>>(
     () => bootstrap.defaults,
   );
@@ -121,7 +125,9 @@ function SelectorRuntimeIsland({
   const prepareRuntime = (): PreparedRuntime | null => {
     if (runtimeRef.current) return runtimeRef.current;
     try {
-      const runtimeModel = decodeSelectorClientModel(pageModel);
+      const runtimeModel = pageModel
+        ? decodeSelectorClientModel(pageModel)
+        : decodeSelectorDeferredPayload(document);
       return (runtimeRef.current ??= Object.freeze({
         pageModel: runtimeModel,
         evaluate: prepareSelectorPresentationEvaluator(runtimeModel),

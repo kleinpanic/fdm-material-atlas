@@ -3,6 +3,7 @@ import { SelectorIsland } from "../components/selector/SelectorIsland.tsx";
 import { SelectorStaticResults } from "../components/selector/SelectorStaticResults.tsx";
 import { buildSelectorBootstrap } from "../features/selector/bootstrap.ts";
 import { decodeSelectorClientModel } from "../features/selector/client-model.ts";
+import { serializeSelectorDeferredPayload } from "../features/selector/deferred-payload.ts";
 import { buildSelectorPageModel } from "../features/selector/page-model.ts";
 import { prepareSelectorPresentationEvaluator } from "../features/selector/runtime-evaluator.ts";
 import BaseLayout from "../layouts/BaseLayout.astro";
@@ -19,6 +20,7 @@ const defaultPresentation = prepareSelectorPresentationEvaluator(runtimeModel)(
   runtimeModel.defaults,
 );
 const selectorBootstrap = buildSelectorBootstrap(runtimeModel, defaultPresentation);
+const selectorPayload = serializeSelectorDeferredPayload(pageModel);
 const homeHref = internalHref(base, { id: "home" });
 const materialsHref = internalHref(base, { id: "materials" });
 const compareHref = internalHref(base, { id: "compare" });
@@ -80,7 +82,13 @@ const footerLinks = [
       </p>
     </noscript>
     <div class="selector-island">
-      <SelectorIsland pageModel={pageModel} bootstrap={selectorBootstrap} client:load />
+      <SelectorIsland bootstrap={selectorBootstrap} client:load />
+      <script
+        id="selector-client-model"
+        type="application/json"
+        is:inline
+        set:html={selectorPayload}
+      />
       <div
         id="selector-results-mount"
         class="selector-results-mount selector-results-host"

@@ -94,30 +94,33 @@ export default defineConfig({
   },
   fonts: [
     {
-      provider: fontProviders.npm({ remote: false }),
+      provider: fontProviders.local(),
       name: "IBM Plex Sans Variable",
       cssVariable: "--font-plex-sans",
-      weights: [400, 600],
-      styles: ["normal"],
-      subsets: ["latin"],
-      formats: ["woff2"],
       fallbacks: ["system-ui", "sans-serif"],
       options: {
-        package: "@fontsource-variable/ibm-plex-sans",
-        file: "wght.css",
+        variants: [
+          {
+            src: ["@fontsource-variable/ibm-plex-sans/files/ibm-plex-sans-latin-wght-normal.woff2"],
+            weight: "100 700",
+            style: "normal",
+          },
+        ],
       },
     },
     {
-      provider: fontProviders.npm({ remote: false }),
+      provider: fontProviders.local(),
       name: "IBM Plex Mono",
       cssVariable: "--font-plex-mono",
-      weights: [400, 600],
-      styles: ["normal"],
-      subsets: ["latin"],
-      formats: ["woff2"],
       fallbacks: ["ui-monospace", "monospace"],
       options: {
-        package: "@fontsource/ibm-plex-mono",
+        variants: [
+          {
+            src: ["@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2"],
+            weight: 400,
+            style: "normal",
+          },
+        ],
       },
     },
   ],

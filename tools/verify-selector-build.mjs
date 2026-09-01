@@ -9,6 +9,8 @@ const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_MAX_GZIP_BYTES = 100 * 1024;
 const DEFAULT_MAX_INDEX_HTML_BYTES = 110 * 1024;
 const DEFAULT_MAX_SELECTOR_ENTRY_JAVASCRIPT_BYTES = 90 * 1024;
+const SELECTOR_PAYLOAD_ID = "selector-client-model";
+const MAX_DEFERRED_PAYLOAD_BYTES = 64 * 1024;
 const MAX_FILES = 20_000;
 const MAX_FILE_BYTES = 64 * 1024 * 1024;
 const PROHIBITED_PROP_KEYS = new Set([
@@ -205,9 +207,8 @@ function decodeCompactPageModel(value) {
   return decode(value[2]);
 }
 
-function validatePageModelShape(props) {
-  if (!exactKeys(props, ["pageModel"])) fail("SELECTOR_PROPS_SHAPE_INVALID");
-  const pageModel = decodeCompactPageModel(props.pageModel);
+function validatePageModelShape(value) {
+  const pageModel = decodeCompactPageModel(value);
   inspectPropBoundary(pageModel, []);
   if (!exactKeys(pageModel, ["projection", "defaults", "display", "routes"]))
     fail("SELECTOR_PROPS_SHAPE_INVALID");
@@ -250,6 +251,79 @@ function validatePageModelShape(props) {
   )
     fail("SELECTOR_PROPS_COUNT_INVALID");
   return pageModel;
+}
+
+function validateBootstrapShape(props, pageModel) {
+  if (!exactKeys(props, ["bootstrap"])) fail("SELECTOR_PROPS_SHAPE_INVALID");
+  const bootstrap = props.bootstrap;
+  if (
+    !exactKeys(bootstrap, [
+      "controls",
+      "defaults",
+      "defaultCompatibleIds",
+      "defaultAnnouncement",
+    ]) ||
+    !exactKeys(bootstrap.controls, ["projection"]) ||
+    !exactKeys(bootstrap.controls.projection, ["criteria"]) ||
+    !Array.isArray(bootstrap.controls.projection.criteria) ||
+    typeof bootstrap.defaults !== "object" ||
+    bootstrap.defaults === null ||
+    Array.isArray(bootstrap.defaults) ||
+    !Array.isArray(bootstrap.defaultCompatibleIds) ||
+    typeof bootstrap.defaultAnnouncement !== "string" ||
+    bootstrap.defaultAnnouncement.length === 0
+  )
+    fail("SELECTOR_PROPS_SHAPE_INVALID");
+  const criteria = bootstrap.controls.projection.criteria;
+  const criterionIds = criteria.map((criterion) => criterion?.id);
+  const materialIds = pageModel.projection.materials.map((material) => material?.id);
+  if (
+    criterionIds.some((id) => typeof id !== "string") ||
+    new Set(criterionIds).size !== criterionIds.length ||
+    Object.keys(bootstrap.defaults).length !== criterionIds.length ||
+    criterionIds.some(
+      (id) =>
+        bootstrap.defaults[id] !==
+          criteria.find((criterion) => criterion.id === id)?.defaultOptionId ||
+        bootstrap.defaults[id] !== pageModel.defaults[id],
+    ) ||
+    bootstrap.defaultCompatibleIds.some(
+      (id) => typeof id !== "string" || !materialIds.includes(id),
+    ) ||
+    new Set(bootstrap.defaultCompatibleIds).size !== bootstrap.defaultCompatibleIds.length
+  )
+    fail("SELECTOR_PROPS_COUNT_INVALID");
+  return bootstrap;
+}
+
+function readDeferredPayload(selectorHtml, prohibitedExactPatterns) {
+  const matches = [];
+  for (const match of selectorHtml.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+    const scriptAttributes = attributes(`<script ${match[1]}>`);
+    if (scriptAttributes.get("id") === SELECTOR_PAYLOAD_ID) {
+      matches.push({ attributes: scriptAttributes, source: match[2] });
+    }
+  }
+  if (matches.length !== 1) fail("SELECTOR_DEFERRED_PAYLOAD_INVALID");
+  const record = matches[0];
+  if (
+    record.attributes.get("type") !== "application/json" ||
+    record.attributes.has("src") ||
+    record.source.length === 0 ||
+    Buffer.byteLength(record.source) > MAX_DEFERRED_PAYLOAD_BYTES ||
+    record.source.includes("<")
+  )
+    fail("SELECTOR_DEFERRED_PAYLOAD_INVALID");
+  let encoded;
+  try {
+    encoded = JSON.parse(record.source);
+  } catch {
+    fail("SELECTOR_DEFERRED_PAYLOAD_INVALID");
+  }
+  inspectPropBoundary(encoded, prohibitedExactPatterns);
+  const pageModel = validatePageModelShape(encoded);
+  inspectPropBoundary(pageModel, prohibitedExactPatterns);
+  return { pageModel, source: record.source };
 }
 
 async function collectFiles(root) {
@@ -299,6 +373,28 @@ function fileForPublicUrl(raw, base, files, code = "SELECTOR_CLIENT_REFERENCE_IN
   const candidate = logical === "" || logical.endsWith("/") ? `${logical}index.html` : logical;
   if (!files.has(candidate)) fail(code);
   return { candidate, fragment: url.hash.slice(1) };
+}
+
+function validateFontPreloads(html, base, files) {
+  const preloadTargets = [];
+  for (const match of html.matchAll(/<link\b[^>]*>/gi)) {
+    const link = attributes(match[0]);
+    if (link.get("rel") !== "preload" || link.get("as") !== "font") continue;
+    if (link.get("type") !== "font/woff2") fail("SELECTOR_FONT_PRELOAD_INVALID");
+    const href = link.get("href");
+    if (typeof href !== "string" || href === "") fail("SELECTOR_FONT_PRELOAD_INVALID");
+    const { candidate, fragment } = fileForPublicUrl(
+      href,
+      base,
+      files,
+      "SELECTOR_FONT_PRELOAD_INVALID",
+    );
+    if (!candidate.endsWith(".woff2") || fragment !== "") fail("SELECTOR_FONT_PRELOAD_INVALID");
+    preloadTargets.push(candidate);
+  }
+  if (preloadTargets.length !== 2 || new Set(preloadTargets).size !== 2)
+    fail("SELECTOR_FONT_PRELOAD_INVALID");
+  return preloadTargets.length;
 }
 
 function importedSpecifiers(source) {
@@ -401,6 +497,7 @@ export async function verifySelectorBuild({
   if (indexHtmlBytes > maxIndexHtmlBytes)
     fail("SELECTOR_INDEX_HTML_BUDGET_EXCEEDED", { indexHtmlBytes, maxIndexHtmlBytes });
   const selectorHtml = selectorHtmlBytes.toString("utf8");
+  const fontPreloadCount = validateFontPreloads(selectorHtml, base, files);
   for (const match of selectorHtml.matchAll(/<astro-island\b[^>]*>/gi))
     islands.push({ name: "index.html", attributes: attributes(match[0]) });
   if (islands.length !== 1 || islands[0].name !== "index.html")
@@ -410,8 +507,9 @@ export async function verifySelectorBuild({
   if (typeof serializedProps !== "string") fail("SELECTOR_PROPS_INVALID");
   const props = parseProps(serializedProps);
   inspectPropBoundary(props, prohibitedExactPatterns);
-  const runtimePageModel = validatePageModelShape(props);
-  inspectPropBoundary(runtimePageModel, prohibitedExactPatterns);
+  const deferredPayload = readDeferredPayload(selectorHtml, prohibitedExactPatterns);
+  const runtimePageModel = deferredPayload.pageModel;
+  validateBootstrapShape(props, runtimePageModel);
 
   const entries = [island.attributes.get("component-url"), island.attributes.get("renderer-url")];
   if (entries.some((entry) => typeof entry !== "string" || entry === ""))
@@ -433,6 +531,7 @@ export async function verifySelectorBuild({
   for (const match of homeHtml.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
     const scriptAttributes = attributes(`<script ${match[1]}>`);
     const source = match[2];
+    if (scriptAttributes.get("id") === SELECTOR_PAYLOAD_ID) continue;
     const sourceUrl = scriptAttributes.get("src");
     if (sourceUrl !== undefined) {
       if (source.trim() !== "") fail("SELECTOR_CLIENT_REFERENCE_INVALID");
@@ -469,17 +568,25 @@ export async function verifySelectorBuild({
       pending.push(resolveImport(specifier, name, files));
   }
   const propsGzipBytes = gzipSync(Buffer.from(serializedProps), { level: 9, mtime: 0 }).byteLength;
-  const totalGzipBytes = javascriptGzipBytes + inlineScriptGzipBytes + propsGzipBytes;
+  const deferredPayloadGzipBytes = gzipSync(Buffer.from(deferredPayload.source), {
+    level: 9,
+    mtime: 0,
+  }).byteLength;
+  const totalGzipBytes =
+    javascriptGzipBytes + inlineScriptGzipBytes + deferredPayloadGzipBytes + propsGzipBytes;
   if (totalGzipBytes > maxGzipBytes)
     fail("SELECTOR_PAYLOAD_BUDGET_EXCEEDED", { totalGzipBytes, maxGzipBytes });
   const availableHrefCount = await validateRoutes({ pageModel: runtimePageModel }, base, files);
   return Object.freeze({
     islandCount: 1,
+    deferredPayloadCount: 1,
+    fontPreloadCount,
     inlineScriptCount,
     reachableJavaScriptCount: visited.size,
     availableHrefCount,
     javascriptGzipBytes,
     inlineScriptGzipBytes,
+    deferredPayloadGzipBytes,
     propsGzipBytes,
     totalGzipBytes,
     maxGzipBytes,
