@@ -94,10 +94,14 @@ describe("selector component boundary", () => {
     new URL("../../src/components/selector/SelectorStaticResults.tsx", import.meta.url),
     "utf8",
   );
+  const bootstrap = readFileSync(
+    new URL("../../src/features/selector/bootstrap.ts", import.meta.url),
+    "utf8",
+  );
   const componentSource = `${controls}\n${results}`;
   const allSource = `${componentSource}\n${island}`;
 
-  it("keeps exactly one island and one engine invocation owner", () => {
+  it("keeps exactly one lazy engine invocation owner", () => {
     expect(island).toContain("prepareSelectorPresentationEvaluator");
     expect(island).not.toContain("evaluateSelectorSafely");
     expect(componentSource).not.toMatch(
@@ -105,8 +109,16 @@ describe("selector component boundary", () => {
     );
   });
 
-  it("prepares once and keeps hydration and status updates below the results owner", () => {
-    expect(island).toMatch(/useMemo\(\s*\(\) => prepareSelectorPresentationEvaluator/u);
+  it("seeds default state without decoding or evaluating during production hydration", () => {
+    expect(island).toContain("bootstrap");
+    expect(island).toContain("runtimeRef.current ??=");
+    expect(island).toContain("decodeSelectorClientModel(pageModel)");
+    expect(island).toContain("prepareSelectorPresentationEvaluator(runtimeModel)");
+    expect(island).not.toMatch(/useMemo\(\s*\(\) => (?:decode|prepare)/u);
+    expect(bootstrap).toContain("defaultCompatibleIds");
+    expect(bootstrap).toContain("defaultAnnouncement");
+    expect(bootstrap).toContain("projection.criteria");
+    expect(bootstrap).not.toContain("projection.materials");
     expect(island).not.toMatch(/setHydrated|announcementCause/u);
     expect(controls).toContain("useLayoutEffect");
     expect(controls).not.toMatch(/setHydrated|useState/u);

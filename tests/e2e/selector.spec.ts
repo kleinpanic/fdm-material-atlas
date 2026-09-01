@@ -200,7 +200,9 @@ test("selector keeps complete default meaning without JavaScript and when only i
   await expect(
     aborted.page.getByText("Interactive filtering needs JavaScript.", { exact: false }),
   ).toHaveCount(0);
-  await expect(aborted.page.getByText("Selector is preparing", { exact: true })).toBeVisible();
+  await expect(aborted.page.locator("[role=status]")).toHaveText(
+    `${defaultPresentation.compatible.length} compatible materials; ${defaultPresentation.eliminated.length} eliminated. Highest alignment is ${defaultPresentation.compatible[0]!.materialLabel}.`,
+  );
   await expect(aborted.page.locator(".selector-controls fieldset:disabled")).toHaveCount(2);
   await expect(aborted.page.locator(".selector-actions button:disabled")).toHaveCount(2);
   await expect(aborted.page.getByRole("button", { name: "View recommendations" })).toBeDisabled();
