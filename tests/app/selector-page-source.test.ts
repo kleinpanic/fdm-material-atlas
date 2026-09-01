@@ -15,9 +15,12 @@ describe("selector landing page source contract", () => {
 
     expect(source).toContain("loadPublicAtlas()");
     expect(source).toContain("buildSelectorPageModel(atlas, base, PUBLIC_ROUTE_REGISTRY)");
-    expect(source).toContain(
-      "<SelectorIsland pageModel={pageModel} bootstrap={selectorBootstrap} client:load />",
-    );
+    expect(source).toContain("<SelectorIsland bootstrap={selectorBootstrap} client:load />");
+    expect(source).toContain('id="selector-client-model"');
+    expect(source).toContain('type="application/json"');
+    expect(source).toContain("serializeSelectorDeferredPayload(pageModel)");
+    expect(source.match(/id="selector-client-model"/gu)).toHaveLength(1);
+    expect(source).not.toMatch(/set:html|is:raw|dangerouslySetInnerHTML/u);
     expect(source).toContain("buildSelectorBootstrap(runtimeModel, defaultPresentation)");
     expect(source).toContain(
       "<SelectorStaticResults pageModel={runtimeModel} presentation={defaultPresentation} />",
