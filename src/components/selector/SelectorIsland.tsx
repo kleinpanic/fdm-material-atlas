@@ -7,6 +7,7 @@ import type {
   SelectorRuntimePageModel,
 } from "../../features/selector/client-model.ts";
 import {
+  buildSelectorBootstrap,
   selectorPresentationAnnouncement,
   type SelectorBootstrap,
 } from "../../features/selector/bootstrap.ts";
@@ -24,7 +25,7 @@ import {
 import { SelectorControls } from "./SelectorControls.tsx";
 import type { SelectorResultsProps } from "./SelectorResults.tsx";
 
-type Props = Readonly<{ pageModel?: SelectorClientModel; bootstrap: SelectorBootstrap }>;
+type Props = Readonly<{ pageModel?: SelectorClientModel; bootstrap?: SelectorBootstrap }>;
 type ResultsRenderer = typeof import("./render-selector-results.tsx");
 const RESULTS_MOUNT_ID = "selector-results-mount";
 
@@ -51,7 +52,52 @@ function SelectorStatus({ message, immediate }: Readonly<{ message: string; imme
 }
 
 export function SelectorIsland({ pageModel, bootstrap }: Props) {
+  if (!bootstrap)
+    return <SelectorRecoveryIsland {...(pageModel ? { pageModel } : {})} />;
   return <SelectorRuntimeIsland {...(pageModel ? { pageModel } : {})} bootstrap={bootstrap} />;
+}
+
+function SelectorRecoveryIsland({ pageModel }: Readonly<{ pageModel?: SelectorClientModel }>) {
+  const [recovered, setRecovered] = useState<SelectorBootstrap | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!pageModel) {
+      setFailed(true);
+      return;
+    }
+    let disposed = false;
+    void import("../../features/selector/action-runtime.ts")
+      .then(({ prepareSelectorActionRuntime }) => {
+        const runtime = prepareSelectorActionRuntime(document, pageModel);
+        const next = buildSelectorBootstrap(
+          runtime.pageModel,
+          runtime.evaluate(runtime.pageModel.defaults),
+        );
+        if (!disposed) setRecovered(next);
+      })
+      .catch(() => {
+        if (!disposed) setFailed(true);
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [pageModel]);
+
+  if (recovered)
+    return (
+      <SelectorRuntimeIsland {...(pageModel ? { pageModel } : {})} bootstrap={recovered} />
+    );
+  if (!failed) return <div class="selector-controls-runtime" aria-busy="true" />;
+  return (
+    <div class="selector-controls-runtime">
+      <section class="selector-error" role="alert">
+        <h2>Recommendations are unavailable</h2>
+        <p>{SELECTOR_COPY.errorState}</p>
+        <p>{SELECTOR_COPY.errorAction}</p>
+      </section>
+    </div>
+  );
 }
 
 type EvaluatedState = Readonly<{
@@ -84,6 +130,8 @@ function SelectorRuntimeIsland({
   const rendererPromiseRef = useRef<Promise<ResultsRenderer> | null>(null);
   const rendererRef = useRef<ResultsRenderer | null>(null);
   const renderQueuedRef = useRef(false);
+  const renderedPropsRef = useRef<SelectorResultsProps | null>(null);
+  const [, requestResultsRender] = useState(0);
   const activationFailedRef = useRef(false);
   const disposedRef = useRef(false);
   const latestResultsPropsRef = useRef<SelectorResultsProps | null>(null);
@@ -248,6 +296,7 @@ function SelectorRuntimeIsland({
         rendererRef.current = renderer;
         const props = latestResultsPropsRef.current;
         if (!props) throw new Error("SELECTOR_RESULTS_PROPS_MISSING");
+        renderedPropsRef.current = props;
         if (mount.dataset.selectorResultsOwner !== "client") {
           mount.replaceChildren();
           mount.dataset.selectorResultsOwner = "client";
@@ -284,6 +333,9 @@ function SelectorRuntimeIsland({
       })
       .finally(() => {
         renderQueuedRef.current = false;
+        if (!disposedRef.current && latestResultsPropsRef.current !== renderedPropsRef.current) {
+          requestResultsRender((revision) => revision + 1);
+        }
       });
   }, [resultsActive, resultsProps]);
 
