@@ -18,6 +18,11 @@ describe("buildSelectorPageModel", () => {
     expect(model.defaults).toEqual(Object.fromEntries(model.projection.criteria.map((criterion) => [criterion.id, criterion.defaultOptionId])));
     expect(model.display.materials).toHaveLength(23);
     expect(model.display.materials.map(({ id }) => id).sort()).toEqual(model.projection.materials.map(({ id }) => id).sort());
+    expect(model.routes.compare).toEqual(expect.objectContaining({
+      kind: "link",
+      base: "/",
+      knownMaterialIds: [...model.projection.materials.map(({ id }) => id)].sort(),
+    }));
     expect(JSON.stringify(clientModel).length).toBeLessThanOrEqual(48 * 1024);
   });
 

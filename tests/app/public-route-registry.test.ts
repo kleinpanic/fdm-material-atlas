@@ -73,7 +73,13 @@ describe("public selector route registry", () => {
       expect(route.startingProfile.kind).toBe("link");
       expect(route.decisionMaps.every(({ action }) => action.kind === "link" && action.href.startsWith(mapPrefix))).toBe(true);
     }
-    expect(model.routes.compare).toEqual({ kind: "link", href: compareHref, label: "Compare shortlisted" });
+    expect(model.routes.compare).toEqual({
+      kind: "link",
+      href: compareHref,
+      label: "Compare shortlisted",
+      base,
+      knownMaterialIds: [...model.projection.materials.map(({ id }) => id)].sort(),
+    });
     expect(model.routes.methodEvidence).toEqual({ kind: "link", href: methodHref, label: "Read scoring method and evidence" });
     expect(model.routes.decisionMaps).toHaveLength(8);
   });
@@ -86,7 +92,13 @@ describe("public selector route registry", () => {
 
     expect(availability.materials[0]?.details).toEqual({ kind: "link", href: details, label: "View material details" });
     expect(availability.materials[0]?.startingProfile).toEqual({ kind: "link", href: profile, label: "View starting profile" });
-    expect(availability.compare).toEqual({ kind: "link", href: compare, label: "Compare shortlisted" });
+    expect(availability.compare).toEqual({
+      kind: "link",
+      href: compare,
+      label: "Compare shortlisted",
+      base,
+      knownMaterialIds: [MATERIAL_ID],
+    });
     expect(availability.decisionMaps[0]?.action).toEqual({ kind: "link", href: map, label: "View Synthetic alpha decision map" });
     expect(availability.materials[0]?.decisionMaps[0]?.action).toEqual({ kind: "link", href: map, label: "View Synthetic alpha decision map" });
     expect(availability.methodEvidence).toEqual({ kind: "link", href: method, label: "Read scoring method and evidence" });

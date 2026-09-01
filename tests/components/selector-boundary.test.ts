@@ -6,6 +6,7 @@ import { PUBLIC_ROUTE_REGISTRY } from "../../src/lib/public-route-registry.ts";
 import { buildSelectorPageModel } from "../../src/features/selector/page-model.ts";
 import { decodeSelectorClientModel } from "../../src/features/selector/client-model.ts";
 import { evaluateSelectorSafely } from "../../src/features/selector/safe-engine.ts";
+import { resolveCompareShortlistAction } from "../../src/components/selector/SelectorResults.tsx";
 
 const pageModel = decodeSelectorClientModel(buildSelectorPageModel(loadPublicAtlas(), "/", PUBLIC_ROUTE_REGISTRY));
 
@@ -90,8 +91,47 @@ describe("selector component boundary", () => {
     expect(island).toContain("presentShortlist");
   });
 
+  it("uses the shared compare codec for only a complete ordered 2-4 item shortlist", () => {
+    const knownMaterialIds = pageModel.projection.materials.map(({ id }) => id);
+    const capability = {
+      kind: "link" as const,
+      href: "/compare/#comparison-matrix",
+      label: "Compare shortlisted",
+      base: "/",
+      knownMaterialIds,
+    };
+    const [first, second, third, fourth, fifth] = knownMaterialIds;
+
+    expect(resolveCompareShortlistAction(capability, [first!, second!])).toEqual({
+      kind: "link",
+      href: `/compare/?material=${first}&material=${second}#comparison-matrix`,
+      label: "Compare shortlisted",
+    });
+    expect(resolveCompareShortlistAction(capability, [second!, first!])).toEqual(expect.objectContaining({
+      href: `/compare/?material=${second}&material=${first}#comparison-matrix`,
+    }));
+    for (const invalid of [
+      [],
+      [first!],
+      [first!, first!],
+      [first!, second!, third!, fourth!, fifth!],
+      [first!, "material-stale"],
+    ]) {
+      expect(resolveCompareShortlistAction(capability, invalid as never)).toEqual({
+        kind: "unavailable",
+        label: "Comparison is not available yet",
+      });
+    }
+  });
+
   it("prohibits network, persistence, routing, raw HTML, and browser logging", () => {
     expect(allSource).not.toMatch(/fetch\s*\(|XMLHttpRequest|localStorage|sessionStorage|indexedDB|dangerouslySetInnerHTML|console\.|window\.location|history\.(?:push|replace)State/);
+  });
+
+  it("imports the one shared comparison encoder and does not build query strings locally", () => {
+    expect(results).toContain('from "../../features/comparison/url-state.ts"');
+    expect(results).toContain("encodeCompareUrlState");
+    expect(results).not.toMatch(/URLSearchParams|searchParams\.append|[?&]material=/);
   });
 
   it("keeps one polite status owner and a focusable result heading", () => {
