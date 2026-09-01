@@ -1,4 +1,5 @@
-import { MaterialIdSchema, type MaterialId } from "../../data/schema/ids.ts";
+import type { MaterialId } from "../../data/schema/ids.ts";
+import { isMaterialIdValue } from "../../data/schema/public-id-values.ts";
 import { internalHref } from "../../lib/routes.ts";
 
 const MATERIAL_KEY = "material";
@@ -32,9 +33,8 @@ function knownMaterialSet(
   if (!Array.isArray(knownMaterialIds) || knownMaterialIds.length === 0) return undefined;
   const parsed: MaterialId[] = [];
   for (const value of knownMaterialIds) {
-    const result = MaterialIdSchema.safeParse(value);
-    if (!result.success) return undefined;
-    parsed.push(result.data);
+    if (!isMaterialIdValue(value)) return undefined;
+    parsed.push(value);
   }
   const set = new Set(parsed);
   return set.size === parsed.length ? set : undefined;
@@ -55,11 +55,11 @@ function validateSelection(
   const selected: MaterialId[] = [];
   const unique = new Set<MaterialId>();
   for (const candidate of input) {
-    const parsed = MaterialIdSchema.safeParse(candidate);
-    if (!parsed.success || !known.has(parsed.data)) return "COMPARE_URL_MATERIAL_INVALID";
-    if (unique.has(parsed.data)) return "COMPARE_URL_DUPLICATE";
-    unique.add(parsed.data);
-    selected.push(parsed.data);
+    if (!isMaterialIdValue(candidate) || !known.has(candidate))
+      return "COMPARE_URL_MATERIAL_INVALID";
+    if (unique.has(candidate)) return "COMPARE_URL_DUPLICATE";
+    unique.add(candidate);
+    selected.push(candidate);
   }
   return Object.freeze(selected);
 }
