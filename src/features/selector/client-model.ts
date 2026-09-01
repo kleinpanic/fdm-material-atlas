@@ -2,13 +2,14 @@ import type { SelectorPageModel } from "./page-model.ts";
 
 export type SelectorRuntimePageModel = SelectorPageModel;
 
-type StringNode = readonly [0, number];
-type ObjectNode = readonly [1, ...readonly (number | EncodedNode)[]];
-type ArrayNode = readonly [2, ...readonly EncodedNode[]];
-type NumberNode = readonly [3, number];
-type BooleanNode = readonly [4, 0 | 1];
-type NullNode = readonly [5];
-type EncodedNode = StringNode | ObjectNode | ArrayNode | NumberNode | BooleanNode | NullNode;
+type EncodedNode =
+  | readonly [0, number]
+  | readonly [1, ...readonly (number | EncodedNode)[]]
+  | readonly [2, ...readonly EncodedNode[]]
+  | readonly [3, number]
+  | readonly [4, 0 | 1]
+  | readonly [5];
+type ObjectNode = Extract<EncodedNode, readonly [1, ...unknown[]]>;
 
 /** Version, lexically sorted string dictionary, and encoded root object. */
 export type SelectorClientModel = readonly [1, readonly string[], EncodedNode];
