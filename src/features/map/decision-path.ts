@@ -8,6 +8,7 @@ import { deriveDecisionLaneMembership } from "../../domain/decision-lanes/member
 import { internalFragmentHref, internalHref } from "../../lib/routes.ts";
 import type {
   MapDecisionLane,
+  MapInternalHref,
   MapMaterialReference,
   MapProcessGateReference,
 } from "./contracts.ts";
@@ -57,6 +58,11 @@ function compareText(left: string, right: string): number {
   return left.localeCompare(right, "en");
 }
 
+function mapHref(href: string): MapInternalHref {
+  if (!href.startsWith("/")) fail("DECISION_PATH_VISUALIZATION_MISSING");
+  return href as MapInternalHref;
+}
+
 function deepFreeze<T>(value: T): T {
   if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
     Object.freeze(value);
@@ -67,8 +73,9 @@ function deepFreeze<T>(value: T): T {
 
 function validateLaneSet(atlas: AtlasV1): void {
   const ids = atlas.decisionLanes.map(({ id }) => id);
+  const idSet = new Set<string>(ids);
   if (new Set(ids).size !== ids.length) fail("DECISION_PATH_LANE_DUPLICATE");
-  if (ids.length !== decisionLaneIds.length || decisionLaneIds.some((id) => !ids.includes(id))) {
+  if (ids.length !== decisionLaneIds.length || decisionLaneIds.some((id) => !idSet.has(id))) {
     fail("DECISION_PATH_LANE_MISSING");
   }
 }
@@ -136,7 +143,7 @@ function materialReference(
   return {
     id: material.id,
     name: material.name,
-    href: internalHref(base, { id: "material", slug: material.slug }),
+    href: mapHref(internalHref(base, { id: "material", slug: material.slug })),
     displayOrder: material.displayOrder,
   };
 }
@@ -154,7 +161,7 @@ function gateReference(
     capabilityLabel: CAPABILITY_LABELS[gate.capability],
     requirement: gate.requirement,
     verification: gate.verification,
-    href: internalFragmentHref(base, { id: "map" }, gate.id),
+    href: mapHref(internalFragmentHref(base, { id: "map" }, gate.id)),
   };
 }
 
@@ -185,7 +192,7 @@ export function buildDecisionPaths(
       id: lane.id,
       label: lane.label,
       need: lane.need,
-      href: internalFragmentHref(base, { id: "map" }, lane.id),
+      href: mapHref(internalFragmentHref(base, { id: "map" }, lane.id)),
       propertyChecks: lane.propertyChecks.map((field) => ({ field, label: propertyLabel(field) })),
       candidates,
       visibleCandidates: candidates.slice(0, VISIBLE_CANDIDATE_LIMIT),
