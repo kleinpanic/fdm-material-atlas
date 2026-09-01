@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { compileMapProjection } from "../../src/features/map/projection.ts";
+import { decodeSelectorClientModel } from "../../src/features/selector/client-model.ts";
 import { buildSelectorPageModel } from "../../src/features/selector/page-model.ts";
 import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
 import { PUBLIC_ROUTE_REGISTRY } from "../../src/lib/public-route-registry.ts";
@@ -25,21 +26,30 @@ const MODES = [
   },
 ] as const;
 
+type ModeReport = Readonly<{ name: string }>;
+type ReleaseInventory = Readonly<{
+  routes: readonly string[];
+  fragments: readonly Readonly<{ route: string; ids: readonly string[] }>[];
+  assets: readonly string[];
+}>;
+
 function routeFile(pathname: string) {
   const neutral = pathname.replace(/^\/atlas-preview\//u, "/");
   const logical = neutral.slice(1);
   return logical === "" || logical.endsWith("/") ? `${logical}index.html` : logical;
 }
 
-function hrefs(value: unknown, found = new Set<string>()): Set<string> {
+function hrefs(value: unknown, found = new Set<string>(), seen = new Set<object>()): Set<string> {
   if (typeof value !== "object" || value === null) return found;
+  if (seen.has(value)) return found;
+  seen.add(value);
   if (Array.isArray(value)) {
-    value.forEach((item) => hrefs(item, found));
+    value.forEach((item) => hrefs(item, found, seen));
     return found;
   }
   for (const [key, item] of Object.entries(value)) {
     if (key === "href" && typeof item === "string") found.add(item);
-    else hrefs(item, found);
+    else hrefs(item, found, seen);
   }
   return found;
 }
@@ -50,6 +60,12 @@ function targetFromHref(href: string) {
 }
 
 describe("final release route inventory", () => {
+  let reports: readonly ModeReport[];
+
+  beforeAll(async () => {
+    reports = (await validateBuiltArtifacts({ modes: MODES, runPublicationScan: false })).modes;
+  }, 60_000);
+
   it("matches the closed route helpers and canonical material slugs in both bases", async () => {
     const atlas = loadPublicAtlas();
     const staticTargets = [
@@ -66,8 +82,7 @@ describe("final release route inventory", () => {
     ];
     const expectedRoutes = targets.map((target) => routeFile(routePath(target))).sort();
 
-    const result = await validateBuiltArtifacts({ modes: MODES, runPublicationScan: false });
-    const inventories = result.modes.map(normalizeReleaseInventory);
+    const inventories = reports.map(normalizeReleaseInventory) as ReleaseInventory[];
 
     expect(atlas.materials).toHaveLength(23);
     expect(expectedRoutes).toHaveLength(29);
@@ -75,32 +90,42 @@ describe("final release route inventory", () => {
     expect(inventories[1]).toEqual(inventories[0]);
   });
 
-  it.each(MODES)("resolves public fragments and model-derived onward actions under $base", async (mode) => {
-    const atlas = loadPublicAtlas();
-    const result = await validateBuiltArtifacts({ modes: [mode], runPublicationScan: false });
-    const inventory = normalizeReleaseInventory(result.modes[0]);
-    const fragments = new Map(inventory.fragments.map((entry) => [entry.route, new Set(entry.ids)]));
-
-    for (const route of inventory.routes) expect(fragments.get(route)).toContain("main-content");
-    for (const fragment of [...mapModeFragments, ...mapLaneFragments]) {
-      expect(fragments.get("map/index.html")).toContain(fragment);
-    }
-
-    const selector = buildSelectorPageModel(atlas, mode.base, PUBLIC_ROUTE_REGISTRY);
-    const map = compileMapProjection(atlas, mode.base);
-    const modelHrefs = new Set([...hrefs(selector.routes), ...hrefs(map)]);
-    expect(modelHrefs.size).toBeGreaterThan(atlas.materials.length);
-    for (const href of modelHrefs) {
-      const target = targetFromHref(href);
-      expect(inventory.routes).toContain(target.route);
-      if (target.fragment !== "") expect(fragments.get(target.route)).toContain(target.fragment);
-    }
-
-    for (const material of atlas.materials) {
-      expect(inventory.routes).toContain(
-        routeFile(internalHref(mode.base, { id: "material", slug: material.slug })),
+  it.each(MODES)(
+    "resolves public fragments and model-derived onward actions under $base",
+    async (mode) => {
+      const atlas = loadPublicAtlas();
+      const inventory = normalizeReleaseInventory(
+        reports.find(({ name }) => name === mode.name),
+      ) as ReleaseInventory;
+      const fragments = new Map(
+        inventory.fragments.map((entry) => [entry.route, new Set(entry.ids)]),
       );
-      expect(fragments.get(`materials/${material.slug}/index.html`)).toContain("starting-profile");
-    }
-  });
+
+      for (const route of inventory.routes) expect(fragments.get(route)).toContain("main-content");
+      for (const fragment of [...mapModeFragments, ...mapLaneFragments]) {
+        expect(fragments.get("map/index.html")).toContain(fragment);
+      }
+
+      const selector = decodeSelectorClientModel(
+        buildSelectorPageModel(atlas, mode.base, PUBLIC_ROUTE_REGISTRY),
+      );
+      const map = compileMapProjection(atlas, mode.base);
+      const modelHrefs = new Set([...hrefs(selector.routes), ...hrefs(map)]);
+      expect(modelHrefs.size).toBeGreaterThan(atlas.materials.length);
+      for (const href of modelHrefs) {
+        const target = targetFromHref(href);
+        expect(inventory.routes).toContain(target.route);
+        if (target.fragment !== "") expect(fragments.get(target.route)).toContain(target.fragment);
+      }
+
+      for (const material of atlas.materials) {
+        expect(inventory.routes).toContain(
+          routeFile(internalHref(mode.base, { id: "material", slug: material.slug })),
+        );
+        expect(fragments.get(`materials/${material.slug}/index.html`)).toContain(
+          "starting-profile",
+        );
+      }
+    },
+  );
 });

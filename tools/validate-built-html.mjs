@@ -415,7 +415,67 @@ async function inspectMode(mode, options) {
     htmlCount: documents.size,
     referenceCount,
     totalBytes: artifact.totalBytes,
+    files: Object.freeze([...artifact.files.keys()].sort()),
     routes: Object.freeze([...documents.keys()].sort()),
+    fragments: Object.freeze(
+      [...documents.entries()]
+        .map(([route, { ids }]) =>
+          Object.freeze({ route, ids: Object.freeze([...ids].filter(Boolean).sort()) }),
+        )
+        .sort((left, right) => left.route.localeCompare(right.route, "en")),
+    ),
+  });
+}
+
+function normalizedAssetName(name) {
+  return name.replace(/\.[A-Za-z0-9_-]{8}(?=\.[A-Za-z0-9]+$)/u, ".<content-hash>");
+}
+
+/** Normalize deployment-specific content hashes while retaining the closed emitted inventory. */
+export function normalizeReleaseInventory(report) {
+  if (
+    typeof report !== "object" ||
+    report === null ||
+    !Array.isArray(report.files) ||
+    !Array.isArray(report.routes) ||
+    !Array.isArray(report.fragments) ||
+    report.files.some((name) => typeof name !== "string") ||
+    report.routes.some((name) => typeof name !== "string") ||
+    report.fragments.some(
+      (entry) =>
+        typeof entry !== "object" ||
+        entry === null ||
+        typeof entry.route !== "string" ||
+        !Array.isArray(entry.ids) ||
+        entry.ids.some((id) => typeof id !== "string"),
+    )
+  ) {
+    fail("ARTIFACT_ROUTE_INVENTORY_INVALID");
+  }
+  const routes = [...report.routes].sort();
+  const routeSet = new Set(routes);
+  if (
+    routeSet.size !== routes.length ||
+    report.fragments.length !== routes.length ||
+    report.fragments.some(({ route }) => !routeSet.has(route))
+  ) {
+    fail("ARTIFACT_ROUTE_INVENTORY_INVALID");
+  }
+  return Object.freeze({
+    routes: Object.freeze(routes),
+    fragments: Object.freeze(
+      report.fragments
+        .map(({ route, ids }) =>
+          Object.freeze({ route, ids: Object.freeze([...new Set(ids)].sort()) }),
+        )
+        .sort((left, right) => left.route.localeCompare(right.route, "en")),
+    ),
+    assets: Object.freeze(
+      report.files
+        .filter((name) => !name.endsWith(".html"))
+        .map(normalizedAssetName)
+        .sort(),
+    ),
   });
 }
 
