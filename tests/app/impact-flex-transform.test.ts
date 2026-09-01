@@ -148,11 +148,12 @@ describe("complete impact-flex categorical transform", () => {
 
   it("combines maximum difficulty with query and retains a filtered selection", () => {
     const atlas = loadPublicAtlas();
+    const peekId = atlas.materials.find(({ id }) => id === "material-peek")!.id;
     const easy = buildImpactFlexModel(atlas, undefined, { maximumDifficulty: "easy" });
     const selected = buildImpactFlexModel(atlas, undefined, {
       maximumDifficulty: "easy",
       query: "PEEK",
-      selectedMaterialId: "material-peek",
+      selectedMaterialId: peekId,
     });
 
     expect(easy.records.plotted.map(({ printDifficulty }) => printDifficulty)).toEqual([
