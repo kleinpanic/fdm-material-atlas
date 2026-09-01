@@ -269,10 +269,12 @@ async function inspectMode(mode, { runPublication = true } = {}) {
   }
 
   const sensitiveFile = process.env.FDM_PUBLICATION_SENSITIVE_FILE;
-  if (typeof sensitiveFile !== "string" || sensitiveFile === "") fail("SENSITIVE_INPUT_REQUIRED");
   let exactPatterns;
   try {
-    exactPatterns = await loadExactPatterns({ root: PROJECT_ROOT, sensitiveFile });
+    exactPatterns = await loadExactPatterns({
+      root: PROJECT_ROOT,
+      ...(typeof sensitiveFile === "string" && sensitiveFile !== "" ? { sensitiveFile } : {}),
+    });
   } catch {
     fail("SENSITIVE_INPUT_INVALID");
   }
@@ -298,7 +300,9 @@ async function inspectMode(mode, { runPublication = true } = {}) {
 
 async function runPublicationScan(mode) {
   const sensitiveFile = process.env.FDM_PUBLICATION_SENSITIVE_FILE;
-  if (typeof sensitiveFile !== "string" || sensitiveFile === "") fail("SENSITIVE_INPUT_REQUIRED");
+  const sensitiveArguments = typeof sensitiveFile === "string" && sensitiveFile !== ""
+    ? ["--sensitive-file", sensitiveFile]
+    : [];
   const output = await run(
     process.execPath,
     [
@@ -307,8 +311,7 @@ async function runPublicationScan(mode) {
       PROJECT_ROOT,
       "--remote-policy",
       "any",
-      "--sensitive-file",
-      sensitiveFile,
+      ...sensitiveArguments,
       "--artifact",
       mode.output,
     ],
