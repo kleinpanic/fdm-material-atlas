@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import type { TargetedEvent } from "preact";
+import type { JSX } from "preact";
 import type { MaterialId } from "../../data/schema/ids.ts";
 
 type Option = Readonly<{ id: MaterialId; name: string }>;
@@ -27,7 +27,7 @@ export function CompareSelection({ materials, slots, disabled, error, onChange, 
     <form
       aria-label="Choose materials to compare"
       aria-describedby={error === null ? undefined : "compare-selection-error"}
-      onSubmit={(event: TargetedEvent<HTMLFormElement, SubmitEvent>) => {
+      onSubmit={(event: JSX.TargetedSubmitEvent<HTMLFormElement>) => {
         event.preventDefault();
         onSubmit();
       }}
@@ -45,7 +45,7 @@ export function CompareSelection({ materials, slots, disabled, error, onChange, 
                 disabled={disabled}
                 aria-invalid={error === null ? undefined : "true"}
                 aria-describedby={error === null ? undefined : "compare-selection-error"}
-                onChange={(event: TargetedEvent<HTMLSelectElement>) => onChange(index, event.currentTarget.value)}
+                onChange={(event: JSX.TargetedEvent<HTMLSelectElement>) => onChange(index, event.currentTarget.value)}
               >
                 <option value="">{required ? "Choose a material" : "No additional material"}</option>
                 {materials.map((material) => (
