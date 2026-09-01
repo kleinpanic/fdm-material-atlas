@@ -426,7 +426,15 @@ function parseLsRemote(stdout) {
 
 async function defaultRun(file, args, options) {
   try {
-    return await execFile(file, args, { ...options, encoding: "utf8", maxBuffer: MAX_OUTPUT });
+    const result = await execFile(file, args, {
+      ...options,
+      encoding: "utf8",
+      maxBuffer: MAX_OUTPUT,
+    });
+    return {
+      stdout: typeof result.stdout === "string" ? result.stdout : result.stdout.toString("utf8"),
+      stderr: typeof result.stderr === "string" ? result.stderr : result.stderr.toString("utf8"),
+    };
   } catch {
     fail("GITHUB_COMMAND_FAILED");
   }
