@@ -40,6 +40,7 @@ describe("performance release policy", () => {
       mapDynamicChunkBytes: 30 * 1024,
     });
     expect(config.ci.collect.numberOfRuns).toBe(3);
+    expect(config.ci.assert.aggregationMethod).toBe("median");
     expect(config.ci.upload.target).toBe("filesystem");
     expect(config.ci.upload.outputDir).toMatch(/^test-results\/performance/u);
     expect(JSON.stringify(config)).not.toContain("temporary-public-storage");
@@ -47,6 +48,58 @@ describe("performance release policy", () => {
 });
 
 describe("bounded performance runner", () => {
+  const metricSet = (performanceScore: number, upperBoundValue: number) => ({
+    performanceScore,
+    firstContentfulPaintMs: upperBoundValue,
+    largestContentfulPaintMs: upperBoundValue,
+    cumulativeLayoutShift: upperBoundValue / 1_000,
+    totalBlockingTimeMs: upperBoundValue,
+    totalBytes: upperBoundValue,
+    javascriptBytes: upperBoundValue,
+    cssBytes: upperBoundValue,
+    fontBytes: upperBoundValue,
+  });
+
+  const budget = {
+    runs: 3,
+    performanceScore: 0.9,
+    firstContentfulPaintMs: 2_000,
+    largestContentfulPaintMs: 2_500,
+    cumulativeLayoutShift: 0.1,
+    totalBlockingTimeMs: 200,
+    totalBytes: 800 * 1_024,
+    javascriptBytes: 220 * 1_024,
+    cssBytes: 100 * 1_024,
+    fontBytes: 250 * 1_024,
+  };
+
+  it("computes the exact per-metric median for three recorded runs", async () => {
+    const { medianMetrics } = await import("../../tools/run-performance-budget.mjs");
+    expect(medianMetrics([metricSet(0.95, 150), metricSet(0.91, 100), metricSet(0.93, 125)])).toEqual(
+      metricSet(0.93, 125),
+    );
+  }, 15_000);
+
+  it("tolerates one valid environmental outlier when the median passes", async () => {
+    const { assertMedianMetrics } = await import("../../tools/run-performance-budget.mjs");
+    expect(() =>
+      assertMedianMetrics(
+        [metricSet(0.95, 50), metricSet(0.1, 10_000), metricSet(0.94, 75)],
+        budget,
+      ),
+    ).not.toThrow();
+  }, 15_000);
+
+  it("fails with the controlled budget code when the median fails", async () => {
+    const { assertMedianMetrics } = await import("../../tools/run-performance-budget.mjs");
+    expect(() =>
+      assertMedianMetrics(
+        [metricSet(0.95, 100), metricSet(0.9, 201), metricSet(0.91, 202)],
+        budget,
+      ),
+    ).toThrowError(expect.objectContaining({ code: "PERFORMANCE_BUDGET_EXCEEDED" }));
+  }, 15_000);
+
   it("excludes only an internally invalid cold capture from the three recorded runs", async () => {
     const { collectValidReports } = await import("../../tools/run-performance-budget.mjs");
     const captures = [
