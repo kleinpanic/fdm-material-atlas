@@ -34,15 +34,10 @@ function product() {
     routes: ["/", "/compare/", "/data/", "/map/", "/materials/", "/method/"],
     selectorContractVersion: 1,
     selectorArchitecture: "Deterministic pure ranking engine with shared explanations",
-    visualizationModes: [
-      "decision-paths",
-      "thermal-ranges",
-      "process-gates",
-      "impact-flex-space",
-    ],
+    visualizationModes: ["decision-paths", "thermal-ranges", "process-gates", "impact-flex-space"],
     visualizationArchitecture: "Static projections with one route-local interactive island",
     workflows: ["ci.yml", "dependency-review.yml", "link-health.yml", "pages.yml"],
-    majorDirectories: ["docs", "public", "src", "tests", "tools"],
+    majorDirectories: [".github", "docs", "src", "tests", "tools"],
     limitations: [
       "Family guidance is not a universal product specification.",
       "Starting profiles require calibration.",
@@ -77,9 +72,7 @@ function dependencies() {
         visibility: "PUBLIC",
         defaultBranch: "main",
       },
-      advertisedRefs: [
-        { name: "refs/heads/main", sha: PRIOR_SHA },
-      ],
+      advertisedRefs: [{ name: "refs/heads/main", sha: PRIOR_SHA }],
     })),
     runQuality: vi.fn(async (command: string) => {
       calls.push(command);
@@ -91,11 +84,10 @@ function dependencies() {
       findingCount: 0,
       findings: [],
       ...(surface === "artifact-root" ? { artifactDigest: ROOT_DIGEST } : {}),
-      ...(surface === "artifact-repository"
-        ? { artifactDigest: REPOSITORY_DIGEST }
-        : {}),
+      ...(surface === "artifact-repository" ? { artifactDigest: REPOSITORY_DIGEST } : {}),
     })),
     inspectIgnored: vi.fn(async () => []),
+    inspectRepository: vi.fn(async () => ({ ok: true })),
     observeProduct: vi.fn(async () => product()),
     observeIdentity: vi.fn(async () => reviewBarrierFixture().reviewedIdentity),
     readPolicy: vi.fn(async () => ({
@@ -147,7 +139,11 @@ describe("established repository release preflight", () => {
         dependencies: dependencies(),
       }),
     ).rejects.toMatchObject({ code: "RELEASE_POLICY_DESCRIPTOR_INVALID" });
-    await run({ readPolicy: vi.fn(async () => { throw new Error(rejected); }) }).catch((error) => {
+    await run({
+      readPolicy: vi.fn(async () => {
+        throw new Error(rejected);
+      }),
+    }).catch((error) => {
       expect(String(error)).toContain("RELEASE_POLICY_INPUT_INVALID");
       expect(JSON.stringify(error)).not.toContain(rejected);
     });
@@ -156,9 +152,27 @@ describe("established repository release preflight", () => {
   it("binds post-publication to authenticated owner, repository, origin, main, and prior SHA", async () => {
     const cases = [
       { github: vi.fn(async () => ({ ...(await dependencies().github()), login: "elsewhere" })) },
-      { github: vi.fn(async () => ({ ...(await dependencies().github()), repository: { ...(await dependencies().github()).repository, nameWithOwner: "elsewhere/fdm-material-atlas" } })) },
-      { git: vi.fn(async (args: readonly string[]) => args[0] === "symbolic-ref" ? "refs/heads/other\n" : dependencies().git(args)) },
-      { git: vi.fn(async (args: readonly string[]) => args.join(" ") === "remote get-url origin" ? "git@github.com:elsewhere/repo.git\n" : dependencies().git(args)) },
+      {
+        github: vi.fn(async () => ({
+          ...(await dependencies().github()),
+          repository: {
+            ...(await dependencies().github()).repository,
+            nameWithOwner: "elsewhere/fdm-material-atlas",
+          },
+        })),
+      },
+      {
+        git: vi.fn(async (args: readonly string[]) =>
+          args[0] === "symbolic-ref" ? "refs/heads/other\n" : dependencies().git(args),
+        ),
+      },
+      {
+        git: vi.fn(async (args: readonly string[]) =>
+          args.join(" ") === "remote get-url origin"
+            ? "git@github.com:elsewhere/repo.git\n"
+            : dependencies().git(args),
+        ),
+      },
     ];
     for (const seam of cases) {
       await expect(run(seam)).rejects.toBeInstanceOf(ReleaseVerificationError);
