@@ -41,4 +41,36 @@ describe("data explorer component boundary", () => {
     expect(island).toContain('role="alert"');
     expect(island).toContain("Reset explorer");
   });
+
+  it("renders a captioned native sortable table inside one named focusable overflow region", () => {
+    const table = source("../../src/components/data-explorer/DataTable.tsx");
+    expect(table).toMatch(/<table\b/u);
+    expect(table).toMatch(/<caption\b/u);
+    expect(table).toContain('scope="col"');
+    expect(table).toContain('scope="row"');
+    expect(table).toContain("aria-sort");
+    expect(table).toContain('tabIndex={0}');
+    expect(table).toContain('role="region"');
+    expect(table).toMatch(/<button\b/u);
+    expect(table).toContain('field.sort !== "none"');
+  });
+
+  it("uses the same cell renderer and exact record order for the stacked alternative", () => {
+    const table = source("../../src/components/data-explorer/DataTable.tsx");
+    const records = source("../../src/components/data-explorer/DataRecords.tsx");
+    expect(table).toContain("export function DataCell");
+    expect(records).toContain('from "./DataTable.tsx"');
+    expect(records).toContain("materials.map");
+    expect(records).toContain("fields.map");
+    expect(records).toMatch(/<article\b/u);
+    expect(records).toMatch(/<dl\b/u);
+    expect(table).toContain("cell.evidence.length");
+  });
+
+  it("mounts only the selected view and renders no empty table or record structure", () => {
+    const island = source("../../src/components/data-explorer/DataExplorerIsland.tsx");
+    expect(island).toContain('current.view === "table"');
+    expect(island).toContain("result.resultCount === 0");
+    expect(island).toContain("No materials match");
+  });
 });
