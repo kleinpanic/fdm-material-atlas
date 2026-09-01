@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -479,6 +481,23 @@ function candidateRelease({ includePrepush = false } = {}) {
   };
 }
 
+function canonicalDigest(value: unknown) {
+  return `sha256:${createHash("sha256").update(JSON.stringify(value)).digest("hex")}`;
+}
+
+function refreshPrepushProof(value: ReturnType<typeof candidateRelease>) {
+  const proof = value.candidate.prepushEvidence!;
+  proof.settingsDigest = canonicalDigest({
+    visibility: "PUBLIC",
+    permission: "ADMIN",
+    branch: "main",
+    pages: "workflow",
+    https: true,
+  });
+  const { proofDigest: _oldDigest, ...fields } = proof;
+  proof.proofDigest = canonicalDigest(fields);
+}
+
 function controlledPrepushProof() {
   const baseline = targetBaselineFixture();
   return {
@@ -510,6 +529,16 @@ describe("release evidence CLI contract", () => {
       repositoryName: "fdm-material-atlas",
       evidencePath: ".planning/10-RELEASE-EVIDENCE.json",
     });
+    expect(
+      parseGitHubReleaseArguments([
+        "--stage",
+        "deployed",
+        "--repo-name",
+        "fdm-material-atlas",
+        "--evidence",
+        ".planning/10-RELEASE-EVIDENCE.json",
+      ]).stage,
+    ).toBe("deployed");
     expect(() =>
       parseGitHubReleaseArguments([
         "existing-prepush",
@@ -604,14 +633,14 @@ describe("release evidence CLI contract", () => {
     )!.sha = priorSha;
     if (kind === "no-op") {
       current.priorVerifiedCycle!.commitSha = SHA;
-      const { createHash } = await import("node:crypto");
-      current.candidate.targetBaseline.advertisedRefs.digest = `sha256:${createHash("sha256")
-        .update(JSON.stringify(current.candidate.targetBaseline.advertisedRefs.refs))
-        .digest("hex")}`;
+      current.candidate.targetBaseline.advertisedRefs.digest = canonicalDigest(
+        current.candidate.targetBaseline.advertisedRefs.refs,
+      );
       current.candidate.prepushEvidence!.priorRemoteMainSha = SHA;
       current.candidate.prepushEvidence!.refTopologyDigest =
         current.candidate.targetBaseline.advertisedRefs.digest;
     }
+    refreshPrepushProof(current);
     let written: any;
     const result = await executeGitHubReleaseStage({
       args: {
@@ -662,5 +691,73 @@ describe("release evidence CLI contract", () => {
         now: () => "2026-09-01T19:00:00.000Z",
       }),
     ).rejects.toMatchObject({ code: "GITHUB_PREPUSH_EVIDENCE_INVALID" });
+  });
+
+  it("advances published evidence only from exact Pages workflow and artifact evidence", async () => {
+    const candidate = candidateRelease({ includePrepush: true });
+    refreshPrepushProof(candidate);
+    let published: any;
+    await executeGitHubReleaseStage({
+      args: {
+        stage: "existing-post-push",
+        repositoryName: "fdm-material-atlas",
+        evidencePath: ".planning/10-RELEASE-EVIDENCE.json",
+      },
+      readEvidence: async () => candidate,
+      writeEvidence: async (_path, value) => {
+        published = value;
+      },
+      collect: async () => ({
+        code: "GITHUB_POSTPUSH_VERIFIED",
+        candidateSha: SHA,
+        update: "fast-forward",
+      }),
+      now: () => "2026-09-01T18:20:00.000Z",
+    });
+    let deployed: any;
+    const deployment = {
+      observedAt: "2026-09-01T18:30:00.000Z",
+      workflow: {
+        databaseId: 12,
+        file: ".github/workflows/pages.yml",
+        event: "push",
+        branch: "main",
+        ref: "refs/heads/main",
+        sha: SHA,
+        runAttempt: 2,
+        jobs: [
+          { name: "build", databaseId: 100, conclusion: "success" },
+          { name: "deploy", databaseId: 101, conclusion: "success" },
+          { name: "probe", databaseId: 102, conclusion: "success" },
+        ],
+      },
+      pages: {
+        environment: "github-pages",
+        artifact: {
+          id: 71,
+          name: "github-pages",
+          digest: `sha256:${"a".repeat(64)}`,
+          producerJobId: 100,
+        },
+        deployConsumerJobId: 101,
+        url: "https://kleinpanic.github.io/fdm-material-atlas/",
+        status: "built",
+        httpsEnforced: true,
+      },
+    };
+    const result = await executeGitHubReleaseStage({
+      args: {
+        stage: "deployed",
+        repositoryName: "fdm-material-atlas",
+        evidencePath: ".planning/10-RELEASE-EVIDENCE.json",
+      },
+      readEvidence: async () => published,
+      writeEvidence: async (_path, value) => {
+        deployed = value;
+      },
+      collectDeployment: async () => ({ observation: deployment }),
+    });
+    expect(result).toEqual({ ok: true, code: "GITHUB_DEPLOYMENT_RECORDED", stage: "deployed" });
+    expect(deployed).toMatchObject({ stage: "deployed", deployment });
   });
 });
