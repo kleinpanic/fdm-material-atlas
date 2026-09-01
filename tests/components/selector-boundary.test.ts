@@ -98,6 +98,7 @@ describe("selector component boundary", () => {
     new URL("../../src/features/selector/bootstrap.ts", import.meta.url),
     "utf8",
   );
+  const astroConfig = readFileSync(new URL("../../astro.config.mjs", import.meta.url), "utf8");
   const componentSource = `${controls}\n${results}`;
   const allSource = `${componentSource}\n${island}`;
 
@@ -138,6 +139,16 @@ describe("selector component boundary", () => {
     expect(results).toContain('data-selector-command="expand-calculation"');
     expect(island).toContain('action === "expand-calculation"');
     expect(island).toContain("pendingCalculationOpenRef");
+  });
+
+  it("loads the model decoder and prepared evaluator only after a real selector action", () => {
+    expect(island).not.toMatch(/^import\s+\{[^}]*decodeSelectorClientModel/msu);
+    expect(island).not.toMatch(/^import\s+\{[^}]*prepareSelectorPresentationEvaluator/msu);
+    expect(island).not.toContain("decodeSelectorDeferredPayload");
+    expect(island).toContain('import("../../features/selector/action-runtime.ts")');
+    expect(island).toContain("runtimePromiseRef");
+    expect(island).toContain("latestEvaluationRef");
+    expect(astroConfig).not.toContain("manualChunks");
   });
 
   it("uses native form and disclosure semantics for all seven criteria", () => {
