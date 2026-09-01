@@ -23,12 +23,26 @@ export function targetBaselineFixture() {
     authenticatedOwner: "kleinpanic",
     repositoryName: "fdm-material-atlas",
     nameWithOwner: "kleinpanic/fdm-material-atlas",
+    repositoryUrl: "https://github.com/kleinpanic/fdm-material-atlas",
     priorRemoteMainSha: PRIOR_SHA,
     branch: "main",
     fullRef: "refs/heads/main",
     advertisedRefs: { count: refs.length, digest: canonicalDigest(refs), refs },
+    identityClasses: { human: 215, dependabot: 0, githubService: 0, unexpected: 0 },
+    history: { refCount: 4, commitCount: 215, authorMismatchCount: 0, findingCount: 0 },
+    policy: { scanSessionId: "scan-20260901-01", activePatternCount: 2, status: "passed" },
     status: "passed",
   };
+}
+
+export function publicationOperationFixture() {
+  const operation = {
+    kind: "fast-forward",
+    priorSha: PRIOR_SHA,
+    resultSha: SHA,
+    observedAt: "2026-09-01T18:18:00.000Z",
+  };
+  return { ...operation, proofDigest: canonicalDigest(operation) };
 }
 
 export function prepushEvidenceFixture() {

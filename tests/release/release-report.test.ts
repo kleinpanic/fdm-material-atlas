@@ -4,6 +4,7 @@ import { renderReleaseReport } from "../../tools/render-release-report.mjs";
 import {
   DIGEST,
   prepushEvidenceFixture,
+  publicationOperationFixture,
   PRIOR_SHA,
   REPO_DIGEST,
   reviewBarrierFixture,
@@ -52,13 +53,17 @@ export function verifiedEvidence() {
       observedAt: "2026-09-01T18:20:00.000Z",
       targetBaseline: targetBaselineFixture(),
       prepushEvidence: prepushEvidenceFixture(),
+      operation: publicationOperationFixture(),
       repository: {
         nameWithOwner: "kleinpanic/fdm-material-atlas",
         url: "https://github.com/kleinpanic/fdm-material-atlas",
         visibility: "PUBLIC",
         defaultBranch: "main",
       },
-      advertisedRefs: { count: 4, digest: DIGEST },
+      advertisedRefs: {
+        count: targetBaselineFixture().advertisedRefs.count,
+        digest: targetBaselineFixture().advertisedRefs.digest,
+      },
       identityClasses: { human: 215, dependabot: 0, githubService: 0, unexpected: 0 },
       history: { refCount: 4, commitCount: 215, authorMismatchCount: 0, findingCount: 0 },
       policy: { scanSessionId: "scan-20260901-01", activePatternCount: 2, status: "passed" },
@@ -213,6 +218,11 @@ describe("fact-only completion report", () => {
       "publication proof drift",
       (value: ReturnType<typeof verifiedEvidence>) =>
         (value.publication.prepushEvidence.settingsDigest = REPO_DIGEST),
+    ],
+    [
+      "publication operation drift",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        (value.publication.operation.resultSha = PRIOR_SHA),
     ],
   ])("rejects %s", (_name, mutate) => {
     const value = verifiedEvidence();

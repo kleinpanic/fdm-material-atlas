@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { constants } from "node:fs";
 import { chmod, lstat, open, realpath, rename, unlink } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
@@ -86,6 +86,10 @@ function digest(value) {
   return value;
 }
 
+function canonicalDigest(value) {
+  return `sha256:${createHash("sha256").update(JSON.stringify(value)).digest("hex")}`;
+}
+
 function sha(value) {
   if (typeof value !== "string" || !SHA.test(value)) fail("RELEASE_EVIDENCE_VALUE_INVALID");
   return value;
@@ -126,6 +130,210 @@ function parseIdentity(value) {
     "repositoryArtifactDigest",
   ]);
   return Object.fromEntries(Object.entries(input).map(([key, item]) => [key, digest(item)]));
+}
+
+function controlledAccount(value) {
+  if (typeof value !== "string" || !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/u.test(value))
+    fail("RELEASE_TARGET_BASELINE_INVALID");
+  return value;
+}
+
+function controlledRepository(value) {
+  if (typeof value !== "string" || !/^[A-Za-z0-9_.-]{1,100}$/u.test(value))
+    fail("RELEASE_TARGET_BASELINE_INVALID");
+  return value;
+}
+
+function refKind(name) {
+  if (name === "refs/heads/main") return "main";
+  if (/^refs\/heads\/dependabot\/[A-Za-z0-9._/-]+$/u.test(name)) return "dependabot";
+  if (/^refs\/pull\/[1-9][0-9]*\/head$/u.test(name)) return "pull-head";
+  if (/^refs\/pull\/[1-9][0-9]*\/merge$/u.test(name)) return "pull-merge";
+  fail("RELEASE_TARGET_REF_INVALID");
+}
+
+function parseTargetBaseline(value, context) {
+  const baseline = exactKeys(value, [
+    "observedAt",
+    "candidateSha",
+    "authenticatedOwner",
+    "repositoryName",
+    "nameWithOwner",
+    "repositoryUrl",
+    "priorRemoteMainSha",
+    "branch",
+    "fullRef",
+    "advertisedRefs",
+    "identityClasses",
+    "history",
+    "policy",
+    "status",
+  ]);
+  const observedAt = timestamp(baseline.observedAt);
+  if (
+    observedAt < context.startedAt ||
+    observedAt > context.candidateObservedAt ||
+    baseline.candidateSha !== context.rootSha ||
+    baseline.priorRemoteMainSha !== context.priorVerifiedCycle?.commitSha ||
+    baseline.branch !== "main" ||
+    baseline.fullRef !== "refs/heads/main" ||
+    baseline.status !== "passed"
+  )
+    fail("RELEASE_TARGET_BASELINE_INVALID");
+  const owner = controlledAccount(baseline.authenticatedOwner);
+  const repository = controlledRepository(baseline.repositoryName);
+  if (baseline.nameWithOwner !== `${owner}/${repository}`) fail("RELEASE_TARGET_BASELINE_INVALID");
+  if (
+    publicUrl(baseline.repositoryUrl, "repository") !==
+    `https://github.com/${baseline.nameWithOwner}`
+  )
+    fail("RELEASE_TARGET_BASELINE_INVALID");
+  sha(baseline.candidateSha);
+  sha(baseline.priorRemoteMainSha);
+  const advertised = exactKeys(baseline.advertisedRefs, ["count", "digest", "refs"]);
+  if (!Array.isArray(advertised.refs) || advertised.refs.length < 1 || advertised.refs.length > 512)
+    fail("RELEASE_TARGET_REF_INVALID");
+  const refs = advertised.refs.map((raw) => {
+    const ref = exactKeys(
+      raw,
+      ["name", "sha", "kind"],
+      ["name", "sha", "kind"],
+      "RELEASE_TARGET_REF_INVALID",
+    );
+    if (typeof ref.name !== "string" || ref.name.length > 240) fail("RELEASE_TARGET_REF_INVALID");
+    const expectedKind = refKind(ref.name);
+    if (ref.kind !== expectedKind) fail("RELEASE_TARGET_REF_INVALID");
+    sha(ref.sha);
+    return clone(ref);
+  });
+  if (
+    new Set(refs.map((ref) => ref.name)).size !== refs.length ||
+    refs.some((ref, index) => index > 0 && ref.name <= refs[index - 1].name)
+  )
+    fail("RELEASE_TARGET_REF_INVALID");
+  const main = refs.filter((ref) => ref.kind === "main");
+  if (main.length !== 1 || main[0].sha !== baseline.priorRemoteMainSha)
+    fail("RELEASE_TARGET_REF_INVALID");
+  for (const ref of refs.filter((entry) => entry.kind === "pull-merge")) {
+    if (!refs.some((entry) => entry.name === ref.name.replace(/\/merge$/u, "/head")))
+      fail("RELEASE_TARGET_REF_INVALID");
+  }
+  if (advertised.count !== refs.length || digest(advertised.digest) !== canonicalDigest(refs))
+    fail("RELEASE_TARGET_REF_INVALID");
+  parseIdentityClasses(baseline.identityClasses);
+  parseHistory(baseline.history);
+  parsePolicy(baseline.policy);
+  return clone(baseline);
+}
+
+function parsePrepushEvidence(value, context) {
+  const proof = exactKeys(value, [
+    "observedAt",
+    "candidateSha",
+    "priorRemoteMainSha",
+    "fullRef",
+    "refTopologyDigest",
+    "settingsDigest",
+    "authenticatedOwner",
+    "repositoryName",
+    "status",
+    "proofDigest",
+  ]);
+  const observedAt = timestamp(proof.observedAt);
+  if (
+    observedAt <= context.candidateObservedAt ||
+    proof.candidateSha !== context.rootSha ||
+    proof.priorRemoteMainSha !== context.baseline.priorRemoteMainSha ||
+    proof.fullRef !== context.baseline.fullRef ||
+    proof.refTopologyDigest !== context.baseline.advertisedRefs.digest ||
+    proof.authenticatedOwner !== context.baseline.authenticatedOwner ||
+    proof.repositoryName !== context.baseline.repositoryName ||
+    proof.status !== "passed"
+  )
+    fail("RELEASE_PREPUSH_EVIDENCE_INVALID");
+  sha(proof.candidateSha);
+  sha(proof.priorRemoteMainSha);
+  digest(proof.refTopologyDigest);
+  digest(proof.settingsDigest);
+  controlledAccount(proof.authenticatedOwner);
+  controlledRepository(proof.repositoryName);
+  digest(proof.proofDigest);
+  const canonical = {
+    observedAt: proof.observedAt,
+    candidateSha: proof.candidateSha,
+    priorRemoteMainSha: proof.priorRemoteMainSha,
+    fullRef: proof.fullRef,
+    refTopologyDigest: proof.refTopologyDigest,
+    settingsDigest: proof.settingsDigest,
+    authenticatedOwner: proof.authenticatedOwner,
+    repositoryName: proof.repositoryName,
+    status: proof.status,
+  };
+  if (proof.proofDigest !== canonicalDigest(canonical)) fail("RELEASE_PREPUSH_EVIDENCE_INVALID");
+  return clone(proof);
+}
+
+function parseIdentityClasses(value) {
+  const identity = exactKeys(value, ["human", "dependabot", "githubService", "unexpected"]);
+  integer(identity.human, { minimum: 1 });
+  integer(identity.dependabot);
+  integer(identity.githubService);
+  if (integer(identity.unexpected) !== 0) fail("RELEASE_EVIDENCE_FAILED_STATUS");
+  return clone(identity);
+}
+
+function parseHistory(value) {
+  const history = exactKeys(value, [
+    "refCount",
+    "commitCount",
+    "authorMismatchCount",
+    "findingCount",
+  ]);
+  integer(history.refCount, { minimum: 1 });
+  integer(history.commitCount, { minimum: 1 });
+  if (integer(history.authorMismatchCount) !== 0 || integer(history.findingCount) !== 0)
+    fail("RELEASE_EVIDENCE_FAILED_STATUS");
+  return clone(history);
+}
+
+function parsePolicy(value) {
+  const policy = exactKeys(value, ["scanSessionId", "activePatternCount", "status"]);
+  if (!IDENTIFIER.test(policy.scanSessionId) || policy.status !== "passed")
+    fail("RELEASE_EVIDENCE_VALUE_INVALID");
+  integer(policy.activePatternCount, { minimum: 1 });
+  return clone(policy);
+}
+
+function parsePublicationOperation(value, context) {
+  const operation = exactKeys(value, [
+    "kind",
+    "priorSha",
+    "resultSha",
+    "observedAt",
+    "proofDigest",
+  ]);
+  timestamp(operation.observedAt);
+  if (
+    !["no-op", "fast-forward"].includes(operation.kind) ||
+    operation.priorSha !== context.baseline.priorRemoteMainSha ||
+    operation.resultSha !== context.rootSha ||
+    operation.observedAt <= context.prepushObservedAt ||
+    operation.observedAt >= context.publicationObservedAt ||
+    (operation.kind === "no-op") !== (operation.priorSha === operation.resultSha)
+  )
+    fail("RELEASE_PUBLICATION_OPERATION_INVALID");
+  sha(operation.priorSha);
+  sha(operation.resultSha);
+  digest(operation.proofDigest);
+  const canonical = {
+    kind: operation.kind,
+    priorSha: operation.priorSha,
+    resultSha: operation.resultSha,
+    observedAt: operation.observedAt,
+  };
+  if (operation.proofDigest !== canonicalDigest(canonical))
+    fail("RELEASE_PUBLICATION_OPERATION_INVALID");
+  return clone(operation);
 }
 
 function sameIdentity(left, right) {
@@ -246,9 +454,34 @@ function parseProduct(value) {
   return clone(product);
 }
 
-function parseCandidate(value, rootSha) {
-  const candidate = exactKeys(value, ["observedAt", "product", "quality", "reviewBarrier"]);
+function parseCandidate(value, context) {
+  const allowed = [
+    "observedAt",
+    "targetBaseline",
+    "prepushEvidence",
+    "product",
+    "quality",
+    "reviewBarrier",
+  ];
+  const required = ["observedAt", "product", "quality", "reviewBarrier"];
+  if (context.priorVerifiedCycle) required.push("targetBaseline");
+  const candidate = exactKeys(value, allowed, required);
   timestamp(candidate.observedAt);
+  let baseline;
+  if (candidate.targetBaseline !== undefined) {
+    baseline = parseTargetBaseline(candidate.targetBaseline, {
+      ...context,
+      candidateObservedAt: candidate.observedAt,
+    });
+  }
+  if (candidate.prepushEvidence !== undefined) {
+    if (!baseline) fail("RELEASE_PREPUSH_EVIDENCE_INVALID");
+    parsePrepushEvidence(candidate.prepushEvidence, {
+      rootSha: context.rootSha,
+      candidateObservedAt: candidate.observedAt,
+      baseline,
+    });
+  }
   parseProduct(candidate.product);
   const quality = exactKeys(candidate.quality, [
     "rootArtifactDigest",
@@ -265,7 +498,7 @@ function parseCandidate(value, rootSha) {
     timestamp(check.observedAt);
   }
   validateReviewBarrier(candidate.reviewBarrier, {
-    candidateSha: rootSha,
+    candidateSha: context.rootSha,
     now: candidate.reviewBarrier.reviews.reduce(
       (latest, review) => (review.observedAt > latest ? review.observedAt : latest),
       candidate.observedAt,
@@ -275,9 +508,12 @@ function parseCandidate(value, rootSha) {
   return clone(candidate);
 }
 
-function parsePublication(value) {
+function parsePublication(value, candidate, rootSha) {
   const publication = exactKeys(value, [
     "observedAt",
+    "targetBaseline",
+    "prepushEvidence",
+    "operation",
     "repository",
     "advertisedRefs",
     "identityClasses",
@@ -285,6 +521,31 @@ function parsePublication(value) {
     "policy",
   ]);
   timestamp(publication.observedAt);
+  if (!candidate.targetBaseline || !candidate.prepushEvidence)
+    fail("RELEASE_PREPUSH_EVIDENCE_INVALID");
+  const targetBaseline = parseTargetBaseline(publication.targetBaseline, {
+    rootSha,
+    startedAt: candidate.targetBaseline.observedAt,
+    candidateObservedAt: candidate.observedAt,
+    priorVerifiedCycle: { commitSha: candidate.targetBaseline.priorRemoteMainSha },
+  });
+  const prepushEvidence = parsePrepushEvidence(publication.prepushEvidence, {
+    rootSha,
+    candidateObservedAt: candidate.observedAt,
+    baseline: targetBaseline,
+  });
+  parsePublicationOperation(publication.operation, {
+    rootSha,
+    baseline: targetBaseline,
+    prepushObservedAt: prepushEvidence.observedAt,
+    publicationObservedAt: publication.observedAt,
+  });
+  if (
+    JSON.stringify(targetBaseline) !== JSON.stringify(candidate.targetBaseline) ||
+    JSON.stringify(prepushEvidence) !== JSON.stringify(candidate.prepushEvidence) ||
+    publication.observedAt <= prepushEvidence.observedAt
+  )
+    fail("RELEASE_PUBLICATION_BASELINE_MISMATCH");
   const repository = exactKeys(publication.repository, [
     "nameWithOwner",
     "url",
@@ -296,33 +557,26 @@ function parsePublication(value) {
   publicUrl(repository.url, "repository");
   if (repository.visibility !== "PUBLIC" || repository.defaultBranch !== "main")
     fail("RELEASE_EVIDENCE_VALUE_INVALID");
+  if (
+    repository.nameWithOwner !== targetBaseline.nameWithOwner ||
+    repository.url !== targetBaseline.repositoryUrl
+  )
+    fail("RELEASE_PUBLICATION_BASELINE_MISMATCH");
   const advertisedRefs = exactKeys(publication.advertisedRefs, ["count", "digest"]);
   integer(advertisedRefs.count, { minimum: 1 });
   digest(advertisedRefs.digest);
-  const identityClasses = exactKeys(publication.identityClasses, [
-    "human",
-    "dependabot",
-    "githubService",
-    "unexpected",
-  ]);
-  integer(identityClasses.human, { minimum: 1 });
-  integer(identityClasses.dependabot);
-  integer(identityClasses.githubService);
-  if (integer(identityClasses.unexpected) !== 0) fail("RELEASE_EVIDENCE_FAILED_STATUS");
-  const history = exactKeys(publication.history, [
-    "refCount",
-    "commitCount",
-    "authorMismatchCount",
-    "findingCount",
-  ]);
-  integer(history.refCount, { minimum: 1 });
-  integer(history.commitCount, { minimum: 1 });
-  if (integer(history.authorMismatchCount) !== 0 || integer(history.findingCount) !== 0)
-    fail("RELEASE_EVIDENCE_FAILED_STATUS");
-  const policy = exactKeys(publication.policy, ["scanSessionId", "activePatternCount", "status"]);
-  if (!IDENTIFIER.test(policy.scanSessionId) || policy.status !== "passed")
-    fail("RELEASE_EVIDENCE_VALUE_INVALID");
-  integer(policy.activePatternCount, { minimum: 1 });
+  parseIdentityClasses(publication.identityClasses);
+  parseHistory(publication.history);
+  parsePolicy(publication.policy);
+  if (
+    advertisedRefs.count !== targetBaseline.advertisedRefs.count ||
+    advertisedRefs.digest !== targetBaseline.advertisedRefs.digest ||
+    JSON.stringify(publication.identityClasses) !==
+      JSON.stringify(targetBaseline.identityClasses) ||
+    JSON.stringify(publication.history) !== JSON.stringify(targetBaseline.history) ||
+    JSON.stringify(publication.policy) !== JSON.stringify(targetBaseline.policy)
+  )
+    fail("RELEASE_PUBLICATION_BASELINE_MISMATCH");
   return clone(publication);
 }
 
@@ -458,8 +712,13 @@ export function parseReleaseEvidence(value) {
   )
     fail("RELEASE_EVIDENCE_VALUE_INVALID");
   parsePrior(input.priorVerifiedCycle);
-  if (stageIndex >= 1) parseCandidate(input.candidate, input.commitSha);
-  if (stageIndex >= 2) parsePublication(input.publication);
+  if (stageIndex >= 1)
+    parseCandidate(input.candidate, {
+      rootSha: input.commitSha,
+      startedAt: input.startedAt,
+      priorVerifiedCycle: input.priorVerifiedCycle,
+    });
+  if (stageIndex >= 2) parsePublication(input.publication, input.candidate, input.commitSha);
   if (stageIndex >= 3) parseDeployment(input.deployment, input.commitSha);
   if (stageIndex >= 4) parseVerification(input.verification, input.commitSha);
   const times = [
@@ -494,6 +753,16 @@ export function advanceReleaseEvidence(current, transition) {
   if (nextIndex !== STAGES.indexOf(parsed.stage) + 1) fail("RELEASE_STAGE_ORDER_INVALID");
   const field = [null, "candidate", "publication", "deployment", "verification"][nextIndex];
   return parseReleaseEvidence({ ...parsed, stage: input.stage, [field]: clone(input.observation) });
+}
+
+export function attachPrepushEvidence(current, proof) {
+  const parsed = parseReleaseEvidence(current);
+  if (parsed.stage !== "candidate") fail("RELEASE_PREPUSH_STAGE_INVALID");
+  if (parsed.candidate.prepushEvidence !== undefined) fail("RELEASE_PREPUSH_DUPLICATE");
+  return parseReleaseEvidence({
+    ...parsed,
+    candidate: { ...parsed.candidate, prepushEvidence: clone(proof) },
+  });
 }
 
 function inside(root, path) {
