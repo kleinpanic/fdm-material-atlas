@@ -1,15 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import type { MaterialId } from "../../src/data/schema/ids.ts";
 import {
   compareSelection,
 } from "../../src/features/comparison/difference.ts";
+import type { ComparisonValueCell } from "../../src/features/comparison/contracts.ts";
 import { buildComparisonModel } from "../../src/features/comparison/model.ts";
 import { safeCompare } from "../../src/features/comparison/safe-compare.ts";
 import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
 
 const model = buildComparisonModel(loadPublicAtlas(), "/");
 const IDS = model.materials.slice(0, 5).map(({ id }) => id);
+
+type MutableComparisonValueCell = {
+  -readonly [Key in keyof ComparisonValueCell]: ComparisonValueCell[Key];
+};
 
 describe("comparison difference transform", () => {
   it.each([2, 3, 4])("preserves selection order for %i materials", (count) => {
@@ -50,15 +54,16 @@ describe("comparison difference transform", () => {
     expect(leftCell.kind).toBe("value");
     expect(rightCell.kind).toBe("value");
     if (leftCell.kind !== "value" || rightCell.kind !== "value") return;
+    const mutableRightCell = rightCell as MutableComparisonValueCell;
 
-    rightCell.display = [...leftCell.display, "Different rendered copy"];
-    rightCell.evidence = [{
+    mutableRightCell.display = [...leftCell.display, "Different rendered copy"];
+    mutableRightCell.evidence = [{
       label: "Different evidence record",
       scope: "family-guidance",
       scopeLabel: "Family guidance",
       href: "/method/#source-different",
     }];
-    rightCell.equality = structuredClone(leftCell.equality);
+    mutableRightCell.equality = structuredClone(leftCell.equality);
 
     const outcome = compareSelection(candidate, [left!.id, right!.id]);
     expect(outcome.kind).toBe("comparison");
@@ -87,14 +92,16 @@ describe("comparison difference transform", () => {
       const leftCell = left!.cells.find(({ key }) => key === "family-or-fill")!;
       const rightCell = right!.cells.find(({ key }) => key === "family-or-fill")!;
       if (leftCell.kind !== "value" || rightCell.kind !== "value") throw new Error("TEST_CELL_INVALID");
-      leftCell.equality = equality;
-      rightCell.equality = structuredClone(equality);
+      const mutableLeftCell = leftCell as MutableComparisonValueCell;
+      const mutableRightCell = rightCell as MutableComparisonValueCell;
+      mutableLeftCell.equality = equality;
+      mutableRightCell.equality = structuredClone(equality);
       let outcome = compareSelection(candidate, [left!.id, right!.id]);
       expect(outcome.kind).toBe("comparison");
       if (outcome.kind !== "comparison") continue;
       expect(outcome.groups.flatMap(({ equal }) => equal).some(({ key }) => key === "family-or-fill")).toBe(true);
 
-      rightCell.equality = [...equality, ["changed"]];
+      mutableRightCell.equality = [...equality, ["changed"]];
       outcome = compareSelection(candidate, [left!.id, right!.id]);
       expect(outcome.kind).toBe("comparison");
       if (outcome.kind !== "comparison") continue;
