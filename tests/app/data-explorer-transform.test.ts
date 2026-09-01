@@ -49,6 +49,7 @@ describe("data explorer transform", () => {
       group,
       factState: "known",
       evidenceScope: "family-guidance",
+      sort: { field: "print-difficulty", direction: "asc" },
     }));
     expect(result.kind).toBe("exploration");
     if (result.kind !== "exploration") return;
