@@ -36,6 +36,7 @@ describe("compare page source contract", () => {
     expect(styles).toContain("@media (max-width: 640px)");
     expect(styles).toContain("min-block-size: var(--size-target-min)");
     expect(styles).toContain("overflow-wrap: anywhere");
+    expect(styles).toContain("max-inline-size: 100%");
     expect(styles).not.toMatch(/overflow-x:\s*(?:auto|scroll)/u);
     expect(styles).not.toContain("position: sticky");
     expect(styles).not.toContain("linear-gradient");
