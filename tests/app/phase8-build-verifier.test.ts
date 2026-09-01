@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   Phase8BuildError,
+  assertPreactivationReceipt,
+  assertRegistryStage,
   verifyPhase8Build,
 } from "../../tools/verify-phase8-build.mjs";
 
@@ -133,6 +135,48 @@ afterEach(async () => {
 });
 
 describe("Phase 8 emitted build verifier", () => {
+  it("accepts only the exact explicit eight-lane final registry", () => {
+    const registrySource = `decisionMaps: Object.freeze([${lanes.map((lane) =>
+      `{ laneId: "${lane}", target: { id: "map" }, fragment: "${lane}" }`,
+    ).join(",")}])`;
+
+    expect(() => assertRegistryStage(registrySource, "final")).not.toThrow();
+    expect(() => assertRegistryStage(registrySource.replace(`laneId: "${lanes[0]}"`, `laneId: "${lanes[1]}"`), "final"))
+      .toThrow("REGISTRY_ACTIVATION_MISSING");
+    expect(() => assertRegistryStage(`${registrySource}\nallDecisionMaps: true`, "final"))
+      .toThrow("REGISTRY_ACTIVATION_MISSING");
+  });
+
+  it("requires a matching pre-activation receipt and changed final artifacts", () => {
+    const artifact = (mode: string, digest: string) => ({ mode, fileCount: 58, digest });
+    const bytes = (mode: string) => ({ mode, projectionGzipBytes: 7_300, totalGzipBytes: 26_000 });
+    const common = {
+      schemaVersion: 1,
+      digests: { route: "a".repeat(64), fragments: "b".repeat(64), projectionContract: "c".repeat(64) },
+      counts: { routes: 1, modes: 4, lanes: 8, materials: 23 },
+    };
+    const prior = {
+      ...common,
+      stage: "pre-activation",
+      artifacts: [artifact("root", "d".repeat(64)), artifact("repository", "e".repeat(64))],
+      bytes: [bytes("root"), bytes("repository")],
+    };
+    const current = {
+      ...common,
+      stage: "final",
+      artifacts: [artifact("root", "f".repeat(64)), artifact("repository", "0".repeat(64))],
+      bytes: [bytes("root"), bytes("repository")],
+    };
+
+    expect(() => assertPreactivationReceipt(prior, current)).not.toThrow();
+    expect(() => assertPreactivationReceipt({ ...prior, stage: "final" }, current))
+      .toThrow("PREACTIVATION_RECEIPT_INVALID");
+    expect(() => assertPreactivationReceipt({
+      ...prior,
+      artifacts: [artifact("root", "f".repeat(64)), artifact("repository", "e".repeat(64))],
+    }, current)).toThrow("PREACTIVATION_RECEIPT_INVALID");
+  });
+
   it("accepts complete, scoped, pre-activation artifacts in both deployment bases", async () => {
     const outputs = await fixture();
     const report = await verifyPhase8Build({

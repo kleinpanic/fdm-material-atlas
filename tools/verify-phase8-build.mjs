@@ -22,6 +22,10 @@ const LANE_IDS = Object.freeze([
   "lane-easy-prototypes", "lane-outdoor", "lane-impact-flex", "lane-chemical-exposure",
   "lane-high-heat-sustained-load", "lane-industrial", "lane-decorative-fills", "lane-support-materials",
 ]);
+const LANE_LABELS = Object.freeze([
+  "Easy prototypes", "Outdoor", "Impact and flex", "Chemical exposure",
+  "High heat and sustained load", "Industrial", "Decorative fills", "Support materials",
+]);
 const STATIC_ALTERNATIVES = Object.freeze([
   "Follow a need through properties, candidates, and process gates",
   "Practical service guidance",
@@ -297,7 +301,10 @@ async function inspectSelectorStage(mode, files, stage, exactPatterns) {
   if (stage === "pre-activation") {
     if (serialized.includes("/map/#lane-") || serialized.includes("Open material decision map") || !island.complete.includes("Decision map is not available yet")) fail("SELECTOR_ACTIVATED_TOO_EARLY");
   } else {
-    if (!serialized.includes("Open material decision map") || !LANE_IDS.every((laneId) => serialized.includes(`/map/#${laneId}`))) fail("SELECTOR_ACTIVATION_MISSING");
+    if (
+      !LANE_IDS.every((laneId) => serialized.includes(`/map/#${laneId}`))
+      || !LANE_LABELS.every((label) => serialized.includes(`Open ${label} decision path`))
+    ) fail("SELECTOR_ACTIVATION_MISSING");
   }
   const entries = [];
   for (const record of islandRecords(html)) {
@@ -345,17 +352,75 @@ async function scanBoundedPublication(rootOutput, repositoryOutput, sensitiveFil
   }
 }
 
-function assertRegistryStage(registrySource, stage) {
+export function assertRegistryStage(registrySource, stage) {
   if (typeof registrySource !== "string") fail("REGISTRY_SOURCE_INVALID");
-  const activated = /\ballDecisionMaps\s*:\s*true\b/u.test(registrySource) && /\bdecisionMapOverview\s*:/u.test(registrySource);
-  if (stage === "pre-activation" && (activated || !/decisionMaps\s*:\s*Object\.freeze\(\[\]\)/u.test(registrySource))) fail("REGISTRY_ACTIVATED_TOO_EARLY");
-  if (stage === "final" && !activated) fail("REGISTRY_ACTIVATION_MISSING");
+  const closed = /decisionMaps\s*:\s*Object\.freeze\(\[\]\)/u.test(registrySource);
+  if (stage === "pre-activation" && !closed) fail("REGISTRY_ACTIVATED_TOO_EARLY");
+  if (stage === "final") {
+    if (closed || /\ballDecisionMaps\s*:/u.test(registrySource)) fail("REGISTRY_ACTIVATION_MISSING");
+    for (const laneId of LANE_IDS) {
+      const escaped = laneId.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+      const laneCount = [...registrySource.matchAll(new RegExp(`laneId:\\s*"${escaped}"`, "gu"))].length;
+      const fragmentCount = [...registrySource.matchAll(new RegExp(`fragment:\\s*"${escaped}"`, "gu"))].length;
+      if (laneCount !== 1 || fragmentCount !== 1) fail("REGISTRY_ACTIVATION_MISSING");
+    }
+  }
+}
+
+function sameKeys(value, expected) {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    && JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...expected].sort());
+}
+
+function validDigest(value) {
+  return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
+}
+
+export function assertPreactivationReceipt(prior, current) {
+  if (!sameKeys(prior, ["schemaVersion", "stage", "artifacts", "digests", "counts", "bytes"])
+      || prior.schemaVersion !== 1 || prior.stage !== "pre-activation"
+      || !sameKeys(prior.digests, ["route", "fragments", "projectionContract"])
+      || !sameKeys(prior.counts, ["routes", "modes", "lanes", "materials"])
+      || JSON.stringify(prior.digests) !== JSON.stringify(current.digests)
+      || JSON.stringify(prior.counts) !== JSON.stringify(current.counts)
+      || !Array.isArray(prior.artifacts) || prior.artifacts.length !== 2
+      || !Array.isArray(prior.bytes) || prior.bytes.length !== 2) fail("PREACTIVATION_RECEIPT_INVALID");
+
+  for (const mode of ["root", "repository"]) {
+    const before = prior.artifacts.find((entry) => entry?.mode === mode);
+    const after = current.artifacts.find((entry) => entry.mode === mode);
+    const byteRecord = prior.bytes.find((entry) => entry?.mode === mode);
+    if (!sameKeys(before, ["mode", "fileCount", "digest"]) || !sameKeys(byteRecord, ["mode", "projectionGzipBytes", "totalGzipBytes"])
+        || !Number.isInteger(before.fileCount) || before.fileCount !== after.fileCount
+        || !validDigest(before.digest) || before.digest === after.digest
+        || !Number.isInteger(byteRecord.projectionGzipBytes) || byteRecord.projectionGzipBytes < 1
+        || !Number.isInteger(byteRecord.totalGzipBytes) || byteRecord.totalGzipBytes < 1) {
+      fail("PREACTIVATION_RECEIPT_INVALID");
+    }
+  }
+}
+
+function receiptTarget(receiptPath) {
+  const allowedDirectory = resolve(PROJECT_ROOT, ".planning/.tmp");
+  const target = resolve(receiptPath);
+  if (dirname(target) !== allowedDirectory) fail("RECEIPT_PATH_INVALID");
+  return target;
+}
+
+async function readPreactivationReceipt(receiptPath) {
+  const target = receiptTarget(receiptPath);
+  const info = await lstat(target).catch(() => fail("PREACTIVATION_RECEIPT_INVALID"));
+  if (!info.isFile() || info.isSymbolicLink() || info.size < 2 || info.size > 64 * 1024) fail("PREACTIVATION_RECEIPT_INVALID");
+  try {
+    return JSON.parse(await readFile(target, "utf8"));
+  } catch {
+    fail("PREACTIVATION_RECEIPT_INVALID");
+  }
 }
 
 async function writeReceipt(receiptPath, receipt) {
   const allowedDirectory = resolve(PROJECT_ROOT, ".planning/.tmp");
-  const target = resolve(receiptPath);
-  if (dirname(target) !== allowedDirectory) fail("RECEIPT_PATH_INVALID");
+  const target = receiptTarget(receiptPath);
   await mkdir(allowedDirectory, { recursive: true, mode: 0o700 });
   const temporary = `${target}.tmp-${process.pid}`;
   await writeFile(temporary, `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 });
@@ -380,6 +445,8 @@ export async function verifyPhase8Build({
   runPublicationScan = true,
 } = {}) {
   if (stage !== "pre-activation" && stage !== "final") fail("STAGE_INVALID");
+  if (stage === "final" && receiptPath === undefined) fail("PREACTIVATION_RECEIPT_INVALID");
+  const priorReceipt = stage === "final" ? await readPreactivationReceipt(receiptPath) : undefined;
   if (prohibitedExactPatterns === undefined) {
     try {
       const loaded = await loadExactPatterns({ root: PROJECT_ROOT, ...(sensitiveFile ? { sensitiveFile } : {}) });
@@ -404,7 +471,6 @@ export async function verifyPhase8Build({
     reports.push({ mode: mode.name, files, ...map, artifactDigest: await artifactDigest(files) });
   }
   if (JSON.stringify(normalizeProjection(reports[0].projection, "/")) !== JSON.stringify(normalizeProjection(reports[1].projection, "/atlas-preview/"))) fail("MAP_BASE_PARITY_INVALID");
-  if (runPublicationScan) await scanBoundedPublication(modes[0].output, modes[1].output, sensitiveFile);
   const publicReports = reports.map(({ mode, files, artifactDigest: artifact, projectionGzipBytes, totalGzipBytes, javascriptCount }) => ({
     mode, fileCount: files.size, artifactDigest: artifact, projectionGzipBytes, totalGzipBytes, javascriptCount,
   }));
@@ -418,6 +484,8 @@ export async function verifyPhase8Build({
     counts: { routes: 1, modes: MAP_MODES.length, lanes: LANE_IDS.length, materials: 23 },
     bytes: publicReports.map(({ mode, projectionGzipBytes, totalGzipBytes }) => ({ mode, projectionGzipBytes, totalGzipBytes })),
   };
+  if (priorReceipt !== undefined) assertPreactivationReceipt(priorReceipt, receipt);
+  if (runPublicationScan) await scanBoundedPublication(modes[0].output, modes[1].output, sensitiveFile);
   if (receiptPath !== undefined) await writeReceipt(receiptPath, receipt);
   return Object.freeze({ ok: true, stage, routeCount: 1, modes: Object.freeze(publicReports.map(({ artifactDigest: _digest, ...report }) => Object.freeze(report))) });
 }
