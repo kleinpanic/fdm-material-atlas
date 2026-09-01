@@ -19,7 +19,10 @@ function EvidenceActions({ actions }: Readonly<{ actions: readonly ComparisonEvi
   );
 }
 
-function ValueBody({ value }: Readonly<{ value: ComparedValue }>) {
+export function ComparisonValueBody({ value, rowKey }: Readonly<{
+  value: ComparedValue;
+  rowKey: ComparisonRow["key"];
+}>) {
   if (value.kind === "no-comparable-observation") {
     return <p><span aria-hidden="true">□</span> {value.label}</p>;
   }
@@ -27,7 +30,7 @@ function ValueBody({ value }: Readonly<{ value: ComparedValue }>) {
   const record = value.kind === "value" ? value.cell : value.member;
   return (
     <div class="comparison-value__body">
-      {value.kind === "thermal" ? (
+      {value.kind === "thermal" && rowKey === "thermal-value" ? (
         <p class="comparison-value__thermal-identity">
           <strong>{value.member.metricLabel}</strong> — {value.member.methodLabel}
         </p>
@@ -53,7 +56,7 @@ function ComparisonProperty({ row }: Readonly<{ row: ComparisonRow }>) {
         {row.values.map((value) => (
           <div class="comparison-property__material" key={value.materialId}>
             <dt>{value.materialName}</dt>
-            <dd><ValueBody value={value} /></dd>
+            <dd><ComparisonValueBody value={value} rowKey={row.key} /></dd>
           </div>
         ))}
       </dl>

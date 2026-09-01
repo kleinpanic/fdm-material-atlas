@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { ComparisonGroups } from "../../src/components/comparison/ComparisonGroups.tsx";
+import {
+  ComparisonGroups,
+  ComparisonValueBody,
+} from "../../src/components/comparison/ComparisonGroups.tsx";
 import { compareSelection } from "../../src/features/comparison/difference.ts";
 import { buildComparisonModel } from "../../src/features/comparison/model.ts";
 import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
@@ -79,5 +82,21 @@ describe("comparison island boundary", () => {
     expect(groupsSource).toMatch(/<details\b/u);
     expect(groupsSource).not.toMatch(/dangerouslySetInnerHTML|innerHTML/u);
     expect(groupsSource).not.toMatch(/winner|score|rank/iu);
+  });
+
+  it("renders thermal metric identity once while retaining the fact state", () => {
+    const model = buildComparisonModel(loadPublicAtlas(), "/");
+    const result = compareSelection(model, model.materials.slice(0, 2).map(({ id }) => id));
+    expect(result.kind).toBe("comparison");
+    if (result.kind !== "comparison") return;
+    const row = result.groups.flatMap(({ differing, equal }) => [...differing, ...equal])
+      .find(({ key, values }) => key === "thermal-metric" && values.some(({ kind }) => kind === "thermal"))!;
+    const value = row.values.find(({ kind }) => kind === "thermal")!;
+    if (value.kind !== "thermal") return;
+
+    const rendered = textContent(ComparisonValueBody({ value, rowKey: "thermal-metric" }));
+    expect(rendered.split(value.member.metricLabel)).toHaveLength(2);
+    expect(rendered.split(value.member.methodLabel)).toHaveLength(2);
+    expect(rendered).toContain(value.member.display.at(-1));
   });
 });
