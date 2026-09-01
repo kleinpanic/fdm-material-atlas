@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { readFile } from "node:fs/promises";
 
 import {
   ReleaseVerificationError,
@@ -58,17 +59,19 @@ function dependencies() {
         "merge-base --is-ancestor 9999999999999999999999999999999999999999 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa":
           "",
         "status --porcelain=v1 --untracked-files=all": "",
-        "remote get-url origin": "git@github.com:kleinpanic/fdm-material-atlas.git\n",
+        "remote get-url origin": "git@github.com:atlas-owner/fdm-material-atlas.git\n",
         "for-each-ref --format=%(refname)": "refs/heads/main\nrefs/remotes/origin/main\n",
       };
       if (!(key in values)) throw new Error(`unexpected git seam: ${key}`);
       return values[key]!;
     }),
     github: vi.fn(async () => ({
-      login: "kleinpanic",
+      login: "atlas-owner",
       repository: {
-        nameWithOwner: "kleinpanic/fdm-material-atlas",
-        url: "https://github.com/kleinpanic/fdm-material-atlas",
+        name: "fdm-material-atlas",
+        owner: { login: "atlas-owner" },
+        nameWithOwner: "atlas-owner/fdm-material-atlas",
+        url: "https://github.com/atlas-owner/fdm-material-atlas",
         visibility: "PUBLIC",
         defaultBranch: "main",
       },
@@ -184,7 +187,7 @@ describe("established repository release preflight", () => {
           ...(await dependencies().github()),
           repository: {
             ...(await dependencies().github()).repository,
-            nameWithOwner: "elsewhere/fdm-material-atlas",
+            owner: { login: "elsewhere" },
           },
         })),
       },
@@ -196,7 +199,7 @@ describe("established repository release preflight", () => {
       {
         git: vi.fn(async (args: readonly string[]) =>
           args.join(" ") === "remote get-url origin"
-            ? "git@github.com:elsewhere/repo.git\n"
+            ? "git@github.com:elsewhere/fdm-material-atlas.git\n"
             : dependencies().git(args),
         ),
       },
@@ -225,6 +228,24 @@ describe("established repository release preflight", () => {
     expect(result.stage).toBe("candidate");
     expect(result.commitSha).toBe(SHA);
     expect(result.candidate.product).toEqual(product());
+    expect(result.candidate.targetBaseline).toMatchObject({
+      repositoryName: "fdm-material-atlas",
+      priorRemoteMainSha: PRIOR_SHA,
+      refCount: 1,
+      refs: [{ name: "refs/heads/main", sha: PRIOR_SHA }],
+    });
+    expect(result.candidate.targetBaseline.refDigest).toMatch(/^sha256:[a-f0-9]{64}$/u);
+    expect(JSON.stringify(result.candidate.targetBaseline)).not.toContain("atlas-owner");
+    expect(JSON.stringify(result.candidate.targetBaseline)).not.toContain("github.com");
+  });
+
+  it("derives target expectations from live authenticated structure without account constants", async () => {
+    const source = await readFile("tools/verify-release.mjs", "utf8");
+    expect(source).not.toContain("kleinpanic");
+    expect(source).not.toContain("EXPECTED_OWNER");
+    expect(source).not.toContain("EXPECTED_REPOSITORY");
+    const { result } = await run();
+    expect(result.candidate.targetBaseline.repositoryName).toBe("fdm-material-atlas");
   });
 
   it.each([
