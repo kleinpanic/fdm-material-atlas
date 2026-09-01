@@ -126,6 +126,7 @@ function SelectorRuntimeIsland({
   const pendingFocusIntentRef = useRef<ShortlistFocusIntent | null>(null);
   const pendingPreservedMaterialRef = useRef<MaterialId | null>(null);
   const pendingCalculationOpenRef = useRef<MaterialId | null>(null);
+  const pendingEliminationsOpenRef = useRef(false);
   const rendererPromiseRef = useRef<Promise<ResultsRenderer> | null>(null);
   const rendererRef = useRef<ResultsRenderer | null>(null);
   const renderQueuedRef = useRef(false);
@@ -268,7 +269,6 @@ function SelectorRuntimeIsland({
     form.querySelectorAll<HTMLButtonElement>("button:disabled").forEach((button) => {
       button.disabled = false;
     });
-
     const onChange = (event: Event) => {
       if (!(event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement))
         return;
@@ -425,6 +425,11 @@ function SelectorRuntimeIsland({
         }
         const eliminations = mount.querySelector<HTMLDetailsElement>("details.selector-eliminated");
         if (eliminations && eliminationsWereOpen) eliminations.open = true;
+        if (eliminations && pendingEliminationsOpenRef.current) {
+          eliminations.open = true;
+          pendingEliminationsOpenRef.current = false;
+          eliminations.querySelector<HTMLElement>(":scope > summary")?.focus();
+        }
         mount.setAttribute("aria-busy", "false");
         applyPendingFocus();
       })
@@ -458,6 +463,9 @@ function SelectorRuntimeIsland({
       }
       pendingCalculationOpenRef.current = materialId as MaterialId;
       void evaluateForResults(selection);
+    } else if (action === "expand-eliminations") {
+      pendingEliminationsOpenRef.current = true;
+      void evaluateForResults(selection);
     }
   };
 
@@ -476,8 +484,22 @@ function SelectorRuntimeIsland({
       event.preventDefault();
       staticActionRef.current(action, button.dataset.materialId);
     };
+    const onToggle = (event: Event) => {
+      if (
+        mount.dataset.selectorResultsOwner === "client" ||
+        !(event.target instanceof HTMLDetailsElement) ||
+        !event.target.matches("details.selector-eliminated") ||
+        !event.target.open
+      )
+        return;
+      staticActionRef.current("expand-eliminations");
+    };
     mount.addEventListener("click", onClick);
-    return () => mount.removeEventListener("click", onClick);
+    mount.addEventListener("toggle", onToggle, true);
+    return () => {
+      mount.removeEventListener("click", onClick);
+      mount.removeEventListener("toggle", onToggle, true);
+    };
   }, []);
 
   useEffect(

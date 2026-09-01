@@ -143,9 +143,9 @@ describe("selector component boundary", () => {
     expect(results).toContain('data-selector-command="expand-calculation"');
     expect(island).toContain('action === "expand-calculation"');
     expect(island).toContain("pendingCalculationOpenRef");
-    expect(results).toContain("<noscript>");
-    expect(results).toContain('data-selector-command="expand-eliminations"');
-    expect(island).toContain('action === "expand-eliminations"');
+    expect(results).toContain('createElement("noscript"');
+    expect(results).not.toContain('data-selector-command="expand-eliminations"');
+    expect(island).toContain('addEventListener("toggle"');
     expect(island).toContain("pendingEliminationsOpenRef");
   });
 

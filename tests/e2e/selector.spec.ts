@@ -209,9 +209,6 @@ test("selector keeps complete default meaning without JavaScript and when only i
   const abortedEliminations = aborted.page.locator("details.selector-eliminated");
   await abortedEliminations.locator(":scope > summary").click();
   await expect(abortedEliminations.locator(".selector-static-elimination")).toHaveCount(0);
-  await expect(
-    abortedEliminations.getByRole("button", { name: "Review all eliminated materials" }),
-  ).toBeVisible();
   expect(await displayedRanking(aborted.page)).toEqual(
     defaultPresentation.compatible.map(
       (material) => `Rank ${material.rank}|${material.materialLabel}|${material.scoreLabel}`,
@@ -244,6 +241,11 @@ test("hydration preserves SSR ranking and controls drive transparent engine reco
   const firstExpected = defaultPresentation.compatible[0]!;
   const firstResult = compatibleItems(page).first();
   await firstResult.getByText("Why this rank").click();
+  await expect(page.locator("#selector-results-mount")).toHaveAttribute(
+    "data-selector-results-owner",
+    "client",
+  );
+  await expect(firstResult.locator("details.selector-calculation")).toHaveAttribute("open", "");
   const renderedContributions = await firstResult.locator("details li").allInnerTexts();
   expect(renderedContributions).toEqual(
     firstExpected.contributions.map(
@@ -329,10 +331,6 @@ test("eager controls leave SSR results unowned until the first real selector cha
 
   const eliminations = mount.locator("details.selector-eliminated");
   await eliminations.locator(":scope > summary").press("Enter");
-  const expand = eliminations.getByRole("button", { name: "Review all eliminated materials" });
-  await page.keyboard.press("Tab");
-  await expect(expand).toBeFocused();
-  await expand.press("Enter");
   await expect(mount).toHaveAttribute("data-selector-results-owner", "client");
   await expect(eliminations).toHaveAttribute("open", "");
   await expect(eliminations.locator("article")).toHaveCount(defaultPresentation.eliminated.length);
