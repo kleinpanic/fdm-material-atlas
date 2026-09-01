@@ -127,6 +127,33 @@ describe("established repository release preflight", () => {
     }
   });
 
+  it("passes the isolated legacy fixture with attached main and no remote", async () => {
+    const deps = dependencies();
+    deps.git.mockImplementation(async (args: readonly string[]) => {
+      const key = args.join(" ");
+      if (key === "remote") return "";
+      if (key === "for-each-ref --format=%(refname)") return "refs/heads/main\n";
+      return dependencies().git(args);
+    });
+    const legacyEvidence = {
+      ...draft(),
+      priorVerifiedCycle: null,
+    };
+    const result = await verifyReleaseCandidate({
+      mode: "pre-publication",
+      root: process.cwd(),
+      evidence: legacyEvidence,
+      reviewBarrier: reviewBarrierFixture(),
+      syntheticPolicy: {
+        schemaVersion: 1,
+        exactPatterns: [Buffer.from("fixture-private-value")],
+      },
+      dependencies: deps,
+    });
+    expect(result.stage).toBe("candidate");
+    expect(deps.github).not.toHaveBeenCalled();
+  });
+
   it("requires descriptor 3 and never includes protected values in results or errors", async () => {
     const rejected = "fixture-private-value";
     await expect(
@@ -230,6 +257,29 @@ describe("established repository release preflight", () => {
         }),
       }),
     ).rejects.toMatchObject({ code: "RELEASE_CANDIDATE_MUTATED" });
+  });
+
+  it("blocks repository, artifact, prior-SHA, and observation failures with stable codes", async () => {
+    await expect(
+      run({
+        inspectRepository: vi.fn(async () => {
+          throw new Error("raw repository output");
+        }),
+      }),
+    ).rejects.toMatchObject({ code: "RELEASE_REPOSITORY_INVALID" });
+    await expect(
+      run({ observeProduct: vi.fn(async () => ({ ...product(), materialCount: 0 })) }),
+    ).rejects.toMatchObject({ code: "RELEASE_EVIDENCE_VALUE_INVALID" });
+    await expect(
+      run({
+        scan: vi.fn(async (surface: string) => ({
+          findingCount: 0,
+          findings: [],
+          ...(surface === "artifact-root" ? { artifactDigest: `sha256:${"1".repeat(64)}` } : {}),
+          ...(surface === "artifact-repository" ? { artifactDigest: REPOSITORY_DIGEST } : {}),
+        })),
+      }),
+    ).rejects.toMatchObject({ code: "RELEASE_REVIEW_IDENTITY_MISMATCH" });
   });
 
   it("derives complete canonical observations and rejects missing inventory", async () => {
