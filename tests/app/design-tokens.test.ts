@@ -52,36 +52,36 @@ const TEST_ONLY_EXACT_TOKEN_ORACLE = {
   "--breakpoint-medium": "40rem",
   "--breakpoint-wide": "64rem",
   "--breakpoint-atlas-wide": "80rem",
-  "--color-page": "#F3F4EF",
-  "--color-surface": "#FFFFFF",
-  "--color-ink-strong": "#17201E",
-  "--color-ink": "#34413E",
-  "--color-ink-muted": "#5D6966",
-  "--color-rule": "#C7CECA",
-  "--color-surface-subtle": "#E8ECE8",
-  "--color-accent": "#006B66",
-  "--color-destructive": "#B42318",
-  "--color-focus": "#006B66",
-  "--color-hover": "#E2F1EF",
-  "--color-disabled-ink": "#53605C",
-  "--color-disabled-surface": "#E8ECE8",
-  "--color-caution-information": "#175CD3",
-  "--color-caution-verify": "#9A6700",
-  "--color-caution-incompatible": "#B42318",
-  "--color-caution-unknown": "#5D6966",
-  "--color-caution-not-applicable": "#5D6966",
-  "--color-family-neutral": "#5D6966",
-  "--color-thermal-service": "#006B66",
-  "--color-thermal-tg": "#7048A8",
-  "--color-thermal-hdt": "#B54708",
-  "--color-thermal-vicat": "#9A6700",
-  "--color-thermal-melting": "#C2410C",
+  "--color-page": "#f3f4ef",
+  "--color-surface": "#ffffff",
+  "--color-ink-strong": "#17201e",
+  "--color-ink": "#34413e",
+  "--color-ink-muted": "#5d6966",
+  "--color-rule": "#c7ceca",
+  "--color-surface-subtle": "#e8ece8",
+  "--color-accent": "#006b66",
+  "--color-destructive": "#b42318",
+  "--color-focus": "#006b66",
+  "--color-hover": "#e2f1ef",
+  "--color-disabled-ink": "#53605c",
+  "--color-disabled-surface": "#e8ece8",
+  "--color-caution-information": "#175cd3",
+  "--color-caution-verify": "#9a6700",
+  "--color-caution-incompatible": "#b42318",
+  "--color-caution-unknown": "#5d6966",
+  "--color-caution-not-applicable": "#5d6966",
+  "--color-family-neutral": "#5d6966",
+  "--color-thermal-service": "#006b66",
+  "--color-thermal-tg": "#7048a8",
+  "--color-thermal-hdt": "#b54708",
+  "--color-thermal-vicat": "#9a6700",
+  "--color-thermal-melting": "#c2410c",
   "--color-thermal-other": "#475467",
   "--color-gate-available": "#067647",
-  "--color-gate-verify": "#9A6700",
-  "--color-gate-blocked": "#B42318",
-  "--color-gate-unknown": "#5D6966",
-  "--color-gate-not-applicable": "#5D6966",
+  "--color-gate-verify": "#9a6700",
+  "--color-gate-blocked": "#b42318",
+  "--color-gate-unknown": "#5d6966",
+  "--color-gate-not-applicable": "#5d6966",
   "--color-diagram-axis": "var(--color-ink)",
   "--color-diagram-grid": "var(--color-rule)",
   "--color-diagram-active": "var(--color-accent)",
@@ -161,7 +161,10 @@ function syntheticThemeWithout(omittedToken: string): string {
 }
 
 function relativeLuminance(hex: string): number {
-  const channels = hex.slice(1).match(/.{2}/gu)?.map((channel) => Number.parseInt(channel, 16) / 255);
+  const channels = hex
+    .slice(1)
+    .match(/.{2}/gu)
+    ?.map((channel) => Number.parseInt(channel, 16) / 255);
   if (channels === undefined || channels.length !== 3) throw new Error(`INVALID_HEX_COLOR:${hex}`);
   const [red, green, blue] = channels.map((channel) =>
     channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
@@ -247,8 +250,10 @@ describe("engineering atlas design tokens", () => {
     const findings: string[] = [];
     const styleExtensions = new Set([".astro", ".css", ".html", ".jsx", ".svelte", ".tsx", ".vue"]);
     const literalColor = /#[\da-f]{3,8}\b|\b(?:color|hsl|hsla|lab|lch|oklch|rgb|rgba)\s*\(/iu;
-    const prohibitedStyle = /(?:repeating-)?(?:conic|linear|radial)-gradient\s*\(|backdrop-(?:filter|blur)|backdrop-filter\s*:|@keyframes\b|\banimation(?:-name)?\s*:|\bglassmorphism\b|\bdashboard-card(?:-grid)?\b/iu;
-    const arbitraryColorClass = /(?:bg|border|fill|outline|ring|stroke|text)-\[(?:#|rgb|hsl|oklch|lab|lch|color\()/iu;
+    const prohibitedStyle =
+      /(?:repeating-)?(?:conic|linear|radial)-gradient\s*\(|backdrop-(?:filter|blur)|backdrop-filter\s*:|@keyframes\b|\banimation(?:-name)?\s*:|\bglassmorphism\b|\bdashboard-card(?:-grid)?\b/iu;
+    const arbitraryColorClass =
+      /(?:bg|border|fill|outline|ring|stroke|text)-\[(?:#|rgb|hsl|oklch|lab|lch|color\()/iu;
     const tinyTextClass = /\btext-(?:xs|\[(?:0(?:\.\d+)?rem|(?:[1-9]|1[0-3])px))/iu;
 
     for (const path of await sourceFiles(SOURCE_ROOT)) {
@@ -274,7 +279,7 @@ describe("engineering atlas design tokens", () => {
   it("provides static focus, state, reflow, overflow, and motion contracts", async () => {
     const source = await readFile(GLOBAL_CSS_PATH, "utf8");
     const requiredRules = [
-      "@import \"tailwindcss\"",
+      '@import "tailwindcss"',
       ":focus-visible",
       "color-scheme: light",
       ".skip-link:focus-visible",

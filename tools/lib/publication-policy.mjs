@@ -1,14 +1,14 @@
-import { execFile } from 'node:child_process';
-import { lstat, realpath } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
-import { isAbsolute, relative, resolve, sep } from 'node:path';
-import { promisify } from 'node:util';
-import { OPERATIONAL_PATH_EXCEPTIONS, OPERATIONAL_PATH_PATTERNS } from './prohibited-paths.mjs';
-import { buildGitEnvironment } from './safe-git.mjs';
-import { readStableFile, SafeFileError } from './safe-file.mjs';
+import { execFile } from "node:child_process";
+import { lstat, realpath } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { isAbsolute, relative, resolve, sep } from "node:path";
+import { promisify } from "node:util";
+import { OPERATIONAL_PATH_EXCEPTIONS, OPERATIONAL_PATH_PATTERNS } from "./prohibited-paths.mjs";
+import { buildGitEnvironment } from "./safe-git.mjs";
+import { readStableFile, SafeFileError } from "./safe-file.mjs";
 
 const execFileAsync = promisify(execFile);
-const DEFAULT_SENSITIVE_FILE = '.publication-sensitive-patterns';
+const DEFAULT_SENSITIVE_FILE = ".publication-sensitive-patterns";
 const MAX_PATTERN_DOCUMENT_BYTES = 1024 * 1024;
 const MAX_PATTERN_COUNT = 128;
 const MAX_PATTERN_BYTES = 4096;
@@ -17,21 +17,21 @@ const MAX_TOTAL_PATTERN_BYTES = 64 * 1024;
 export class PublicationPolicyError extends Error {
   constructor(ruleId) {
     super(`Publication policy failed: ${ruleId}`);
-    this.name = 'PublicationPolicyError';
+    this.name = "PublicationPolicyError";
     this.ruleId = ruleId;
   }
 }
 
 function isInside(root, candidate) {
   const path = relative(root, candidate);
-  return path === '' || (!path.startsWith(`..${sep}`) && path !== '..' && !isAbsolute(path));
+  return path === "" || (!path.startsWith(`..${sep}`) && path !== ".." && !isAbsolute(path));
 }
 
 async function gitStatus(root, args) {
   try {
-    const { stdout } = await execFileAsync('git', args, {
+    const { stdout } = await execFileAsync("git", args, {
       cwd: root,
-      encoding: 'buffer',
+      encoding: "buffer",
       maxBuffer: 16 * 1024 * 1024,
       env: buildGitEnvironment(),
     });
@@ -43,30 +43,31 @@ async function gitStatus(root, args) {
 
 function parsePatternDocument(bytes) {
   if (bytes.length > MAX_PATTERN_DOCUMENT_BYTES) {
-    throw new PublicationPolicyError('sensitive-input-too-large');
+    throw new PublicationPolicyError("sensitive-input-too-large");
   }
   let value;
   try {
-    value = JSON.parse(bytes.toString('utf8'));
+    value = JSON.parse(bytes.toString("utf8"));
   } catch {
-    throw new PublicationPolicyError('sensitive-input-invalid');
+    throw new PublicationPolicyError("sensitive-input-invalid");
   }
   if (
     !Array.isArray(value) ||
     value.length === 0 ||
     value.length > MAX_PATTERN_COUNT ||
-    value.some((item) => (
-      typeof item !== 'string' ||
-      Buffer.byteLength(item) === 0 ||
-      Buffer.byteLength(item) > MAX_PATTERN_BYTES
-    ))
+    value.some(
+      (item) =>
+        typeof item !== "string" ||
+        Buffer.byteLength(item) === 0 ||
+        Buffer.byteLength(item) > MAX_PATTERN_BYTES,
+    )
   ) {
-    throw new PublicationPolicyError('sensitive-input-invalid');
+    throw new PublicationPolicyError("sensitive-input-invalid");
   }
   if (value.reduce((total, item) => total + Buffer.byteLength(item), 0) > MAX_TOTAL_PATTERN_BYTES) {
-    throw new PublicationPolicyError('sensitive-input-too-large');
+    throw new PublicationPolicyError("sensitive-input-too-large");
   }
-  return value.map((item) => ({ ruleId: 'private-source-pattern', bytes: Buffer.from(item) }));
+  return value.map((item) => ({ ruleId: "private-source-pattern", bytes: Buffer.from(item) }));
 }
 
 /**
@@ -77,12 +78,14 @@ export async function loadExactPatterns({ root, env = process.env, sensitiveFile
   try {
     physicalRoot = await realpath(resolve(root ?? process.cwd()));
   } catch {
-    throw new PublicationPolicyError('sensitive-input-inspection-failed');
+    throw new PublicationPolicyError("sensitive-input-inspection-failed");
   }
 
   const patterns = [];
-  if (Object.hasOwn(env, 'PUBLICATION_SENSITIVE_PATTERNS_JSON')) {
-    patterns.push(...parsePatternDocument(Buffer.from(env.PUBLICATION_SENSITIVE_PATTERNS_JSON ?? '')));
+  if (Object.hasOwn(env, "PUBLICATION_SENSITIVE_PATTERNS_JSON")) {
+    patterns.push(
+      ...parsePatternDocument(Buffer.from(env.PUBLICATION_SENSITIVE_PATTERNS_JSON ?? "")),
+    );
   }
 
   const selected = resolve(physicalRoot, sensitiveFile ?? DEFAULT_SENSITIVE_FILE);
@@ -90,26 +93,37 @@ export async function loadExactPatterns({ root, env = process.env, sensitiveFile
   try {
     selectedInfo = await lstat(selected);
   } catch (error) {
-    if (error?.code === 'ENOENT' && !sensitiveFile) return patterns;
-    throw new PublicationPolicyError('sensitive-input-inspection-failed');
+    if (error?.code === "ENOENT" && !sensitiveFile) return patterns;
+    throw new PublicationPolicyError("sensitive-input-inspection-failed");
   }
   if (!selectedInfo.isFile() || selectedInfo.isSymbolicLink()) {
-    throw new PublicationPolicyError('sensitive-input-inspection-failed');
+    throw new PublicationPolicyError("sensitive-input-inspection-failed");
   }
   let physicalFile;
   try {
     physicalFile = await realpath(selected);
   } catch {
-    throw new PublicationPolicyError('sensitive-input-inspection-failed');
+    throw new PublicationPolicyError("sensitive-input-inspection-failed");
   }
 
   if (isInside(physicalRoot, physicalFile)) {
-    const relativeFile = relative(physicalRoot, physicalFile).split(sep).join('/');
-    const ignored = await gitStatus(physicalRoot, ['check-ignore', '-q', '--', relativeFile]);
-    const indexed = await gitStatus(physicalRoot, ['ls-files', '--error-unmatch', '--', relativeFile]);
-    const staged = await gitStatus(physicalRoot, ['diff', '--cached', '--quiet', '--', relativeFile]);
+    const relativeFile = relative(physicalRoot, physicalFile).split(sep).join("/");
+    const ignored = await gitStatus(physicalRoot, ["check-ignore", "-q", "--", relativeFile]);
+    const indexed = await gitStatus(physicalRoot, [
+      "ls-files",
+      "--error-unmatch",
+      "--",
+      relativeFile,
+    ]);
+    const staged = await gitStatus(physicalRoot, [
+      "diff",
+      "--cached",
+      "--quiet",
+      "--",
+      relativeFile,
+    ]);
     if (!ignored.ok || indexed.ok || !staged.ok) {
-      throw new PublicationPolicyError('sensitive-input-unsafe');
+      throw new PublicationPolicyError("sensitive-input-unsafe");
     }
   }
 
@@ -120,7 +134,7 @@ export async function loadExactPatterns({ root, env = process.env, sensitiveFile
     patterns.push(...parsePatternDocument(bytes));
     const seen = new Set();
     const deduplicated = patterns.filter(({ bytes }) => {
-      const key = bytes.toString('base64');
+      const key = bytes.toString("base64");
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -129,15 +143,15 @@ export async function loadExactPatterns({ root, env = process.env, sensitiveFile
       deduplicated.length > MAX_PATTERN_COUNT ||
       deduplicated.reduce((total, { bytes }) => total + bytes.length, 0) > MAX_TOTAL_PATTERN_BYTES
     ) {
-      throw new PublicationPolicyError('sensitive-input-too-large');
+      throw new PublicationPolicyError("sensitive-input-too-large");
     }
     return deduplicated;
   } catch (error) {
     if (error instanceof PublicationPolicyError) throw error;
-    if (error instanceof SafeFileError && error.ruleId === 'input-too-large') {
-      throw new PublicationPolicyError('sensitive-input-too-large');
+    if (error instanceof SafeFileError && error.ruleId === "input-too-large") {
+      throw new PublicationPolicyError("sensitive-input-too-large");
     }
-    throw new PublicationPolicyError('sensitive-input-inspection-failed');
+    throw new PublicationPolicyError("sensitive-input-inspection-failed");
   }
 }
 
@@ -150,7 +164,11 @@ export function formatFinding({ ruleId, surface, location, objectType, objectId 
     surface,
     safeLocation: objectId
       ? `object:${objectId}`
-      : `sha256:${createHash('sha256').update(surface).update(Buffer.from([0])).update(location).digest('hex')}`,
+      : `sha256:${createHash("sha256")
+          .update(surface)
+          .update(Buffer.from([0]))
+          .update(location)
+          .digest("hex")}`,
   };
   if (objectType) finding.objectType = objectType;
   return finding;
@@ -173,11 +191,11 @@ export async function loadPublicationPolicy(options = {}) {
       /ya29\.[0-9A-Za-z_-]{20,}/g,
       /1\/\/[0-9A-Za-z_-]{30,}/g,
       /GOCSPX-[0-9A-Za-z_-]{20,}/g,
-      /authorization\s*:\s*bearer\s+[0-9A-Za-z._~+\/-]{16,}={0,2}/gi,
+      /authorization\s*:\s*bearer\s+[0-9A-Za-z._~+/-]{16,}={0,2}/gi,
       /AKIA[A-Z0-9]{16}/g,
       /(?:api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password)\s*[:=]\s*["']?[A-Za-z0-9_./+=-]{16,}/gi,
       /(?:cookie|session(?:_?token|_?id)?)\s*[:=]\s*["']?[^\s"';]{16,}/gi,
-      new RegExp(['-----BEGIN ', '(?:[A-Z0-9]+ )*', 'PRIVATE KEY', '-----'].join(''), 'g'),
+      new RegExp(["-----BEGIN ", "(?:[A-Z0-9]+ )*", "PRIVATE KEY", "-----"].join(""), "g"),
     ]),
     maximumBytes: 64 * 1024 * 1024,
   });

@@ -20,12 +20,14 @@ describe("data page source contract", () => {
     expect(page).toContain("model.groups.map");
     expect(page).toContain("Named thermal tests are not directly interchangeable");
     expect(page).toContain("methodHref");
-    expect(page).toMatch(/<noscript>/u);
+    expect(page).toMatch(/<noscript\b/u);
   });
 
   it("imports only local styles and performs no runtime request or raw HTML rendering", () => {
-    expect(page).toContain('../../styles/data-explorer.css');
-    expect(page).not.toMatch(/fetch\s*\(|XMLHttpRequest|dangerouslySetInnerHTML|set:html|https?:\/\//u);
+    expect(page).toContain("../../styles/data-explorer.css");
+    expect(page).not.toMatch(
+      /fetch\s*\(|XMLHttpRequest|dangerouslySetInnerHTML|set:html|https?:\/\//u,
+    );
   });
 
   it("keeps dense data overflow local and preserves an explicit responsive record alternative", () => {

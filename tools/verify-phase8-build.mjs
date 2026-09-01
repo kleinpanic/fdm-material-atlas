@@ -17,14 +17,31 @@ const MAX_PROJECTION_GZIP = 8 * 1024;
 const MAX_ROUTE_GZIP = 120 * 1024;
 const MAX_VISUALIZATION_MODULE_GZIP = 30 * 1024;
 const REQUEST_PATTERN = /\b(?:fetch|XMLHttpRequest|EventSource|WebSocket)\s*\(/u;
-const MAP_MODES = Object.freeze(["decision-paths", "thermal-ranges", "process-gates", "impact-flex-space"]);
+const MAP_MODES = Object.freeze([
+  "decision-paths",
+  "thermal-ranges",
+  "process-gates",
+  "impact-flex-space",
+]);
 const LANE_IDS = Object.freeze([
-  "lane-easy-prototypes", "lane-outdoor", "lane-impact-flex", "lane-chemical-exposure",
-  "lane-high-heat-sustained-load", "lane-industrial", "lane-decorative-fills", "lane-support-materials",
+  "lane-easy-prototypes",
+  "lane-outdoor",
+  "lane-impact-flex",
+  "lane-chemical-exposure",
+  "lane-high-heat-sustained-load",
+  "lane-industrial",
+  "lane-decorative-fills",
+  "lane-support-materials",
 ]);
 const LANE_LABELS = Object.freeze([
-  "Easy prototypes", "Outdoor", "Impact and flex", "Chemical exposure",
-  "High heat and sustained load", "Industrial", "Decorative fills", "Support materials",
+  "Easy prototypes",
+  "Outdoor",
+  "Impact and flex",
+  "Chemical exposure",
+  "High heat and sustained load",
+  "Industrial",
+  "Decorative fills",
+  "Support materials",
 ]);
 const STATIC_ALTERNATIVES = Object.freeze([
   "Decision paths",
@@ -34,8 +51,19 @@ const STATIC_ALTERNATIVES = Object.freeze([
   "All materials in categorical order",
 ]);
 const PROHIBITED_KEYS = new Set([
-  "atlas", "sources", "sourceLedger", "methods", "rules", "ruleRegistry", "claims", "profiles",
-  "sourceMetadata", "privateMetadata", "operationalMetadata", "workbook", "spreadsheet",
+  "atlas",
+  "sources",
+  "sourceLedger",
+  "methods",
+  "rules",
+  "ruleRegistry",
+  "claims",
+  "profiles",
+  "sourceMetadata",
+  "privateMetadata",
+  "operationalMetadata",
+  "workbook",
+  "spreadsheet",
 ]);
 
 export class Phase8BuildError extends Error {
@@ -59,9 +87,15 @@ function digest(value) {
 }
 
 function decodeAttribute(value) {
-  return value.replaceAll("&quot;", '"').replaceAll("&#34;", '"').replaceAll("&#x22;", '"')
-    .replaceAll("&#39;", "'").replaceAll("&#x27;", "'").replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">").replaceAll("&amp;", "&");
+  return value
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#34;", '"')
+    .replaceAll("&#x22;", '"')
+    .replaceAll("&#39;", "'")
+    .replaceAll("&#x27;", "'")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&amp;", "&");
 }
 
 function attributes(tag) {
@@ -74,18 +108,32 @@ function attributes(tag) {
 
 function reviveAstro(value) {
   const handlers = {
-    0: (item) => reviveObject(item), 1: (item) => item.map(reviveTuple), 2: (item) => new RegExp(item),
-    3: (item) => new Date(item), 4: (item) => new Map(item.map(reviveTuple)), 5: (item) => new Set(item.map(reviveTuple)),
-    6: (item) => BigInt(item), 7: (item) => new URL(item), 8: (item) => new Uint8Array(item),
-    9: (item) => new Uint16Array(item), 10: (item) => new Uint32Array(item), 11: (item) => Number.POSITIVE_INFINITY * item,
+    0: (item) => reviveObject(item),
+    1: (item) => item.map(reviveTuple),
+    2: (item) => new RegExp(item),
+    3: (item) => new Date(item),
+    4: (item) => new Map(item.map(reviveTuple)),
+    5: (item) => new Set(item.map(reviveTuple)),
+    6: (item) => BigInt(item),
+    7: (item) => new URL(item),
+    8: (item) => new Uint8Array(item),
+    9: (item) => new Uint16Array(item),
+    10: (item) => new Uint32Array(item),
+    11: (item) => Number.POSITIVE_INFINITY * item,
   };
   function reviveTuple(tuple) {
-    return Array.isArray(tuple) && tuple.length === 2 && Number.isInteger(tuple[0]) && tuple[0] in handlers
-      ? handlers[tuple[0]](tuple[1]) : tuple;
+    return Array.isArray(tuple) &&
+      tuple.length === 2 &&
+      Number.isInteger(tuple[0]) &&
+      tuple[0] in handlers
+      ? handlers[tuple[0]](tuple[1])
+      : tuple;
   }
   function reviveObject(item) {
     if (typeof item !== "object" || item === null || Array.isArray(item)) return item;
-    return Object.fromEntries(Object.entries(item).map(([key, child]) => [key, reviveTuple(child)]));
+    return Object.fromEntries(
+      Object.entries(item).map(([key, child]) => [key, reviveTuple(child)]),
+    );
   }
   return reviveObject(value);
 }
@@ -93,8 +141,12 @@ function reviveAstro(value) {
 function parseProps(serialized) {
   try {
     const parsed = JSON.parse(serialized);
-    const encoded = typeof parsed === "object" && parsed !== null
-      && Object.values(parsed).some((value) => Array.isArray(value) && value.length === 2 && Number.isInteger(value[0]));
+    const encoded =
+      typeof parsed === "object" &&
+      parsed !== null &&
+      Object.values(parsed).some(
+        (value) => Array.isArray(value) && value.length === 2 && Number.isInteger(value[0]),
+      );
     return encoded ? reviveAstro(parsed) : parsed;
   } catch {
     fail("PROPS_INVALID");
@@ -104,7 +156,12 @@ function parseProps(serialized) {
 async function collectFiles(root) {
   const absolute = resolve(root);
   const literal = await lstat(absolute).catch(() => fail("OUTPUT_MISSING"));
-  if (!literal.isDirectory() || literal.isSymbolicLink() || await realpath(absolute).catch(() => "") !== absolute) fail("OUTPUT_INVALID");
+  if (
+    !literal.isDirectory() ||
+    literal.isSymbolicLink() ||
+    (await realpath(absolute).catch(() => "")) !== absolute
+  )
+    fail("OUTPUT_INVALID");
   const files = new Map();
   async function walk(directory) {
     const stream = await opendir(directory).catch(() => fail("OUTPUT_INVALID"));
@@ -128,9 +185,14 @@ async function collectFiles(root) {
 
 function localFile(raw, mode, currentRoute, files, code = "MAP_LINK_INVALID") {
   if (raw === "" || raw.startsWith("#") || raw.startsWith("data:")) return undefined;
-  if (/^(?:javascript|file|blob):/iu.test(raw) || raw.startsWith("//")) fail("UNSAFE_HREF_FORBIDDEN");
+  if (/^(?:javascript|file|blob):/iu.test(raw) || raw.startsWith("//"))
+    fail("UNSAFE_HREF_FORBIDDEN");
   let url;
-  try { url = new URL(raw, `${ORIGIN}${posix.join(mode.base, currentRoute.slice(1))}`); } catch { fail(code); }
+  try {
+    url = new URL(raw, `${ORIGIN}${posix.join(mode.base, currentRoute.slice(1))}`);
+  } catch {
+    fail(code);
+  }
   if (url.origin !== ORIGIN) {
     if (url.protocol === "https:") return undefined;
     fail("UNSAFE_HREF_FORBIDDEN");
@@ -138,8 +200,13 @@ function localFile(raw, mode, currentRoute, files, code = "MAP_LINK_INVALID") {
   if (url.search !== "" || (mode.base !== "/" && !url.pathname.startsWith(mode.base))) fail(code);
   if (mode.base === "/" && url.pathname.startsWith("/atlas-preview/")) fail(code);
   let logical;
-  try { logical = decodeURIComponent(url.pathname.slice(mode.base === "/" ? 1 : mode.base.length)); } catch { fail(code); }
-  if (logical.includes("\\") || logical.split("/").some((part) => part === "." || part === "..")) fail("UNSAFE_HREF_FORBIDDEN");
+  try {
+    logical = decodeURIComponent(url.pathname.slice(mode.base === "/" ? 1 : mode.base.length));
+  } catch {
+    fail(code);
+  }
+  if (logical.includes("\\") || logical.split("/").some((part) => part === "." || part === ".."))
+    fail("UNSAFE_HREF_FORBIDDEN");
   const candidate = logical === "" || logical.endsWith("/") ? `${logical}index.html` : logical;
   if (!files.has(candidate)) fail(code);
   return candidate;
@@ -151,7 +218,8 @@ function imports(source) {
     /\bimport\s*["']([^"']+)["']/gu,
     /\b(?:import|export)\s*[\w*$,\s{}]+\bfrom\s*["']([^"']+)["']/gu,
     /\bimport\s*\(\s*["']([^"']+)["']\s*\)/gu,
-  ]) for (const match of source.matchAll(pattern)) values.push(match[1]);
+  ])
+    for (const match of source.matchAll(pattern)) values.push(match[1]);
   return values;
 }
 
@@ -169,7 +237,8 @@ async function reachableJavaScript(entryNames, files, exactPatterns) {
     const bytes = await readFile(record.path).catch(() => fail("OUTPUT_READ_FAILED"));
     const source = bytes.toString("utf8");
     if (REQUEST_PATTERN.test(source)) fail("CLIENT_REQUEST_FORBIDDEN");
-    if (exactPatterns.some((pattern) => pattern !== "" && source.includes(pattern))) fail("CLIENT_PRIVATE_PATTERN_FORBIDDEN");
+    if (exactPatterns.some((pattern) => pattern !== "" && source.includes(pattern)))
+      fail("CLIENT_PRIVATE_PATTERN_FORBIDDEN");
     const compressed = gzipSync(bytes).length;
     gzipBytes += compressed;
     largestModuleGzipBytes = Math.max(largestModuleGzipBytes, compressed);
@@ -186,13 +255,15 @@ async function reachableJavaScript(entryNames, files, exactPatterns) {
 function inspectProjection(value, exactPatterns, mode, files, allowedFragments, seen = new Set()) {
   if (typeof value === "string") {
     if (value.includes("<") || value.includes(">")) fail("UNESCAPED_MARKUP_FORBIDDEN");
-    if (exactPatterns.some((pattern) => pattern !== "" && value.includes(pattern))) fail("CLIENT_PRIVATE_PATTERN_FORBIDDEN");
+    if (exactPatterns.some((pattern) => pattern !== "" && value.includes(pattern)))
+      fail("CLIENT_PRIVATE_PATTERN_FORBIDDEN");
     return;
   }
   if (typeof value !== "object" || value === null || seen.has(value)) return;
   seen.add(value);
   if (Array.isArray(value) || value instanceof Set) {
-    for (const child of value) inspectProjection(child, exactPatterns, mode, files, allowedFragments, seen);
+    for (const child of value)
+      inspectProjection(child, exactPatterns, mode, files, allowedFragments, seen);
     return;
   }
   if (value instanceof Map) {
@@ -221,24 +292,37 @@ function assertArray(value, count, code) {
 }
 
 function assertProjectionContract(projection, mode, files, exactPatterns) {
-  if (typeof projection !== "object" || projection === null || Array.isArray(projection)) fail("MAP_PROJECTION_INVALID");
+  if (typeof projection !== "object" || projection === null || Array.isArray(projection))
+    fail("MAP_PROJECTION_INVALID");
   assertArray(projection.lanes, 8, "MAP_LANE_COUNT_INVALID");
-  if (projection.lanes.map(({ id }) => id).join("\0") !== LANE_IDS.join("\0")) fail("MAP_LANE_COUNT_INVALID");
+  if (projection.lanes.map(({ id }) => id).join("\0") !== LANE_IDS.join("\0"))
+    fail("MAP_LANE_COUNT_INVALID");
   const gateIds = projection.processGates?.gates?.map(({ id }) => id);
   assertArray(gateIds, 8, "MAP_GATE_COUNT_INVALID");
   const allowedFragments = new Set(["main-content", ...MAP_MODES, ...LANE_IDS, ...gateIds]);
   assertArray(projection.serviceGuidance?.records, 23, "MAP_PROJECTION_PARITY_INVALID");
   assertArray(projection.thermalGroups, 8, "MAP_PROJECTION_PARITY_INVALID");
-  for (const group of projection.thermalGroups) assertArray(group.records, 23, "MAP_PROJECTION_PARITY_INVALID");
+  for (const group of projection.thermalGroups)
+    assertArray(group.records, 23, "MAP_PROJECTION_PARITY_INVALID");
   assertArray(projection.processGates?.lanes, 8, "MAP_PROJECTION_PARITY_INVALID");
   assertArray(projection.processGates?.relationships, 64, "MAP_PROJECTION_PARITY_INVALID");
   assertArray(projection.impactFlex?.records, 23, "MAP_PROJECTION_PARITY_INVALID");
-  if (Object.keys(projection.modeFragments ?? {}).sort().join("\0") !== [...MAP_MODES].sort().join("\0")) fail("MAP_FRAGMENT_MISSING");
+  if (
+    Object.keys(projection.modeFragments ?? {})
+      .sort()
+      .join("\0") !== [...MAP_MODES].sort().join("\0")
+  )
+    fail("MAP_FRAGMENT_MISSING");
   const prefix = mode.base === "/" ? "" : mode.base.slice(0, -1);
-  for (const id of MAP_MODES) if (projection.modeFragments[id] !== `${prefix}/map/#${id}`) fail("MAP_FRAGMENT_MISSING");
-  for (const lane of projection.lanes) if (lane.href !== `${prefix}/map/#${lane.id}`) fail("MAP_FRAGMENT_MISSING");
+  for (const id of MAP_MODES)
+    if (projection.modeFragments[id] !== `${prefix}/map/#${id}`) fail("MAP_FRAGMENT_MISSING");
+  for (const lane of projection.lanes)
+    if (lane.href !== `${prefix}/map/#${lane.id}`) fail("MAP_FRAGMENT_MISSING");
   inspectProjection(projection, exactPatterns, mode, files, allowedFragments);
-  return { allowedFragments, projectionGzipBytes: gzipSync(Buffer.from(JSON.stringify(projection))).length };
+  return {
+    allowedFragments,
+    projectionGzipBytes: gzipSync(Buffer.from(JSON.stringify(projection))).length,
+  };
 }
 
 function islandRecords(html) {
@@ -261,26 +345,40 @@ function assertExactFragmentTargets(html, allowedFragments) {
 }
 
 async function inspectMap(mode, files, exactPatterns) {
-  const html = await readFile(files.get("map/index.html")?.path ?? "", "utf8").catch(() => fail("MAP_ROUTE_MISSING"));
-  if (exactPatterns.some((pattern) => pattern !== "" && html.includes(pattern))) fail("CLIENT_PRIVATE_PATTERN_FORBIDDEN");
-  const canonical = [...html.matchAll(/<link\b[^>]*\brel=["']canonical["'][^>]*\bhref=["']([^"']+)["'][^>]*>/giu)];
+  const html = await readFile(files.get("map/index.html")?.path ?? "", "utf8").catch(() =>
+    fail("MAP_ROUTE_MISSING"),
+  );
+  if (exactPatterns.some((pattern) => pattern !== "" && html.includes(pattern)))
+    fail("CLIENT_PRIVATE_PATTERN_FORBIDDEN");
+  const canonical = [
+    ...html.matchAll(/<link\b[^>]*\brel=["']canonical["'][^>]*\bhref=["']([^"']+)["'][^>]*>/giu),
+  ];
   const prefix = mode.base === "/" ? "" : mode.base.slice(0, -1);
-  if (canonical.length !== 1 || canonical[0][1] !== `${ORIGIN}${prefix}/map/`) fail("MAP_CANONICAL_INVALID");
+  if (canonical.length !== 1 || canonical[0][1] !== `${ORIGIN}${prefix}/map/`)
+    fail("MAP_CANONICAL_INVALID");
   const islands = islandRecords(html);
   if (islands.length !== 1) fail("MAP_ISLAND_COUNT_INVALID");
   const island = islands[0];
-  if (!island.opening.includes(" ssr") || island.attrs.get("client") !== "visible" || island.attrs.get("component-export") !== "MapExplorerIsland") fail("MAP_ISLAND_CONTRACT_INVALID");
+  if (
+    !island.opening.includes(" ssr") ||
+    island.attrs.get("client") !== "visible" ||
+    island.attrs.get("component-export") !== "MapExplorerIsland"
+  )
+    fail("MAP_ISLAND_CONTRACT_INVALID");
   const serialized = island.attrs.get("props");
   if (serialized === undefined) fail("PROPS_INVALID");
   const props = parseProps(serialized);
-  if (typeof props !== "object" || props === null || Object.keys(props).join("\0") !== "projection") fail("PROPS_INVALID");
+  if (typeof props !== "object" || props === null || Object.keys(props).join("\0") !== "projection")
+    fail("PROPS_INVALID");
   const contract = assertProjectionContract(props.projection, mode, files, exactPatterns);
   assertExactFragmentTargets(html, contract.allowedFragments);
   if (contract.projectionGzipBytes > MAX_PROJECTION_GZIP) fail("MAP_PROJECTION_BUDGET_EXCEEDED");
-  for (const copy of STATIC_ALTERNATIVES) if (!island.complete.includes(copy)) fail("MAP_STATIC_ALTERNATIVE_MISSING");
+  for (const copy of STATIC_ALTERNATIVES)
+    if (!island.complete.includes(copy)) fail("MAP_STATIC_ALTERNATIVE_MISSING");
   for (const fragment of [...MAP_MODES, ...LANE_IDS]) {
     const target = `${prefix}/map/#${fragment}`;
-    if (!html.includes(`href="${target}"`) && !html.includes(`href='${target}'`)) fail("MAP_FRAGMENT_MISSING");
+    if (!html.includes(`href="${target}"`) && !html.includes(`href='${target}'`))
+      fail("MAP_FRAGMENT_MISSING");
   }
   for (const match of html.matchAll(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')/giu)) {
     const href = decodeAttribute(match[1] ?? match[2] ?? "");
@@ -291,37 +389,83 @@ async function inspectMap(mode, files, exactPatterns) {
     }
     localFile(href, mode, "/map/", files);
   }
-  const component = localFile(island.attrs.get("component-url") ?? "", mode, "/map/", files, "CLIENT_REFERENCE_INVALID");
-  const renderer = localFile(island.attrs.get("renderer-url") ?? "", mode, "/map/", files, "CLIENT_REFERENCE_INVALID");
+  const component = localFile(
+    island.attrs.get("component-url") ?? "",
+    mode,
+    "/map/",
+    files,
+    "CLIENT_REFERENCE_INVALID",
+  );
+  const renderer = localFile(
+    island.attrs.get("renderer-url") ?? "",
+    mode,
+    "/map/",
+    files,
+    "CLIENT_REFERENCE_INVALID",
+  );
   const graph = await reachableJavaScript([component, renderer], files, exactPatterns);
   const rendererGraph = await reachableJavaScript([renderer], files, exactPatterns);
   const totalGzipBytes = graph.gzipBytes + gzipSync(Buffer.from(serialized)).length;
   if (totalGzipBytes > MAX_ROUTE_GZIP) fail("MAP_ROUTE_BUDGET_EXCEEDED");
-  if (graph.largestModuleGzipBytes > MAX_VISUALIZATION_MODULE_GZIP) fail("MAP_MODULE_BUDGET_EXCEEDED");
-  return { html, projection: props.projection, projectionGzipBytes: contract.projectionGzipBytes, totalGzipBytes, javascriptCount: graph.names.size, graph: graph.names, component, rendererGraph: rendererGraph.names };
+  if (graph.largestModuleGzipBytes > MAX_VISUALIZATION_MODULE_GZIP)
+    fail("MAP_MODULE_BUDGET_EXCEEDED");
+  return {
+    html,
+    projection: props.projection,
+    projectionGzipBytes: contract.projectionGzipBytes,
+    totalGzipBytes,
+    javascriptCount: graph.names.size,
+    graph: graph.names,
+    component,
+    rendererGraph: rendererGraph.names,
+  };
 }
 
 async function inspectSelectorStage(mode, files, stage, exactPatterns) {
-  const html = await readFile(files.get("index.html")?.path ?? "", "utf8").catch(() => fail("SELECTOR_ROUTE_MISSING"));
-  const island = islandRecords(html).find(({ attrs }) => attrs.get("component-export") === "SelectorIsland");
+  const html = await readFile(files.get("index.html")?.path ?? "", "utf8").catch(() =>
+    fail("SELECTOR_ROUTE_MISSING"),
+  );
+  const island = islandRecords(html).find(
+    ({ attrs }) => attrs.get("component-export") === "SelectorIsland",
+  );
   if (!island) fail("SELECTOR_MODEL_MISSING");
   const serialized = island.attrs.get("props");
   if (serialized === undefined) fail("SELECTOR_MODEL_MISSING");
-  if (exactPatterns.some((pattern) => pattern !== "" && serialized.includes(pattern))) fail("CLIENT_PRIVATE_PATTERN_FORBIDDEN");
+  if (exactPatterns.some((pattern) => pattern !== "" && serialized.includes(pattern)))
+    fail("CLIENT_PRIVATE_PATTERN_FORBIDDEN");
   parseProps(serialized);
-  if (!serialized.includes("decisionMaps") || !serialized.includes("decisionMapFallback")) fail("SELECTOR_MODEL_MISSING");
+  if (!serialized.includes("decisionMaps") || !serialized.includes("decisionMapFallback"))
+    fail("SELECTOR_MODEL_MISSING");
   if (stage === "pre-activation") {
-    if (serialized.includes("/map/#lane-") || serialized.includes("Open material decision map") || !island.complete.includes("Decision map is not available yet")) fail("SELECTOR_ACTIVATED_TOO_EARLY");
+    if (
+      serialized.includes("/map/#lane-") ||
+      serialized.includes("Open material decision map") ||
+      !island.complete.includes("Decision map is not available yet")
+    )
+      fail("SELECTOR_ACTIVATED_TOO_EARLY");
   } else {
     if (
-      !LANE_IDS.every((laneId) => serialized.includes(`/map/#${laneId}`))
-      || !LANE_LABELS.every((label) => serialized.includes(`Open ${label} decision path`))
-    ) fail("SELECTOR_ACTIVATION_MISSING");
+      !LANE_IDS.every((laneId) => serialized.includes(`/map/#${laneId}`)) ||
+      !LANE_LABELS.every((label) => serialized.includes(`Open ${label} decision path`))
+    )
+      fail("SELECTOR_ACTIVATION_MISSING");
   }
   const entries = [];
   for (const record of islandRecords(html)) {
-    const component = localFile(record.attrs.get("component-url") ?? "", mode, "/", files, "CLIENT_REFERENCE_INVALID");
-    const renderer = localFile(record.attrs.get("renderer-url") ?? "", mode, "/", files, "CLIENT_REFERENCE_INVALID");
+    const component = localFile(
+      record.attrs.get("component-url") ?? "",
+      mode,
+      "/",
+      files,
+      "CLIENT_REFERENCE_INVALID",
+    );
+    const renderer = localFile(
+      record.attrs.get("renderer-url") ?? "",
+      mode,
+      "/",
+      files,
+      "CLIENT_REFERENCE_INVALID",
+    );
     entries.push(component, renderer);
   }
   return await reachableJavaScript(entries, files, exactPatterns);
@@ -329,11 +473,29 @@ async function inspectSelectorStage(mode, files, stage, exactPatterns) {
 
 async function inspectOtherRoutes(mode, files, exactPatterns, forbiddenGraph) {
   for (const route of ["materials", "compare", "data"]) {
-    const html = await readFile(files.get(`${route}/index.html`)?.path ?? "", "utf8").catch(() => fail("ROUTE_SCOPE_PROOF_MISSING"));
-    if (html.includes("MapExplorerIsland") || MAP_MODES.some((modeId) => html.includes(`data-active-map-section=\"${modeId}\"`))) fail("ROUTE_SCOPE_VIOLATION");
+    const html = await readFile(files.get(`${route}/index.html`)?.path ?? "", "utf8").catch(() =>
+      fail("ROUTE_SCOPE_PROOF_MISSING"),
+    );
+    if (
+      html.includes("MapExplorerIsland") ||
+      MAP_MODES.some((modeId) => html.includes(`data-active-map-section="${modeId}"`))
+    )
+      fail("ROUTE_SCOPE_VIOLATION");
     for (const island of islandRecords(html)) {
-      const component = localFile(island.attrs.get("component-url") ?? "", mode, `/${route}/`, files, "CLIENT_REFERENCE_INVALID");
-      const renderer = localFile(island.attrs.get("renderer-url") ?? "", mode, `/${route}/`, files, "CLIENT_REFERENCE_INVALID");
+      const component = localFile(
+        island.attrs.get("component-url") ?? "",
+        mode,
+        `/${route}/`,
+        files,
+        "CLIENT_REFERENCE_INVALID",
+      );
+      const renderer = localFile(
+        island.attrs.get("renderer-url") ?? "",
+        mode,
+        `/${route}/`,
+        files,
+        "CLIENT_REFERENCE_INVALID",
+      );
       const graph = await reachableJavaScript([component, renderer], files, exactPatterns);
       for (const name of graph.names) if (forbiddenGraph.has(name)) fail("ROUTE_SCOPE_VIOLATION");
     }
@@ -348,7 +510,10 @@ function normalizeProjection(value, base) {
 async function artifactDigest(files) {
   const hash = createHash("sha256");
   for (const name of [...files.keys()].sort()) {
-    hash.update(name); hash.update("\0"); hash.update(await readFile(files.get(name).path)); hash.update("\0");
+    hash.update(name);
+    hash.update("\0");
+    hash.update(await readFile(files.get(name).path));
+    hash.update("\0");
   }
   return hash.digest("hex");
 }
@@ -356,10 +521,22 @@ async function artifactDigest(files) {
 async function scanBoundedPublication(rootOutput, repositoryOutput, sensitiveFile) {
   let policy;
   try {
-    policy = await loadPublicationPolicy({ root: PROJECT_ROOT, ...(sensitiveFile ? { sensitiveFile } : {}), env: process.env });
-  } catch { fail("SENSITIVE_INPUT_INVALID"); }
-  for (const selected of [{ mode: "working" }, { mode: "artifact", artifactPath: rootOutput }, { mode: "artifact", artifactPath: repositoryOutput }]) {
-    const report = await scanPublication({ root: PROJECT_ROOT, policy, ...selected }).catch(() => fail("PUBLICATION_SCAN_FAILED"));
+    policy = await loadPublicationPolicy({
+      root: PROJECT_ROOT,
+      ...(sensitiveFile ? { sensitiveFile } : {}),
+      env: process.env,
+    });
+  } catch {
+    fail("SENSITIVE_INPUT_INVALID");
+  }
+  for (const selected of [
+    { mode: "working" },
+    { mode: "artifact", artifactPath: rootOutput },
+    { mode: "artifact", artifactPath: repositoryOutput },
+  ]) {
+    const report = await scanPublication({ root: PROJECT_ROOT, policy, ...selected }).catch(() =>
+      fail("PUBLICATION_SCAN_FAILED"),
+    );
     if (report.findingCount !== 0) fail("PUBLICATION_SCAN_FAILED");
   }
 }
@@ -369,19 +546,27 @@ export function assertRegistryStage(registrySource, stage) {
   const closed = /decisionMaps\s*:\s*Object\.freeze\(\[\]\)/u.test(registrySource);
   if (stage === "pre-activation" && !closed) fail("REGISTRY_ACTIVATED_TOO_EARLY");
   if (stage === "final") {
-    if (closed || /\ballDecisionMaps\s*:/u.test(registrySource)) fail("REGISTRY_ACTIVATION_MISSING");
+    if (closed || /\ballDecisionMaps\s*:/u.test(registrySource))
+      fail("REGISTRY_ACTIVATION_MISSING");
     for (const laneId of LANE_IDS) {
       const escaped = laneId.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-      const laneCount = [...registrySource.matchAll(new RegExp(`laneId:\\s*"${escaped}"`, "gu"))].length;
-      const fragmentCount = [...registrySource.matchAll(new RegExp(`fragment:\\s*"${escaped}"`, "gu"))].length;
+      const laneCount = [...registrySource.matchAll(new RegExp(`laneId:\\s*"${escaped}"`, "gu"))]
+        .length;
+      const fragmentCount = [
+        ...registrySource.matchAll(new RegExp(`fragment:\\s*"${escaped}"`, "gu")),
+      ].length;
       if (laneCount !== 1 || fragmentCount !== 1) fail("REGISTRY_ACTIVATION_MISSING");
     }
   }
 }
 
 function sameKeys(value, expected) {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    && JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...expected].sort());
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...expected].sort())
+  );
 }
 
 function validDigest(value) {
@@ -389,24 +574,37 @@ function validDigest(value) {
 }
 
 export function assertPreactivationReceipt(prior, current) {
-  if (!sameKeys(prior, ["schemaVersion", "stage", "artifacts", "digests", "counts", "bytes"])
-      || prior.schemaVersion !== 1 || prior.stage !== "pre-activation"
-      || !sameKeys(prior.digests, ["route", "fragments", "projectionContract"])
-      || !sameKeys(prior.counts, ["routes", "modes", "lanes", "materials"])
-      || JSON.stringify(prior.digests) !== JSON.stringify(current.digests)
-      || JSON.stringify(prior.counts) !== JSON.stringify(current.counts)
-      || !Array.isArray(prior.artifacts) || prior.artifacts.length !== 2
-      || !Array.isArray(prior.bytes) || prior.bytes.length !== 2) fail("PREACTIVATION_RECEIPT_INVALID");
+  if (
+    !sameKeys(prior, ["schemaVersion", "stage", "artifacts", "digests", "counts", "bytes"]) ||
+    prior.schemaVersion !== 1 ||
+    prior.stage !== "pre-activation" ||
+    !sameKeys(prior.digests, ["route", "fragments", "projectionContract"]) ||
+    !sameKeys(prior.counts, ["routes", "modes", "lanes", "materials"]) ||
+    JSON.stringify(prior.digests) !== JSON.stringify(current.digests) ||
+    JSON.stringify(prior.counts) !== JSON.stringify(current.counts) ||
+    !Array.isArray(prior.artifacts) ||
+    prior.artifacts.length !== 2 ||
+    !Array.isArray(prior.bytes) ||
+    prior.bytes.length !== 2
+  )
+    fail("PREACTIVATION_RECEIPT_INVALID");
 
   for (const mode of ["root", "repository"]) {
     const before = prior.artifacts.find((entry) => entry?.mode === mode);
     const after = current.artifacts.find((entry) => entry.mode === mode);
     const byteRecord = prior.bytes.find((entry) => entry?.mode === mode);
-    if (!sameKeys(before, ["mode", "fileCount", "digest"]) || !sameKeys(byteRecord, ["mode", "projectionGzipBytes", "totalGzipBytes"])
-        || !Number.isInteger(before.fileCount) || before.fileCount !== after.fileCount
-        || !validDigest(before.digest) || before.digest === after.digest
-        || !Number.isInteger(byteRecord.projectionGzipBytes) || byteRecord.projectionGzipBytes < 1
-        || !Number.isInteger(byteRecord.totalGzipBytes) || byteRecord.totalGzipBytes < 1) {
+    if (
+      !sameKeys(before, ["mode", "fileCount", "digest"]) ||
+      !sameKeys(byteRecord, ["mode", "projectionGzipBytes", "totalGzipBytes"]) ||
+      !Number.isInteger(before.fileCount) ||
+      before.fileCount !== after.fileCount ||
+      !validDigest(before.digest) ||
+      before.digest === after.digest ||
+      !Number.isInteger(byteRecord.projectionGzipBytes) ||
+      byteRecord.projectionGzipBytes < 1 ||
+      !Number.isInteger(byteRecord.totalGzipBytes) ||
+      byteRecord.totalGzipBytes < 1
+    ) {
       fail("PREACTIVATION_RECEIPT_INVALID");
     }
   }
@@ -422,7 +620,8 @@ function receiptTarget(receiptPath) {
 async function readPreactivationReceipt(receiptPath) {
   const target = receiptTarget(receiptPath);
   const info = await lstat(target).catch(() => fail("PREACTIVATION_RECEIPT_INVALID"));
-  if (!info.isFile() || info.isSymbolicLink() || info.size < 2 || info.size > 64 * 1024) fail("PREACTIVATION_RECEIPT_INVALID");
+  if (!info.isFile() || info.isSymbolicLink() || info.size < 2 || info.size > 64 * 1024)
+    fail("PREACTIVATION_RECEIPT_INVALID");
   try {
     return JSON.parse(await readFile(target, "utf8"));
   } catch {
@@ -452,8 +651,13 @@ async function writeReceipt(receiptPath, receipt) {
  * }} options
  */
 export async function verifyPhase8Build({
-  rootOutput = resolve(PROJECT_ROOT, "dist-test/root"), repositoryOutput = resolve(PROJECT_ROOT, "dist-test/repository"),
-  stage, receiptPath, registrySource, prohibitedExactPatterns, sensitiveFile = process.env.FDM_PUBLICATION_SENSITIVE_FILE,
+  rootOutput = resolve(PROJECT_ROOT, "dist-test/root"),
+  repositoryOutput = resolve(PROJECT_ROOT, "dist-test/repository"),
+  stage,
+  receiptPath,
+  registrySource,
+  prohibitedExactPatterns,
+  sensitiveFile = process.env.FDM_PUBLICATION_SENSITIVE_FILE,
   runPublicationScan = true,
 } = {}) {
   if (stage !== "pre-activation" && stage !== "final") fail("STAGE_INVALID");
@@ -461,12 +665,25 @@ export async function verifyPhase8Build({
   const priorReceipt = stage === "final" ? await readPreactivationReceipt(receiptPath) : undefined;
   if (prohibitedExactPatterns === undefined) {
     try {
-      const loaded = await loadExactPatterns({ root: PROJECT_ROOT, ...(sensitiveFile ? { sensitiveFile } : {}) });
+      const loaded = await loadExactPatterns({
+        root: PROJECT_ROOT,
+        ...(sensitiveFile ? { sensitiveFile } : {}),
+      });
       prohibitedExactPatterns = loaded.map(({ bytes }) => bytes.toString("utf8"));
-    } catch { fail("SENSITIVE_INPUT_INVALID"); }
+    } catch {
+      fail("SENSITIVE_INPUT_INVALID");
+    }
   }
-  if (!Array.isArray(prohibitedExactPatterns) || prohibitedExactPatterns.some((value) => typeof value !== "string")) fail("ARGUMENTS_INVALID");
-  const source = registrySource ?? await readFile(resolve(PROJECT_ROOT, "src/lib/public-route-registry.ts"), "utf8").catch(() => fail("REGISTRY_SOURCE_INVALID"));
+  if (
+    !Array.isArray(prohibitedExactPatterns) ||
+    prohibitedExactPatterns.some((value) => typeof value !== "string")
+  )
+    fail("ARGUMENTS_INVALID");
+  const source =
+    registrySource ??
+    (await readFile(resolve(PROJECT_ROOT, "src/lib/public-route-registry.ts"), "utf8").catch(() =>
+      fail("REGISTRY_SOURCE_INVALID"),
+    ));
   assertRegistryStage(source, stage);
   const modes = [
     { name: "root", base: "/", output: resolve(rootOutput) },
@@ -478,35 +695,75 @@ export async function verifyPhase8Build({
     const map = await inspectMap(mode, files, prohibitedExactPatterns);
     const selectorGraph = await inspectSelectorStage(mode, files, stage, prohibitedExactPatterns);
     const forbiddenGraph = new Set([map.component]);
-    for (const name of selectorGraph.names) if (forbiddenGraph.has(name)) fail("ROUTE_SCOPE_VIOLATION");
+    for (const name of selectorGraph.names)
+      if (forbiddenGraph.has(name)) fail("ROUTE_SCOPE_VIOLATION");
     await inspectOtherRoutes(mode, files, prohibitedExactPatterns, forbiddenGraph);
     reports.push({ mode: mode.name, files, ...map, artifactDigest: await artifactDigest(files) });
   }
-  if (JSON.stringify(normalizeProjection(reports[0].projection, "/")) !== JSON.stringify(normalizeProjection(reports[1].projection, "/atlas-preview/"))) fail("MAP_BASE_PARITY_INVALID");
-  const publicReports = reports.map(({ mode, files, artifactDigest: artifact, projectionGzipBytes, totalGzipBytes, javascriptCount }) => ({
-    mode, fileCount: files.size, artifactDigest: artifact, projectionGzipBytes, totalGzipBytes, javascriptCount,
-  }));
+  if (
+    JSON.stringify(normalizeProjection(reports[0].projection, "/")) !==
+    JSON.stringify(normalizeProjection(reports[1].projection, "/atlas-preview/"))
+  )
+    fail("MAP_BASE_PARITY_INVALID");
+  const publicReports = reports.map(
+    ({
+      mode,
+      files,
+      artifactDigest: artifact,
+      projectionGzipBytes,
+      totalGzipBytes,
+      javascriptCount,
+    }) => ({
+      mode,
+      fileCount: files.size,
+      artifactDigest: artifact,
+      projectionGzipBytes,
+      totalGzipBytes,
+      javascriptCount,
+    }),
+  );
   const receipt = {
-    schemaVersion: 1, stage,
-    artifacts: publicReports.map(({ mode, fileCount, artifactDigest }) => ({ mode, fileCount, digest: artifactDigest })),
+    schemaVersion: 1,
+    stage,
+    artifacts: publicReports.map(({ mode, fileCount, artifactDigest }) => ({
+      mode,
+      fileCount,
+      digest: artifactDigest,
+    })),
     digests: {
-      route: digest("map"), fragments: digest([...MAP_MODES, ...LANE_IDS].join("\0")),
+      route: digest("map"),
+      fragments: digest([...MAP_MODES, ...LANE_IDS].join("\0")),
       projectionContract: digest(JSON.stringify(normalizeProjection(reports[0].projection, "/"))),
     },
     counts: { routes: 1, modes: MAP_MODES.length, lanes: LANE_IDS.length, materials: 23 },
-    bytes: publicReports.map(({ mode, projectionGzipBytes, totalGzipBytes }) => ({ mode, projectionGzipBytes, totalGzipBytes })),
+    bytes: publicReports.map(({ mode, projectionGzipBytes, totalGzipBytes }) => ({
+      mode,
+      projectionGzipBytes,
+      totalGzipBytes,
+    })),
   };
   if (priorReceipt !== undefined) assertPreactivationReceipt(priorReceipt, receipt);
-  if (runPublicationScan) await scanBoundedPublication(modes[0].output, modes[1].output, sensitiveFile);
-  if (stage === "pre-activation" && receiptPath !== undefined) await writeReceipt(receiptPath, receipt);
-  return Object.freeze({ ok: true, stage, routeCount: 1, modes: Object.freeze(publicReports.map(({ artifactDigest: _digest, ...report }) => Object.freeze(report))) });
+  if (runPublicationScan)
+    await scanBoundedPublication(modes[0].output, modes[1].output, sensitiveFile);
+  if (stage === "pre-activation" && receiptPath !== undefined)
+    await writeReceipt(receiptPath, receipt);
+  return Object.freeze({
+    ok: true,
+    stage,
+    routeCount: 1,
+    modes: Object.freeze(
+      publicReports.map(({ artifactDigest: _digest, ...report }) => Object.freeze(report)),
+    ),
+  });
 }
 
 export function parsePhase8Arguments(argv) {
   const options = {};
   for (let index = 0; index < argv.length; index += 2) {
-    const flag = argv[index]; const value = argv[index + 1];
-    if (!value || !["--stage", "--receipt"].includes(flag) || flag.slice(2) in options) fail("ARGUMENTS_INVALID");
+    const flag = argv[index];
+    const value = argv[index + 1];
+    if (!value || !["--stage", "--receipt"].includes(flag) || flag.slice(2) in options)
+      fail("ARGUMENTS_INVALID");
     options[flag.slice(2)] = value;
   }
   if (Object.keys(options).length === 0 || !options.stage) fail("ARGUMENTS_INVALID");

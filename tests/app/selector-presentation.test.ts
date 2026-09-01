@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 
 import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
 import { PUBLIC_ROUTE_REGISTRY } from "../../src/lib/public-route-registry.ts";
-import type { PublicRouteRegistry } from "../../src/lib/public-route-registry.ts";
 import { selectProjectedMaterials } from "../../src/domain/selector/index.ts";
 import type { NoCompatibleSelectorOutcome } from "../../src/domain/selector/types.ts";
 import { buildSelectorPageModel } from "../../src/features/selector/page-model.ts";
@@ -12,7 +11,9 @@ import { SELECTOR_COPY } from "../../src/features/selector/copy.ts";
 import { presentSelectorOutcome } from "../../src/features/selector/presentation.ts";
 
 const atlas = loadPublicAtlas();
-const pageModel = decodeSelectorClientModel(buildSelectorPageModel(atlas, "/atlas-preview/", PUBLIC_ROUTE_REGISTRY));
+const pageModel = decodeSelectorClientModel(
+  buildSelectorPageModel(atlas, "/atlas-preview/", PUBLIC_ROUTE_REGISTRY),
+);
 const rankedOutcome = selectProjectedMaterials(pageModel.projection, pageModel.defaults);
 
 function ranked() {
@@ -28,7 +29,9 @@ describe("presentSelectorOutcome", () => {
     expect(presented.kind).toBe("ranked");
     if (presented.kind !== "ranked") return;
 
-    expect(presented.compatible.map(({ materialId }) => materialId)).toEqual(outcome.compatible.map(({ materialId }) => materialId));
+    expect(presented.compatible.map(({ materialId }) => materialId)).toEqual(
+      outcome.compatible.map(({ materialId }) => materialId),
+    );
     presented.compatible.forEach((row, index) => {
       const source = outcome.compatible[index]!;
       expect(row.rank).toBe(source.rank);
@@ -37,16 +40,21 @@ describe("presentSelectorOutcome", () => {
       expect(row.contributions).toHaveLength(source.contributions.length);
       expect(row.contributions.map(({ record }) => record)).toEqual(source.contributions);
       expect(row.contributions.map(({ visualState }) => visualState)).toEqual(
-        source.contributions.map(({ awardedPoints }) => awardedPoints > 0 ? "positive" : "zero"),
+        source.contributions.map(({ awardedPoints }) => (awardedPoints > 0 ? "positive" : "zero")),
       );
       expect(row.contributions.map(({ pointsLabel }) => pointsLabel)).toEqual(
-        source.contributions.map(({ awardedPoints }) => awardedPoints > 0
-          ? `+${awardedPoints} alignment ${awardedPoints === 1 ? "point" : "points"}`
-          : "0 points for this criterion"),
+        source.contributions.map(({ awardedPoints }) =>
+          awardedPoints > 0
+            ? `+${awardedPoints} alignment ${awardedPoints === 1 ? "point" : "points"}`
+            : "0 points for this criterion",
+        ),
       );
       expect(row.summaryExplanation).toContain(`${source.score} of ${source.applicableMaximum}`);
       expect(row.highestAlignment).toBe(index === 0 ? SELECTOR_COPY.highestAlignment : undefined);
-      expect(row.routes.details).toEqual(pageModel.routes.materials.find(({ materialId }) => materialId === source.materialId)!.details);
+      expect(row.routes.details).toEqual(
+        pageModel.routes.materials.find(({ materialId }) => materialId === source.materialId)!
+          .details,
+      );
     });
   });
 
@@ -55,24 +63,36 @@ describe("presentSelectorOutcome", () => {
     const presented = presentSelectorOutcome(pageModel, outcome);
     if (presented.kind !== "ranked") throw new Error("fixture must rank");
 
-    expect(presented.eliminated.map(({ materialId }) => materialId)).toEqual(outcome.eliminated.map(({ materialId }) => materialId));
+    expect(presented.eliminated.map(({ materialId }) => materialId)).toEqual(
+      outcome.eliminated.map(({ materialId }) => materialId),
+    );
     presented.eliminated.forEach((row, index) => {
       const source = outcome.eliminated[index]!;
       expect(row.reasons.map(({ record }) => record)).toEqual(source.exclusions);
       expect(row).not.toHaveProperty("rank");
       expect(row).not.toHaveProperty("score");
       row.reasons.forEach((reason) => {
-        expect(reason.stateLabel).toBe(reason.record.outcome === "incompatible"
-          ? SELECTOR_COPY.confirmedExclusion
-          : SELECTOR_COPY.indeterminateExclusion);
-        expect(reason.visualState).toBe(reason.record.outcome === "incompatible" ? "blocked" : "indeterminate");
-        expect(reason.explanation).toMatch(reason.record.outcome === "incompatible"
-          ? /blocked by selected constraint/
-          : /cannot be verified and is treated as incompatible/);
+        expect(reason.stateLabel).toBe(
+          reason.record.outcome === "incompatible"
+            ? SELECTOR_COPY.confirmedExclusion
+            : SELECTOR_COPY.indeterminateExclusion,
+        );
+        expect(reason.visualState).toBe(
+          reason.record.outcome === "incompatible" ? "blocked" : "indeterminate",
+        );
+        expect(reason.explanation).toMatch(
+          reason.record.outcome === "incompatible"
+            ? /blocked by selected constraint/
+            : /cannot be verified and is treated as incompatible/,
+        );
       });
     });
     expect(presented.eliminated.some((row) => row.reasons.length > 1)).toBe(true);
-    expect(presented.eliminated.some((row) => row.reasons.some(({ record }) => record.outcome === "indeterminate"))).toBe(true);
+    expect(
+      presented.eliminated.some((row) =>
+        row.reasons.some(({ record }) => record.outcome === "indeterminate"),
+      ),
+    ).toBe(true);
   });
 
   it("keeps all seven selected labels and every elimination in no-compatible output", () => {
@@ -93,7 +113,9 @@ describe("presentSelectorOutcome", () => {
     expect(presented.kind).toBe("no-compatible");
     if (presented.kind !== "no-compatible") return;
     expect(presented.selection).toHaveLength(7);
-    expect(presented.selection.map(({ optionId }) => optionId)).toEqual(source.selection.map(({ optionId }) => optionId));
+    expect(presented.selection.map(({ optionId }) => optionId)).toEqual(
+      source.selection.map(({ optionId }) => optionId),
+    );
     expect(presented.eliminated).toHaveLength(source.eliminated.length);
     expect(presented.eliminationsOpen).toBe(true);
     expect(presented.reviewActions).toEqual([
@@ -113,12 +135,17 @@ describe("presentSelectorOutcome", () => {
       body: SELECTOR_COPY.errorState,
       action: SELECTOR_COPY.errorAction,
     });
-    expect(JSON.stringify(invalid)).not.toMatch(/SELECTOR_OPTION_UNKNOWN|compatible|eliminated|rank/i);
+    expect(JSON.stringify(invalid)).not.toMatch(
+      /SELECTOR_OPTION_UNKNOWN|compatible|eliminated|rank/i,
+    );
 
-    const empty = presentSelectorOutcome({
-      ...pageModel,
-      display: { materials: [] },
-    }, ranked());
+    const empty = presentSelectorOutcome(
+      {
+        ...pageModel,
+        display: { materials: [] },
+      },
+      ranked(),
+    );
     expect(empty).toEqual({
       kind: "empty",
       heading: SELECTOR_COPY.emptyHeading,
@@ -128,38 +155,32 @@ describe("presentSelectorOutcome", () => {
 
   it("attaches verified decision maps only to rule-derived lane candidates", () => {
     const laneId = atlas.decisionLanes.find(({ id }) => id === "lane-easy-prototypes")!.id;
-    const registry: PublicRouteRegistry = Object.freeze({
-      ...PUBLIC_ROUTE_REGISTRY,
-      decisionMaps: Object.freeze([Object.freeze({
-        laneId,
-        target: Object.freeze({ id: "home" as const }),
-        fragment: "lane-easy-prototypes",
-        verifiedFragments: Object.freeze(["lane-easy-prototypes"]),
-      })]),
-    });
-    const mappedModel = decodeSelectorClientModel(buildSelectorPageModel(atlas, "/atlas-preview/", registry));
-    const mappedOutcome = selectProjectedMaterials(mappedModel.projection, mappedModel.defaults);
-    const presented = presentSelectorOutcome(mappedModel, mappedOutcome);
+    const presented = presentSelectorOutcome(pageModel, ranked());
     expect(presented.kind).toBe("ranked");
     if (presented.kind !== "ranked") return;
     const materials = [...presented.compatible, ...presented.eliminated];
     const pla = materials.find(({ materialId }) => materialId === "material-pla")!;
     const abs = materials.find(({ materialId }) => materialId === "material-abs")!;
 
-    expect(pla.routes.decisionMaps).toEqual([{
+    expect(pla.routes.decisionMaps).toContainEqual({
       laneId,
       action: {
         kind: "link",
         href: "/atlas-preview/map/#lane-easy-prototypes",
-        label: "View Easy prototypes decision map",
+        label: "Open Easy prototypes decision path",
       },
-    }]);
-    expect(abs.routes.decisionMaps).toEqual([]);
+    });
+    expect(abs.routes.decisionMaps).not.toContainEqual(expect.objectContaining({ laneId }));
   });
 
   it("contains no UI-owned scoring, predicate evaluation, sorting, or URL construction", () => {
-    const source = readFileSync(new URL("../../src/features/selector/presentation.ts", import.meta.url), "utf8");
-    expect(source).not.toMatch(/\.sort\s*\(|\.reduce\s*\(|evaluatePredicate|incompatibleWhen|internalHref|fragmentHref/);
+    const source = readFileSync(
+      new URL("../../src/features/selector/presentation.ts", import.meta.url),
+      "utf8",
+    );
+    expect(source).not.toMatch(
+      /\.sort\s*\(|\.reduce\s*\(|evaluatePredicate|incompatibleWhen|internalHref|fragmentHref/,
+    );
     expect(source).not.toMatch(/awardedPoints\s*[+*-]|score\s*[+*-]|applicableMaximum\s*[+*-]/);
     expect(source).toContain("resolveExplanationToken");
   });

@@ -1,13 +1,15 @@
-import { execFile } from 'node:child_process';
-import { lstat, readFile, realpath } from 'node:fs/promises';
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { promisify } from 'node:util';
-import { buildGitEnvironment } from './safe-git.mjs';
+import { execFile } from "node:child_process";
+import { lstat, readFile, realpath } from "node:fs/promises";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { promisify } from "node:util";
+import { buildGitEnvironment } from "./safe-git.mjs";
 
 const execFileAsync = promisify(execFile);
-const PROHIBITED_ATTRIBUTION = /(?:^|[^a-z])(?:codex|openai|claude|anthropic|chatgpt|(?:github[ -]?)?copilot|gemini|grok|cursor|kimi|minimax|glm|opencode|gsd|ai[- ]?agent|bot)(?:[^a-z]|$)/i;
+const PROHIBITED_ATTRIBUTION =
+  /(?:^|[^a-z])(?:codex|openai|claude|anthropic|chatgpt|(?:github[ -]?)?copilot|gemini|grok|cursor|kimi|minimax|glm|opencode|gsd|ai[- ]?agent|bot)(?:[^a-z]|$)/i;
 const PROHIBITED_EXACT_IDENTITIES = /(?:^|[\s<:])(?:ai|artificial intelligence)(?=$|[\s>@])/i;
-const KNOWN_AUTOMATION_IDENTITIES = /(?:^|[\s<])(?:dependabot|renovate|github-actions|automation)(?:\[bot\])?(?=$|[\s>@])/i;
+const KNOWN_AUTOMATION_IDENTITIES =
+  /(?:^|[\s<])(?:dependabot|renovate|github-actions|automation)(?:\[bot\])?(?=$|[\s>@])/i;
 
 export function isProhibitedAttribution(value) {
   const normalized = String(value).trim();
@@ -34,7 +36,7 @@ export class RepositoryGuardError extends Error {
    */
   constructor(ruleCode, context) {
     super(`Repository guard failed: ${ruleCode}`);
-    this.name = 'RepositoryGuardError';
+    this.name = "RepositoryGuardError";
     this.ruleCode = ruleCode;
     this.context = context;
   }
@@ -62,15 +64,15 @@ export class RepositoryGuardError extends Error {
 
 async function runGit(cwd, args, { allowFailure = false } = {}) {
   try {
-    const { stdout } = await execFileAsync('git', args, {
+    const { stdout } = await execFileAsync("git", args, {
       cwd,
-      encoding: 'utf8',
+      encoding: "utf8",
       maxBuffer: 16 * 1024 * 1024,
       env: buildGitEnvironment(),
     });
     return { ok: true, stdout: stdout.trimEnd() };
   } catch (error) {
-    if (allowFailure) return { ok: false, stdout: '' };
+    if (allowFailure) return { ok: false, stdout: "" };
     throw error;
   }
 }
@@ -91,7 +93,9 @@ async function literalDirectoryExists(path) {
 async function findAncestorRepository(projectRoot) {
   let candidate = dirname(projectRoot);
   while (true) {
-    const result = await runGit(candidate, ['rev-parse', '--show-toplevel'], { allowFailure: true });
+    const result = await runGit(candidate, ["rev-parse", "--show-toplevel"], {
+      allowFailure: true,
+    });
     if (result.ok) return physicalPath(result.stdout);
     const next = dirname(candidate);
     if (next === candidate) return null;
@@ -100,68 +104,88 @@ async function findAncestorRepository(projectRoot) {
 }
 
 function splitLines(value) {
-  return value === '' ? [] : value.split('\n').filter(Boolean);
+  return value === "" ? [] : value.split("\n").filter(Boolean);
 }
 
 function safeContext(inspection) {
   return {
-    repositoryRoot: inspection.repositoryPresent ? 'repository' : null,
-    expectedRoot: 'expected-root',
-    parentRepositoryRoot: inspection.parentRepositoryPresent ? 'parent-repository' : null,
+    repositoryRoot: inspection.repositoryPresent ? "repository" : null,
+    expectedRoot: "expected-root",
+    parentRepositoryRoot: inspection.parentRepositoryPresent ? "parent-repository" : null,
   };
 }
 
 function failureContext() {
-  return { repositoryRoot: null, expectedRoot: 'expected-root', parentRepositoryRoot: null };
+  return { repositoryRoot: null, expectedRoot: "expected-root", parentRepositoryRoot: null };
 }
 
 function parseConfigOrigin(record) {
-  const firstTab = record.indexOf('\t');
-  const secondTab = firstTab < 0 ? -1 : record.indexOf('\t', firstTab + 1);
-  if (firstTab < 0 || secondTab < 0) return { scope: '', value: '' };
+  const firstTab = record.indexOf("\t");
+  const secondTab = firstTab < 0 ? -1 : record.indexOf("\t", firstTab + 1);
+  if (firstTab < 0 || secondTab < 0) return { scope: "", value: "" };
   return { scope: record.slice(0, firstTab), value: record.slice(secondTab + 1) };
 }
 
 async function inspectIdentityOrigin(repositoryRoot, configuredName, configuredEmail) {
-  const nameOrigin = await runGit(repositoryRoot, [
-    'config', '--show-origin', '--show-scope', '--get', 'user.name',
-  ], { allowFailure: true });
-  const emailOrigin = await runGit(repositoryRoot, [
-    'config', '--show-origin', '--show-scope', '--get', 'user.email',
-  ], { allowFailure: true });
+  const nameOrigin = await runGit(
+    repositoryRoot,
+    ["config", "--show-origin", "--show-scope", "--get", "user.name"],
+    { allowFailure: true },
+  );
+  const emailOrigin = await runGit(
+    repositoryRoot,
+    ["config", "--show-origin", "--show-scope", "--get", "user.email"],
+    { allowFailure: true },
+  );
   if (!nameOrigin.ok || !emailOrigin.ok) return false;
   const name = parseConfigOrigin(nameOrigin.stdout);
   const email = parseConfigOrigin(emailOrigin.stdout);
-  const approvedNonLocal = (scope) => scope === 'global' || scope === 'system';
+  const approvedNonLocal = (scope) => scope === "global" || scope === "system";
   if (approvedNonLocal(name.scope) && approvedNonLocal(email.scope)) return true;
-  if (name.scope !== 'local' || email.scope !== 'local') return false;
+  if (name.scope !== "local" || email.scope !== "local") return false;
 
-  const globalName = await runGit(repositoryRoot, ['config', '--global', '--get', 'user.name'], { allowFailure: true });
-  const globalEmail = await runGit(repositoryRoot, ['config', '--global', '--get', 'user.email'], { allowFailure: true });
+  const globalName = await runGit(repositoryRoot, ["config", "--global", "--get", "user.name"], {
+    allowFailure: true,
+  });
+  const globalEmail = await runGit(repositoryRoot, ["config", "--global", "--get", "user.email"], {
+    allowFailure: true,
+  });
   return (
-    globalName.ok && globalEmail.ok &&
+    globalName.ok &&
+    globalEmail.ok &&
     globalName.stdout === configuredName &&
     globalEmail.stdout === configuredEmail
   );
 }
 
 async function inspectHistory(repositoryRoot, configuredName, configuredEmail) {
-  const head = await runGit(repositoryRoot, ['rev-parse', '--verify', 'HEAD'], { allowFailure: true });
-  const revisions = await runGit(repositoryRoot, ['rev-list', '--all', ...(head.ok ? ['HEAD'] : [])]);
+  const head = await runGit(repositoryRoot, ["rev-parse", "--verify", "HEAD"], {
+    allowFailure: true,
+  });
+  const revisions = await runGit(repositoryRoot, [
+    "rev-list",
+    "--all",
+    ...(head.ok ? ["HEAD"] : []),
+  ]);
   const hashes = splitLines(revisions.stdout);
   let identityMatches = true;
   let attributionAllowed = true;
 
   for (const hash of hashes) {
     const record = await runGit(repositoryRoot, [
-      'show',
-      '--quiet',
-      '--format=%an%x00%ae%x00%cn%x00%ce%x00%B',
+      "show",
+      "--quiet",
+      "--format=%an%x00%ae%x00%cn%x00%ce%x00%B",
       hash,
     ]);
-    const [authorName = '', authorEmail = '', committerName = '', committerEmail = '', ...bodyParts] =
-      record.stdout.split('\0');
-    const body = bodyParts.join('\0');
+    const [
+      authorName = "",
+      authorEmail = "",
+      committerName = "",
+      committerEmail = "",
+      ...bodyParts
+    ] = record.stdout.split("\0");
+    const body = bodyParts.join("\0");
     if (
       authorName !== configuredName ||
       authorEmail !== configuredEmail ||
@@ -175,7 +199,9 @@ async function inspectHistory(repositoryRoot, configuredName, configuredEmail) {
       isProhibitedAttribution(authorEmail) ||
       isProhibitedAttribution(committerName) ||
       isProhibitedAttribution(committerEmail) ||
-      body.split('\n').some((line) => /^co-authored-by:/i.test(line) && isProhibitedAttribution(line))
+      body
+        .split("\n")
+        .some((line) => /^co-authored-by:/i.test(line) && isProhibitedAttribution(line))
     ) {
       attributionAllowed = false;
     }
@@ -186,39 +212,44 @@ async function inspectHistory(repositoryRoot, configuredName, configuredEmail) {
 
 async function assertRawHistoryState(repositoryRoot) {
   const replacementRefs = await runGit(repositoryRoot, [
-    'for-each-ref',
-    '--format=%(refname)',
-    'refs/replace/',
+    "for-each-ref",
+    "--format=%(refname)",
+    "refs/replace/",
   ]);
-  if (replacementRefs.stdout !== '') {
-    throw new RepositoryGuardError('history-unsupported', failureContext());
+  if (replacementRefs.stdout !== "") {
+    throw new RepositoryGuardError("history-unsupported", failureContext());
   }
 
-  const graftPath = await runGit(repositoryRoot, ['rev-parse', '--path-format=absolute', '--git-path', 'info/grafts']);
+  const graftPath = await runGit(repositoryRoot, [
+    "rev-parse",
+    "--path-format=absolute",
+    "--git-path",
+    "info/grafts",
+  ]);
   try {
     const graftInfo = await lstat(graftPath.stdout);
     if (!graftInfo.isFile() || graftInfo.isSymbolicLink()) {
-      throw new RepositoryGuardError('history-unsupported', failureContext());
+      throw new RepositoryGuardError("history-unsupported", failureContext());
     }
     if ((await readFile(graftPath.stdout)).length > 0) {
-      throw new RepositoryGuardError('history-unsupported', failureContext());
+      throw new RepositoryGuardError("history-unsupported", failureContext());
     }
   } catch (error) {
     if (error instanceof RepositoryGuardError) throw error;
-    if (error?.code !== 'ENOENT') {
-      throw new RepositoryGuardError('history-unsupported', failureContext());
+    if (error?.code !== "ENOENT") {
+      throw new RepositoryGuardError("history-unsupported", failureContext());
     }
   }
 }
 
 async function inspectObjectStore(repositoryRoot, expectedGitDirectory) {
   const objectsResult = await runGit(repositoryRoot, [
-    'rev-parse',
-    '--path-format=absolute',
-    '--git-path',
-    'objects',
+    "rev-parse",
+    "--path-format=absolute",
+    "--git-path",
+    "objects",
   ]);
-  const expectedObjects = join(expectedGitDirectory, 'objects');
+  const expectedObjects = join(expectedGitDirectory, "objects");
   let objectsOwned = false;
   try {
     const info = await lstat(objectsResult.stdout);
@@ -233,38 +264,43 @@ async function inspectObjectStore(repositoryRoot, expectedGitDirectory) {
   }
   if (!objectsOwned) return false;
 
-  for (const name of ['alternates', 'http-alternates']) {
-    const alternatePath = join(expectedObjects, 'info', name);
+  for (const name of ["alternates", "http-alternates"]) {
+    const alternatePath = join(expectedObjects, "info", name);
     try {
       const info = await lstat(alternatePath);
       if (!info.isFile() || info.isSymbolicLink()) return false;
-      if ((await readFile(alternatePath)).toString('utf8').trim() !== '') return false;
+      if ((await readFile(alternatePath)).toString("utf8").trim() !== "") return false;
     } catch (error) {
-      if (error?.code !== 'ENOENT') return false;
+      if (error?.code !== "ENOENT") return false;
     }
   }
   return true;
 }
 
 async function inspectHistoryCompleteness(repositoryRoot) {
-  const shallow = await runGit(repositoryRoot, ['rev-parse', '--is-shallow-repository']);
+  const shallow = await runGit(repositoryRoot, ["rev-parse", "--is-shallow-repository"]);
   const partialExtension = await runGit(
     repositoryRoot,
-    ['config', '--get', 'extensions.partialClone'],
+    ["config", "--get", "extensions.partialClone"],
     { allowFailure: true },
   );
   const promisorRemotes = await runGit(
     repositoryRoot,
-    ['config', '--get-regexp', '^remote\..*\.promisor$'],
+    ["config", "--get-regexp", "^remote\\..*\\.promisor$"],
     { allowFailure: true },
   );
-  const missing = await runGit(repositoryRoot, ['rev-list', '--objects', '--all', '--missing=print']);
+  const missing = await runGit(repositoryRoot, [
+    "rev-list",
+    "--objects",
+    "--all",
+    "--missing=print",
+  ]);
   return {
-    shallow: shallow.stdout === 'true',
+    shallow: shallow.stdout === "true",
     partial:
-      (partialExtension.ok && partialExtension.stdout !== '') ||
+      (partialExtension.ok && partialExtension.stdout !== "") ||
       (promisorRemotes.ok && splitLines(promisorRemotes.stdout).length > 0),
-    objectsMissing: splitLines(missing.stdout).some((line) => line.startsWith('?')),
+    objectsMissing: splitLines(missing.stdout).some((line) => line.startsWith("?")),
   };
 }
 
@@ -278,61 +314,66 @@ async function inspectHistoryCompleteness(repositoryRoot) {
 async function inspectRepositoryUnsafe(options = {}) {
   const cwd = await physicalPath(options.cwd ?? process.cwd());
   const expectedRoot = await physicalPath(options.expectedRoot ?? cwd);
-  const remotePolicy = options.remotePolicy ?? 'absent';
-  if (!['absent', 'any'].includes(remotePolicy)) {
-    throw new RepositoryGuardError('remote-policy-invalid', failureContext());
+  const remotePolicy = options.remotePolicy ?? "absent";
+  if (!["absent", "any"].includes(remotePolicy)) {
+    throw new RepositoryGuardError("remote-policy-invalid", failureContext());
   }
 
-  const rootResult = await runGit(cwd, ['rev-parse', '--show-toplevel'], { allowFailure: true });
+  const rootResult = await runGit(cwd, ["rev-parse", "--show-toplevel"], { allowFailure: true });
   const repositoryRoot = rootResult.ok ? await physicalPath(rootResult.stdout) : null;
   const commonResult = repositoryRoot
-    ? await runGit(cwd, ['rev-parse', '--path-format=absolute', '--git-common-dir'], { allowFailure: true })
-    : { ok: false, stdout: '' };
+    ? await runGit(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"], {
+        allowFailure: true,
+      })
+    : { ok: false, stdout: "" };
   const gitCommonDirectory = commonResult.ok ? await physicalPath(commonResult.stdout) : null;
-  const expectedGitDirectory = join(expectedRoot, '.git');
+  const expectedGitDirectory = join(expectedRoot, ".git");
   const commonDirectoryOwned =
     gitCommonDirectory !== null &&
     (await literalDirectoryExists(expectedGitDirectory)) &&
     resolve(commonResult.stdout) === expectedGitDirectory &&
     gitCommonDirectory === expectedGitDirectory;
-  const objectStoreOwned = repositoryRoot && commonDirectoryOwned
-    ? await inspectObjectStore(repositoryRoot, expectedGitDirectory)
-    : false;
+  const objectStoreOwned =
+    repositoryRoot && commonDirectoryOwned
+      ? await inspectObjectStore(repositoryRoot, expectedGitDirectory)
+      : false;
 
   const parentRepositoryRoot = await findAncestorRepository(expectedRoot);
   let parentIndexEntryCount = 0;
   if (parentRepositoryRoot) {
-    const childPath = relative(parentRepositoryRoot, expectedRoot).split(sep).join('/');
-    if (childPath && childPath !== '..' && !childPath.startsWith('../') && !isAbsolute(childPath)) {
-      const entries = await runGit(parentRepositoryRoot, ['ls-files', '--stage', '--', childPath]);
+    const childPath = relative(parentRepositoryRoot, expectedRoot).split(sep).join("/");
+    if (childPath && childPath !== ".." && !childPath.startsWith("../") && !isAbsolute(childPath)) {
+      const entries = await runGit(parentRepositoryRoot, ["ls-files", "--stage", "--", childPath]);
       parentIndexEntryCount = splitLines(entries.stdout).length;
     }
   }
 
-  const remotes = repositoryRoot ? await runGit(repositoryRoot, ['remote']) : { stdout: '' };
+  const remotes = repositoryRoot ? await runGit(repositoryRoot, ["remote"]) : { stdout: "" };
   const remoteCount = splitLines(remotes.stdout).length;
   const nameResult = repositoryRoot
-    ? await runGit(repositoryRoot, ['config', '--get', 'user.name'], { allowFailure: true })
-    : { ok: false, stdout: '' };
+    ? await runGit(repositoryRoot, ["config", "--get", "user.name"], { allowFailure: true })
+    : { ok: false, stdout: "" };
   const emailResult = repositoryRoot
-    ? await runGit(repositoryRoot, ['config', '--get', 'user.email'], { allowFailure: true })
-    : { ok: false, stdout: '' };
-  const configuredName = nameResult.ok ? nameResult.stdout : '';
-  const configuredEmail = emailResult.ok ? emailResult.stdout : '';
-  const identityConfigured = configuredName !== '' && configuredEmail !== '';
+    ? await runGit(repositoryRoot, ["config", "--get", "user.email"], { allowFailure: true })
+    : { ok: false, stdout: "" };
+  const configuredName = nameResult.ok ? nameResult.stdout : "";
+  const configuredEmail = emailResult.ok ? emailResult.stdout : "";
+  const identityConfigured = configuredName !== "" && configuredEmail !== "";
   const identityAllowed =
     identityConfigured &&
     !isProhibitedAttribution(configuredName) &&
     !isProhibitedAttribution(configuredEmail);
-  const identityOriginApproved = repositoryRoot && identityConfigured
-    ? await inspectIdentityOrigin(repositoryRoot, configuredName, configuredEmail)
-    : false;
+  const identityOriginApproved =
+    repositoryRoot && identityConfigured
+      ? await inspectIdentityOrigin(repositoryRoot, configuredName, configuredEmail)
+      : false;
 
   if (repositoryRoot) await assertRawHistoryState(repositoryRoot);
 
-  const history = repositoryRoot && identityConfigured
-    ? await inspectHistory(repositoryRoot, configuredName, configuredEmail)
-    : { commitCount: 0, identityMatches: false, attributionAllowed: true };
+  const history =
+    repositoryRoot && identityConfigured
+      ? await inspectHistory(repositoryRoot, configuredName, configuredEmail)
+      : { commitCount: 0, identityMatches: false, attributionAllowed: true };
   const historyCompleteness = repositoryRoot
     ? await inspectHistoryCompleteness(repositoryRoot)
     : { shallow: false, partial: false, objectsMissing: false };
@@ -348,12 +389,14 @@ async function inspectRepositoryUnsafe(options = {}) {
     identityConfigured,
     identityAllowed,
     identityOriginApproved,
-    remotePolicySatisfied: remotePolicy === 'any' || remoteCount === 0,
+    remotePolicySatisfied: remotePolicy === "any" || remoteCount === 0,
     parentIndexClean: parentIndexEntryCount === 0,
     historyIdentityMatches: history.commitCount === 0 || history.identityMatches,
     historyAttributionAllowed: history.attributionAllowed,
     historyComplete:
-      !historyCompleteness.shallow && !historyCompleteness.partial && !historyCompleteness.objectsMissing,
+      !historyCompleteness.shallow &&
+      !historyCompleteness.partial &&
+      !historyCompleteness.objectsMissing,
     remoteCount,
     parentIndexEntryCount,
     commitCount: history.commitCount,
@@ -377,7 +420,7 @@ export async function inspectRepository(options = {}) {
     });
   } catch (error) {
     if (error instanceof RepositoryGuardError) throw error;
-    throw new RepositoryGuardError('repository-inspection-failed', failureContext());
+    throw new RepositoryGuardError("repository-inspection-failed", failureContext());
   }
 }
 
@@ -390,18 +433,23 @@ export async function inspectRepository(options = {}) {
 export async function assertRepository(options = {}) {
   const inspection = await inspectRepository(options);
   const context = safeContext(inspection);
-  if (!inspection.repositoryRootMatches) throw new RepositoryGuardError('repository-root-mismatch', context);
-  if (!inspection.commonDirectoryOwned) throw new RepositoryGuardError('common-directory-mismatch', context);
-  if (!inspection.objectStoreOwned) throw new RepositoryGuardError('external-object-store', context);
-  if (!inspection.parentIndexClean) throw new RepositoryGuardError('parent-index-entry', context);
-  if (!inspection.remotePolicySatisfied) throw new RepositoryGuardError('remote-present', context);
-  if (!inspection.identityConfigured) throw new RepositoryGuardError('identity-missing', context);
-  if (!inspection.identityAllowed) throw new RepositoryGuardError('identity-prohibited', context);
-  if (!inspection.identityOriginApproved) throw new RepositoryGuardError('identity-origin-unapproved', context);
-  if (!inspection.historyComplete) throw new RepositoryGuardError('history-incomplete', context);
+  if (!inspection.repositoryRootMatches)
+    throw new RepositoryGuardError("repository-root-mismatch", context);
+  if (!inspection.commonDirectoryOwned)
+    throw new RepositoryGuardError("common-directory-mismatch", context);
+  if (!inspection.objectStoreOwned)
+    throw new RepositoryGuardError("external-object-store", context);
+  if (!inspection.parentIndexClean) throw new RepositoryGuardError("parent-index-entry", context);
+  if (!inspection.remotePolicySatisfied) throw new RepositoryGuardError("remote-present", context);
+  if (!inspection.identityConfigured) throw new RepositoryGuardError("identity-missing", context);
+  if (!inspection.identityAllowed) throw new RepositoryGuardError("identity-prohibited", context);
+  if (!inspection.identityOriginApproved)
+    throw new RepositoryGuardError("identity-origin-unapproved", context);
+  if (!inspection.historyComplete) throw new RepositoryGuardError("history-incomplete", context);
   if (!inspection.historyAttributionAllowed) {
-    throw new RepositoryGuardError('history-prohibited-attribution', context);
+    throw new RepositoryGuardError("history-prohibited-attribution", context);
   }
-  if (!inspection.historyIdentityMatches) throw new RepositoryGuardError('history-identity-mismatch', context);
+  if (!inspection.historyIdentityMatches)
+    throw new RepositoryGuardError("history-identity-mismatch", context);
   return inspection;
 }

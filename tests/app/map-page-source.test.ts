@@ -25,7 +25,9 @@ function occurrences(source: string, value: string | RegExp): number {
 
 describe("static-first map page source", () => {
   it("compiles one compact build-only projection into one visible enhancement boundary", () => {
-    expect(page).toContain('import { compileMapProjection } from "../../features/map/projection.ts"');
+    expect(page).toContain(
+      'import { compileMapProjection } from "../../features/map/projection.ts"',
+    );
     expect(page).toContain("const projection = compileMapProjection(atlas, base)");
     expect(occurrences(page, /<MapExplorerIsland\b/g)).toBe(1);
     expect(page).toContain('client:visible={{ rootMargin: "200px" }}');
@@ -34,6 +36,7 @@ describe("static-first map page source", () => {
   });
 
   it("renders compact orientation, caution, mode directory, and no-script meaning before the island", () => {
+    const normalizedPage = page.replace(/\s+/gu, " ");
     for (const copy of [
       "Material decision maps",
       "Trace material choices through properties and process gates",
@@ -44,12 +47,18 @@ describe("static-first map page source", () => {
       "Decision paths",
       "Choose one of eight needs to inspect the canonical rule, all live candidates, and every linked process gate.",
       "Interactive highlighting is unavailable. All decision paths and structured visualization data remain readable below.",
-    ]) expect(page).toContain(copy);
+    ])
+      expect(normalizedPage).toContain(copy);
 
-    expect(page.indexOf("Explore visualization modes")).toBeLessThan(page.indexOf("<MapExplorerIsland"));
+    expect(page.indexOf("Explore visualization modes")).toBeLessThan(
+      page.indexOf("<MapExplorerIsland"),
+    );
     expect(page).not.toContain("map-preparation");
-    expect(renderedIsland).toContain("Interactive map controls are preparing. Every path and structured table is already available.");
-    expect(page).toContain('breadcrumbs={[{ label: "Home", href: homeHref }, { label: "Decision maps", current: true }]}');
+    expect(renderedIsland).toContain(
+      "Interactive map controls are preparing. Every path and structured table is already available.",
+    );
+    expect(page).toContain('{ label: "Home", href: homeHref }');
+    expect(page).toContain('{ label: "Decision maps", current: true }');
     expect(page).toContain('title="Decision maps | FDM Material Atlas"');
   });
 
@@ -58,7 +67,9 @@ describe("static-first map page source", () => {
     for (const mode of MAP_MODES) {
       expect(page).toContain(`projection.modeFragments["${mode}"]`);
       expect(renderedIsland).toContain(`id=\"${mode}\"`);
-      expect(renderedIsland).toContain(`map-mode--${mode === "thermal-ranges" ? "thermal" : mode === "process-gates" ? "process-gates" : mode === "impact-flex-space" ? "impact-flex" : "decision-paths"}`);
+      expect(renderedIsland).toContain(
+        `map-mode--${mode === "thermal-ranges" ? "thermal" : mode === "process-gates" ? "process-gates" : mode === "impact-flex-space" ? "impact-flex" : "decision-paths"}`,
+      );
     }
     for (const lane of projection.lanes) {
       expect(page).toContain("projection.lanes.map");
@@ -80,7 +91,9 @@ describe("static-first map page source", () => {
 
   it("removes the obsolete board and keeps source links projection-owned", () => {
     expect(existsSync(legacyBoardPath)).toBe(false);
-    expect(page).not.toMatch(/DecisionBoard|internalMapFragmentHref|`\/?map|\+\s*["']#|href=\{?\s*["']#/);
+    expect(page).not.toMatch(
+      /DecisionBoard|internalMapFragmentHref|`\/?map|\+\s*["']#|href=\{?\s*["']#/,
+    );
     expect(page).not.toMatch(/https?:\/\//);
   });
 
@@ -94,7 +107,8 @@ describe("static-first map page source", () => {
       "prefers-reduced-motion: reduce",
       "prefers-reduced-motion: no-preference",
       "forced-colors: active",
-    ]) expect(styles).toContain(contract);
+    ])
+      expect(styles).toContain(contract);
     expect(styles).toContain("font-size: var(--text-display)");
     expect(styles).toContain("font-size: var(--text-heading)");
     expect(styles).toContain("font-size: var(--text-label)");
@@ -102,7 +116,9 @@ describe("static-first map page source", () => {
     expect(styles).not.toContain("font-size: 0.75rem");
     expect(styles).toContain(".map-page a");
     expect(styles).toContain("min-inline-size: var(--size-target-min)");
-    expect(styles).not.toMatch(/linear-gradient|radial-gradient|backdrop-filter|text-overflow:\s*ellipsis|overflow:\s*hidden/);
+    expect(styles).not.toMatch(
+      /linear-gradient|radial-gradient|backdrop-filter|text-overflow:\s*ellipsis|overflow:\s*hidden/,
+    );
   });
 
   it("bounds only the two exhaustive browser proofs without a global timeout increase", () => {
