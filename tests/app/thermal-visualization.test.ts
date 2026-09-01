@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { EvidenceScope } from "../../src/data/schema/evidence.ts";
-import type { MaterialId } from "../../src/data/schema/ids.ts";
+import type { MaterialId, MethodId, SourceId } from "../../src/data/schema/ids.ts";
 import type { Material } from "../../src/data/schema/material.ts";
 import {
   buildNamedThermalModel,
@@ -22,8 +22,8 @@ function serviceMaterial(
   material.serviceTemperature.value = value;
   material.serviceTemperature.qualification = `Qualification ${index}`;
   material.serviceTemperature.basis = [
-    { kind: "method", methodId: "method-service-temperature-guidance", scope: "family-guidance" },
-    { kind: "source", sourceId: "source-synthetic", scope: "representative-product" },
+    { kind: "method", methodId: "method-service-temperature-guidance" as MethodId, scope: "family-guidance" },
+    { kind: "source", sourceId: "source-synthetic" as SourceId, scope: "representative-product" },
   ];
   return material;
 }
@@ -131,7 +131,7 @@ describe("thermal visualization named observations", () => {
       value: { shape: "exact", value: 123, unit: "degC" },
     };
     observation.qualification = "Synthetic representative observation.";
-    observation.basis = [{ kind: "source", sourceId: "source-synthetic", scope: "representative-product" }];
+    observation.basis = [{ kind: "source", sourceId: "source-synthetic" as SourceId, scope: "representative-product" }];
 
     const model = buildNamedThermalModel([original], undefined);
     expect(model.groups).toHaveLength(1);
