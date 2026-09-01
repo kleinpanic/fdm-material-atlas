@@ -50,9 +50,11 @@ describe("selector component boundary", () => {
   it("keeps build-time schema libraries outside the selector runtime imports", () => {
     const predicate = readFileSync("src/domain/selector/predicate.ts", "utf8");
     const shortlist = readFileSync("src/features/selector/shortlist.ts", "utf8");
+    const compareUrlState = readFileSync("src/features/comparison/url-state.ts", "utf8");
 
     expect(predicate).not.toContain("SelectorFieldSchema");
     expect(shortlist).not.toContain("MaterialIdSchema");
+    expect(compareUrlState).not.toContain("MaterialIdSchema");
     expect(predicate).not.toContain('from "zod"');
     expect(shortlist).not.toContain('from "zod"');
   });
