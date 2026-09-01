@@ -457,7 +457,7 @@ function NamedView({ view, dispatch, methodHref }: Props) {
 /** Separate service-guidance and exact named-test views from one immutable presentation. */
 export function ThermalGuidance(props: Props) {
   return (
-    <section class="map-mode map-mode--thermal" aria-labelledby="interactive-thermal-heading">
+    <section id="thermal-ranges" class="map-mode map-mode--thermal" aria-labelledby="interactive-thermal-heading">
       <header class="map-mode__header">
         <p class="technical-eyebrow">Thermal guidance</p>
         <h2 id="interactive-thermal-heading">Thermal guidance by defined concept</h2>

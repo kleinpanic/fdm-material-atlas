@@ -62,7 +62,7 @@ export function ProcessGateMatrix({ view, dispatch }: Props) {
   const appliesCount = model.relationships.filter(({ relationship }) => relationship === "applies").length;
 
   return (
-    <section class="map-mode map-mode--process-gates" aria-labelledby="interactive-process-gates-heading">
+    <section id="process-gates" class="map-mode map-mode--process-gates" aria-labelledby="interactive-process-gates-heading">
       <header class="map-mode__header">
         <p class="technical-eyebrow">Process-gate map</p>
         <h2 id="interactive-process-gates-heading">Which process checks connect to each decision lane?</h2>

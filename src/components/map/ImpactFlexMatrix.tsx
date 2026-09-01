@@ -76,7 +76,7 @@ export function ImpactFlexMatrix({ view, dispatch, evidenceHref }: Props) {
   });
 
   return (
-    <section class="map-mode map-mode--impact-flex" aria-labelledby="interactive-impact-flex-heading">
+    <section id="impact-flex-space" class="map-mode map-mode--impact-flex" aria-labelledby="interactive-impact-flex-heading">
       <header class="map-mode__header">
         <p class="technical-eyebrow">Impact and flexibility</p>
         <h2 id="interactive-impact-flex-heading">Inspect two ordered qualitative categories together</h2>

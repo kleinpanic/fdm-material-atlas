@@ -1,23 +1,20 @@
 ---
+import { MapExplorerIsland } from "../../components/map/MapExplorerIsland.tsx";
+import { compileMapProjection } from "../../features/map/projection.ts";
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import DecisionBoard from "../../components/map/DecisionBoard.astro";
-import { deriveDecisionLaneMembership } from "../../domain/decision-lanes/membership.ts";
 import { loadPublicAtlas } from "../../lib/public-atlas.ts";
 import { internalHref } from "../../lib/routes.ts";
 import "../../styles/map-board.css";
 
-const atlas = loadPublicAtlas();
-const lanes = deriveDecisionLaneMembership(atlas);
-const materialById = new Map(atlas.materials.map((material) => [material.id, material]));
-const distinctCandidateCount = new Set(lanes.flatMap(({ candidateMaterialIds }) => candidateMaterialIds)).size;
-const processGateCount = new Set(lanes.flatMap(({ processGates }) => processGates.map(({ id }) => id))).size;
 const base = import.meta.env.BASE_URL;
+const atlas = loadPublicAtlas();
+const projection = compileMapProjection(atlas, base);
 const homeHref = internalHref(base, { id: "home" });
 const materialsHref = internalHref(base, { id: "materials" });
-const methodHref = internalHref(base, { id: "method" });
 const compareHref = internalHref(base, { id: "compare" });
-const dataHref = internalHref(base, { id: "data" });
 const mapHref = internalHref(base, { id: "map" });
+const dataHref = internalHref(base, { id: "data" });
+const methodHref = internalHref(base, { id: "method" });
 const navigation = [
   { label: "Selector", href: homeHref, current: false },
   { label: "Materials", href: materialsHref, current: false },
@@ -28,26 +25,79 @@ const navigation = [
 ] as const;
 ---
 
-<BaseLayout title="Material decision map | FDM Material Atlas" description="Eight data-derived decision paths from printing need to candidate materials and process gates." canonicalPath={mapHref} homeHref={homeHref} navigation={navigation} footerLinks={navigation.map(({ label, href }) => ({ label, href }))}>
+<BaseLayout
+  title="Decision maps | FDM Material Atlas"
+  description="Trace eight data-derived material decision paths and inspect thermal, process-gate, impact, and flexibility relationships."
+  canonicalPath={mapHref}
+  homeHref={homeHref}
+  navigation={navigation}
+  breadcrumbs={[{ label: "Home", href: homeHref }, { label: "Decision maps", current: true }]}
+  footerLinks={navigation.map(({ label, href }) => ({ label, href }))}
+>
   <article class="map-page">
     <header class="map-hero">
-      <div class="map-hero__copy">
-        <p class="technical-eyebrow">Material routing board / 08 paths</p>
-        <h1>Start with the job. End with what to verify.</h1>
-        <p class="map-hero__lede">Trace a real printing need through the properties that matter, the materials that currently match, and the equipment or evidence checks that remain.</p>
-      </div>
-      <dl class="map-hero__stats" aria-label="Decision map coverage">
-        <div><dt>Decision paths</dt><dd>{lanes.length}</dd></div>
-        <div><dt>Materials routed</dt><dd>{distinctCandidateCount}</dd></div>
-        <div><dt>Process gates</dt><dd>{processGateCount}</dd></div>
-      </dl>
+      <p class="technical-eyebrow">Material decision maps</p>
+      <h1>Trace material choices through properties and process gates</h1>
+      <p class="map-hero__lede">
+        Follow a use need to the properties, live material candidates, and process checks that require verification. Then inspect selected scientific relationships without combining unlike measurements.
+      </p>
     </header>
 
-    <div class="map-principle" role="note">
-      <strong>Read this first</strong>
-      <p>A match is a defensible place to begin—not a product certification. Exact formulation, geometry, moisture, orientation, load, and process history can change the result.</p>
-    </div>
+    <aside class="map-caution" aria-labelledby="map-caution-heading">
+      <span class="map-caution__mark" aria-hidden="true">!</span>
+      <div>
+        <h2 id="map-caution-heading">Read paths and plots as guidance</h2>
+        <p>Candidate status means that a material satisfies the published lane rule. It is not a universal recommendation, safety approval, or engineering certification.</p>
+      </div>
+    </aside>
 
-    <DecisionBoard lanes={lanes} materials={materialById} base={base} />
+    <nav class="map-mode-index" aria-label="Explore visualization modes">
+      <p class="map-index-label">Explore visualization modes</p>
+      <ol>
+        <li><a href={projection.modeFragments["decision-paths"]}><span aria-hidden="true">01</span>Decision paths</a></li>
+        <li><a href={projection.modeFragments["thermal-ranges"]}><span aria-hidden="true">02</span>Thermal guidance</a></li>
+        <li><a href={projection.modeFragments["process-gates"]}><span aria-hidden="true">03</span>Process gates</a></li>
+        <li><a href={projection.modeFragments["impact-flex-space"]}><span aria-hidden="true">04</span>Impact + flexibility</a></li>
+      </ol>
+    </nav>
+
+    <nav class="map-lane-directory" aria-label="Decision path index">
+      <header>
+        <p class="technical-eyebrow">Decision paths</p>
+        <h2>Start with the need</h2>
+        <p>Each path preserves the canonical need, properties, live candidates, and verification gates.</p>
+      </header>
+      <ol>
+        {projection.lanes.map((lane, index) => (
+          <li>
+            <a href={lane.href}>
+              <span class="map-lane-directory__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+              <span class="map-lane-directory__copy">
+                <strong>{lane.label}</strong>
+                <small>{lane.candidates.length} candidates · {lane.processGates.length} gates</small>
+              </span>
+              <span class="map-lane-directory__arrow" aria-hidden="true">→</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+
+    <div class="map-preparation" role="status">
+      <span class="map-preparation__pulse" aria-hidden="true"></span>
+      <p>Interactive map controls are preparing. Every path and structured table is already available.</p>
+    </div>
+    <noscript>
+      <p class="map-noscript">Interactive highlighting is unavailable. All decision paths and structured visualization data remain readable below.</p>
+    </noscript>
+
+    <MapExplorerIsland projection={projection} client:visible={{ rootMargin: "200px" }} />
+
+    <footer class="map-method-note">
+      <p class="technical-eyebrow">Interpretation boundary</p>
+      <h2>Keep measurements in context</h2>
+      <p>Thermal metrics, qualitative property guidance, and process gates answer different questions. Review definitions, evidence conventions, and limitations before making a consequential choice.</p>
+      <a href={projection.methodHref}>Review method and thermal definitions</a>
+    </footer>
   </article>
 </BaseLayout>

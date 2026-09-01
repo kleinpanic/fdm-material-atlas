@@ -53,6 +53,7 @@ describe("static-first map page source", () => {
     expect(projection.lanes).toHaveLength(8);
     for (const mode of MAP_MODES) {
       expect(page).toContain(`projection.modeFragments["${mode}"]`);
+      expect(renderedIsland).toContain(`id=\"${mode}\"`);
       expect(renderedIsland).toContain(`map-mode--${mode === "thermal-ranges" ? "thermal" : mode === "process-gates" ? "process-gates" : mode === "impact-flex-space" ? "impact-flex" : "decision-paths"}`);
     }
     for (const lane of projection.lanes) {

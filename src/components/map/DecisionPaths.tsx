@@ -165,7 +165,7 @@ export function DecisionPaths({ view, dispatch }: Props) {
   const effectiveLaneId = active?.kind === "material" ? active.laneId : selectedLaneId;
 
   return (
-    <section class="map-mode map-mode--decision-paths" aria-labelledby="interactive-decision-paths-heading">
+    <section id="decision-paths" class="map-mode map-mode--decision-paths" aria-labelledby="interactive-decision-paths-heading">
       <header class="map-mode__header">
         <p class="technical-eyebrow">Decision paths</p>
         <h2 id="interactive-decision-paths-heading">Follow a need through properties, candidates, and process gates</h2>
