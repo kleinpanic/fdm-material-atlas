@@ -11,11 +11,7 @@ import {
   writeReleaseEvidence,
 } from "../../tools/lib/release-evidence.mjs";
 import { readProtectedPolicyFromFd } from "../../tools/lib/protected-policy-input.mjs";
-
-export const SHA = "a".repeat(40);
-export const DIGEST = `sha256:${"b".repeat(64)}`;
-export const ROOT_DIGEST = `sha256:${"c".repeat(64)}`;
-export const REPO_DIGEST = `sha256:${"d".repeat(64)}`;
+import { DIGEST, SHA } from "./fixtures";
 
 export function draft() {
   return startFreshReleaseCycle({
@@ -65,9 +61,9 @@ describe("release evidence boundary", () => {
   });
 
   it("rejects stage skips, regressions, SHA drift, unknown keys, and raw diagnostics", () => {
-    expect(() => advanceReleaseEvidence(draft(), { stage: "published", observation: {} })).toThrowError(
-      expect.objectContaining({ code: "RELEASE_STAGE_ORDER_INVALID" }),
-    );
+    expect(() =>
+      advanceReleaseEvidence(draft(), { stage: "published", observation: {} }),
+    ).toThrowError(expect.objectContaining({ code: "RELEASE_STAGE_ORDER_INVALID" }));
     expect(() => parseReleaseEvidence({ ...draft(), stage: "verified" })).toThrowError(
       expect.objectContaining({ code: "RELEASE_EVIDENCE_MISSING" }),
     );
@@ -133,13 +129,17 @@ describe("release evidence boundary", () => {
     await writeFile(join(root, ".gitignore"), "release.json\n");
     const { execFile } = await import("node:child_process");
     await new Promise<void>((resolve, reject) =>
-      execFile("git", ["init", "-q"], { cwd: root }, (error) => (error ? reject(error) : resolve())),
+      execFile("git", ["init", "-q"], { cwd: root }, (error) =>
+        error ? reject(error) : resolve(),
+      ),
     );
     const destination = join(root, "release.json");
     await writeReleaseEvidence(destination, draft(), { root });
     expect(JSON.parse(await readFile(destination, "utf8"))).toEqual(draft());
     expect((await stat(destination)).mode & 0o777).toBe(0o600);
-    await expect(writeReleaseEvidence(join(root, "tracked.json"), draft(), { root })).rejects.toMatchObject({
+    await expect(
+      writeReleaseEvidence(join(root, "tracked.json"), draft(), { root }),
+    ).rejects.toMatchObject({
       code: "RELEASE_EVIDENCE_DESTINATION_UNSAFE",
     });
   });
