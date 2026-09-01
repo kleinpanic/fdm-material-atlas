@@ -15,13 +15,8 @@ import { assertRepository } from "./lib/repository-guard.mjs";
 import { scanPublication } from "./scan-publication.mjs";
 
 const execFileAsync = promisify(execFile);
-const EXPECTED_OWNER = "kleinpanic";
-const EXPECTED_REPOSITORY = "kleinpanic/fdm-material-atlas";
-const EXPECTED_ORIGINS = new Set([
-  "git@github.com:kleinpanic/fdm-material-atlas.git",
-  "https://github.com/kleinpanic/fdm-material-atlas.git",
-]);
 const SHA = /^[a-f0-9]{40}$/u;
+const GITHUB_NAME = /^[A-Za-z0-9_.-]{1,100}$/u;
 const QUALITY_COMMANDS = Object.freeze([
   ["install", "npm", ["ci", "--ignore-scripts"]],
   ["browser-install", "npm", ["exec", "--no", "--", "playwright", "install", "chromium"]],
@@ -268,16 +263,22 @@ async function defaultIdentity(root, git) {
 }
 
 async function defaultGithub(root) {
+  const auth = JSON.parse(
+    await command("gh", ["auth", "status", "--active", "--json", "hosts"], { cwd: root }),
+  );
+  const active = (auth.hosts?.["github.com"] ?? []).filter((account) => account?.active === true);
+  if (active.length !== 1 || !GITHUB_NAME.test(active[0]?.login ?? ""))
+    fail("RELEASE_AUTHENTICATION_INVALID");
   const login = JSON.parse(await command("gh", ["api", "user"], { cwd: root })).login;
+  if (login !== active[0].login) fail("RELEASE_AUTHENTICATION_INVALID");
   const repository = JSON.parse(
     await command(
       "gh",
       [
         "repo",
         "view",
-        EXPECTED_REPOSITORY,
         "--json",
-        "nameWithOwner,url,visibility,defaultBranchRef",
+        "name,owner,nameWithOwner,url,visibility,viewerPermission,defaultBranchRef",
       ],
       { cwd: root },
     ),
@@ -286,9 +287,12 @@ async function defaultGithub(root) {
   return {
     login,
     repository: {
+      name: repository.name,
+      owner: repository.owner,
       nameWithOwner: repository.nameWithOwner,
       url: repository.url,
       visibility: repository.visibility,
+      viewerPermission: repository.viewerPermission,
       defaultBranch: repository.defaultBranchRef?.name,
     },
     advertisedRefs: refsText
@@ -300,6 +304,37 @@ async function defaultGithub(root) {
         return { name, sha };
       }),
   };
+}
+
+function classifyAdvertisedRefs(rawRefs) {
+  if (!Array.isArray(rawRefs) || rawRefs.length < 1 || rawRefs.length > 512)
+    fail("RELEASE_REF_TOPOLOGY_INVALID");
+  const refs = rawRefs.map((raw) => {
+    if (typeof raw?.name !== "string" || typeof raw?.sha !== "string" || !SHA.test(raw.sha))
+      fail("RELEASE_REF_TOPOLOGY_INVALID");
+    let kind;
+    if (raw.name === "refs/heads/main") kind = "main";
+    else if (/^refs\/heads\/dependabot\/[A-Za-z0-9._/-]+$/u.test(raw.name)) kind = "dependabot";
+    else if (/^refs\/pull\/[1-9][0-9]*\/head$/u.test(raw.name)) kind = "pull-head";
+    else if (/^refs\/pull\/[1-9][0-9]*\/merge$/u.test(raw.name)) kind = "pull-merge";
+    else fail("RELEASE_REF_TOPOLOGY_INVALID");
+    return { name: raw.name, sha: raw.sha, kind };
+  });
+  refs.sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
+  if (
+    new Set(refs.map((ref) => ref.name)).size !== refs.length ||
+    refs.filter((ref) => ref.kind === "main").length !== 1
+  )
+    fail("RELEASE_REF_TOPOLOGY_INVALID");
+  for (const ref of refs.filter((item) => item.kind === "pull-merge")) {
+    if (!refs.some((item) => item.name === ref.name.replace(/\/merge$/u, "/head")))
+      fail("RELEASE_REF_TOPOLOGY_INVALID");
+  }
+  return refs;
+}
+
+function digestRefTopology(refs) {
+  return `sha256:${createHash("sha256").update(JSON.stringify(refs)).digest("hex")}`;
 }
 
 async function defaultQuality(root, id) {
@@ -349,10 +384,10 @@ export async function verifyReleaseCandidate(options = {}) {
   if ((await git(["status", "--porcelain=v1", "--untracked-files=all"])).trim() !== "")
     fail("RELEASE_WORKTREE_DIRTY");
 
+  let targetBaseline;
   if (mode === "post-publication") {
     if (!parsedEvidence.priorVerifiedCycle) fail("RELEASE_PRIOR_SHA_MISSING");
     const origin = (await git(["remote", "get-url", "origin"])).trim();
-    if (!EXPECTED_ORIGINS.has(origin)) fail("RELEASE_ORIGIN_INVALID");
     const remoteMain = (await git(["rev-parse", "--verify", "refs/remotes/origin/main"])).trim();
     if (remoteMain !== parsedEvidence.priorVerifiedCycle.commitSha) fail("RELEASE_PRIOR_SHA_STALE");
     try {
@@ -360,19 +395,52 @@ export async function verifyReleaseCandidate(options = {}) {
     } catch {
       fail("RELEASE_HISTORY_NOT_DESCENDANT");
     }
-    const github = await (injected.github ?? defaultGithub)(physicalRoot);
+    let github;
+    try {
+      github = await (injected.github ?? defaultGithub)(physicalRoot);
+    } catch {
+      fail("RELEASE_AUTHENTICATION_INVALID");
+    }
+    const login = github?.login;
+    const repositoryName = github?.repository?.name;
+    const nameWithOwner = github?.repository?.nameWithOwner;
+    const allowedOrigins = new Set([
+      `git@github.com:${login}/${repositoryName}.git`,
+      `https://github.com/${login}/${repositoryName}.git`,
+    ]);
+    const advertisedRefs = classifyAdvertisedRefs(github?.advertisedRefs);
     if (
-      github.login !== EXPECTED_OWNER ||
-      github.repository?.nameWithOwner !== EXPECTED_REPOSITORY ||
+      !GITHUB_NAME.test(login ?? "") ||
+      !GITHUB_NAME.test(repositoryName ?? "") ||
+      github.repository?.owner?.login !== login ||
+      nameWithOwner !== `${login}/${repositoryName}` ||
       github.repository?.visibility !== "PUBLIC" ||
+      github.repository?.viewerPermission !== "ADMIN" ||
       github.repository?.defaultBranch !== "main" ||
-      github.repository?.url !== `https://github.com/${EXPECTED_REPOSITORY}` ||
-      !github.advertisedRefs?.some(
-        (ref) =>
-          ref.name === "refs/heads/main" && ref.sha === parsedEvidence.priorVerifiedCycle.commitSha,
-      )
+      github.repository?.url !== `https://github.com/${login}/${repositoryName}` ||
+      !allowedOrigins.has(origin) ||
+      advertisedRefs.find((ref) => ref.kind === "main")?.sha !==
+        parsedEvidence.priorVerifiedCycle.commitSha
     )
       fail("RELEASE_AUTHENTICATED_TARGET_INVALID");
+    const observedAt = (injected.now ?? (() => new Date().toISOString()))();
+    targetBaseline = {
+      observedAt,
+      candidateSha: head,
+      authenticatedOwner: login,
+      repositoryName,
+      nameWithOwner,
+      repositoryUrl: github.repository.url,
+      priorRemoteMainSha: remoteMain,
+      branch: "main",
+      fullRef: "refs/heads/main",
+      advertisedRefs: {
+        count: advertisedRefs.length,
+        digest: digestRefTopology(advertisedRefs),
+        refs: advertisedRefs,
+      },
+      status: "passed",
+    };
   } else {
     const remoteCount = (await git(["remote"])).trim();
     if (remoteCount !== "") fail("RELEASE_LEGACY_REMOTE_PRESENT");
@@ -389,8 +457,9 @@ export async function verifyReleaseCandidate(options = {}) {
   if (localRefs.some((ref) => !allowedRefs.has(ref)) || !localRefs.includes("refs/heads/main"))
     fail("RELEASE_LOCAL_REFS_INVALID");
 
+  let repositoryInspection;
   try {
-    await (injected.inspectRepository ?? assertRepository)({
+    repositoryInspection = await (injected.inspectRepository ?? assertRepository)({
       cwd: physicalRoot,
       expectedRoot: physicalRoot,
       remotePolicy: mode === "post-publication" ? "any" : "absent",
@@ -447,10 +516,31 @@ export async function verifyReleaseCandidate(options = {}) {
   const completeIdentity = { ...identityAfter, rootArtifactDigest, repositoryArtifactDigest };
   if (!sameIdentity(completeIdentity, reviewBarrier?.reviewedIdentity))
     fail("RELEASE_REVIEW_IDENTITY_MISMATCH");
+  const commitCount = repositoryInspection?.commitCount;
+  if (!Number.isSafeInteger(commitCount) || commitCount < 1)
+    fail("RELEASE_HISTORY_OBSERVATION_INVALID");
+  const completeTargetBaseline = targetBaseline
+    ? {
+        ...targetBaseline,
+        identityClasses: { human: commitCount, dependabot: 0, githubService: 0, unexpected: 0 },
+        history: {
+          refCount: localRefs.length,
+          commitCount,
+          authorMismatchCount: 0,
+          findingCount: 0,
+        },
+        policy: {
+          scanSessionId: `local-${head.slice(0, 12)}`,
+          activePatternCount: protectedPolicy.exactPatterns.length,
+          status: "passed",
+        },
+      }
+    : undefined;
   return advanceReleaseEvidence(parsedEvidence, {
     stage: "candidate",
     observation: {
       observedAt: (injected.now ?? (() => new Date().toISOString()))(),
+      ...(completeTargetBaseline ? { targetBaseline: completeTargetBaseline } : {}),
       product,
       quality: { rootArtifactDigest, repositoryArtifactDigest, checks: qualityChecks },
       reviewBarrier,

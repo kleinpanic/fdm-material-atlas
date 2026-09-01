@@ -73,6 +73,7 @@ function dependencies() {
         nameWithOwner: "atlas-owner/fdm-material-atlas",
         url: "https://github.com/atlas-owner/fdm-material-atlas",
         visibility: "PUBLIC",
+        viewerPermission: "ADMIN",
         defaultBranch: "main",
       },
       advertisedRefs: [{ name: "refs/heads/main", sha: PRIOR_SHA }],
@@ -90,7 +91,7 @@ function dependencies() {
       ...(surface === "artifact-repository" ? { artifactDigest: REPOSITORY_DIGEST } : {}),
     })),
     inspectIgnored: vi.fn(async () => []),
-    inspectRepository: vi.fn(async () => ({ ok: true })),
+    inspectRepository: vi.fn(async () => ({ commitCount: 3 })),
     observeProduct: vi.fn(async () => product()),
     observeIdentity: vi.fn(async () => reviewBarrierFixture().reviewedIdentity),
     readPolicy: vi.fn(async () => ({
@@ -229,14 +230,29 @@ describe("established repository release preflight", () => {
     expect(result.commitSha).toBe(SHA);
     expect(result.candidate.product).toEqual(product());
     expect(result.candidate.targetBaseline).toMatchObject({
+      observedAt: "2026-09-01T20:00:00.000Z",
+      candidateSha: SHA,
+      authenticatedOwner: "atlas-owner",
       repositoryName: "fdm-material-atlas",
+      nameWithOwner: "atlas-owner/fdm-material-atlas",
+      repositoryUrl: "https://github.com/atlas-owner/fdm-material-atlas",
       priorRemoteMainSha: PRIOR_SHA,
-      refCount: 1,
-      refs: [{ name: "refs/heads/main", sha: PRIOR_SHA }],
+      branch: "main",
+      fullRef: "refs/heads/main",
+      status: "passed",
+      advertisedRefs: {
+        count: 1,
+        refs: [{ name: "refs/heads/main", sha: PRIOR_SHA, kind: "main" }],
+      },
+      identityClasses: { human: 3, dependabot: 0, githubService: 0, unexpected: 0 },
+      history: { refCount: 2, commitCount: 3, authorMismatchCount: 0, findingCount: 0 },
+      policy: {
+        scanSessionId: `local-${SHA.slice(0, 12)}`,
+        activePatternCount: 1,
+        status: "passed",
+      },
     });
-    expect(result.candidate.targetBaseline.refDigest).toMatch(/^sha256:[a-f0-9]{64}$/u);
-    expect(JSON.stringify(result.candidate.targetBaseline)).not.toContain("atlas-owner");
-    expect(JSON.stringify(result.candidate.targetBaseline)).not.toContain("github.com");
+    expect(result.candidate.targetBaseline.advertisedRefs.digest).toMatch(/^sha256:[a-f0-9]{64}$/u);
   });
 
   it("derives target expectations from live authenticated structure without account constants", async () => {
