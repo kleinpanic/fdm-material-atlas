@@ -24,7 +24,7 @@ function markdownLinks(document: string): readonly string[] {
 }
 
 function documentedCommands(document: string): readonly string[] {
-  return [...document.matchAll(/`npm run ([a-z0-9:-]+)`/gu)].map((match) => match[1]!);
+  return [...document.matchAll(/npm run ([a-z0-9:-]+)/gu)].map((match) => match[1]!);
 }
 
 const readmeSubjects = [
