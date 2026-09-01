@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import type { Material } from "../../src/data/schema/material.ts";
+import { compareThermalObservations, type Material } from "../../src/data/schema/material.ts";
 import {
   DATA_ATTRIBUTE_GROUPS,
   DATA_ATTRIBUTE_REGISTRY,
 } from "../../src/features/data-explorer/attribute-registry.ts";
 import { createMinimalMaterial } from "../fixtures/atlas-minimal.valid.ts";
+import {
+  createIncompatibleThermalObservations,
+  createPhase7OverflowMaterial,
+  PHASE7_EVIDENCE_SCOPES,
+  PHASE7_FACT_STATES,
+  PHASE7_SCOPE_BASIS,
+} from "../fixtures/phase7-public-cases.ts";
 
 const EXPECTED_GROUPS = [
   ["identity-thermal", "Identity and thermal behavior", [
@@ -129,5 +136,43 @@ describe("data attribute registry", () => {
     expect(thermal.states(material)).toEqual(["known"]);
     expect(thermal.scopes(material)).toEqual(["representative-product"]);
     expect(JSON.stringify(thermal.read(material))).toContain('"annealed":false');
+  });
+
+  it("provides held-out partial, overflow, scope, and measurement cases", () => {
+    expect(Object.values(PHASE7_FACT_STATES).map(({ state }) => state)).toEqual([
+      "known",
+      "unknown",
+      "conditional",
+      "not-applicable",
+      "missing",
+    ]);
+    expect(PHASE7_FACT_STATES.knownZero.value).toBe(0);
+    expect(PHASE7_SCOPE_BASIS.map(({ scope }) => scope)).toEqual(PHASE7_EVIDENCE_SCOPES);
+
+    const material = createPhase7OverflowMaterial();
+    expect(material.name.length).toBeGreaterThan(80);
+    expect(material.guidance.bestSuitedFor.value).toMatchObject({
+      state: "known",
+      value: expect.arrayContaining([expect.stringMatching(/remain atomic/u)]),
+    });
+    expect(material.startingProfile.partCoolingFan.value).toEqual({
+      state: "known",
+      value: { shape: "range", min: 0, max: 100, unit: "percent" },
+    });
+    expect(material.properties.density.value).toMatchObject({
+      state: "conditional",
+      value: { shape: "exact", value: 1.234 },
+    });
+    expect(material.thermalObservations[0]?.method?.annealed).toBe(false);
+  });
+
+  it("provides thermal observations that differ only by represented method", () => {
+    const [left, right] = createIncompatibleThermalObservations();
+    expect(left.metric).toBe(right.metric);
+    expect(left.measurement).toEqual(right.measurement);
+    expect(compareThermalObservations(left, right)).toEqual({
+      comparable: false,
+      code: "THERMAL_NOT_COMPARABLE",
+    });
   });
 });
