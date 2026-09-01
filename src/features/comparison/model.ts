@@ -3,11 +3,11 @@ import type { BasisRef, Claim, EvidenceScope } from "../../data/schema/evidence.
 import type { FactState } from "../../data/schema/fact-state.ts";
 import type { MaterialId } from "../../data/schema/ids.ts";
 import {
-  compareThermalObservations,
   type Material,
   type ThermalMethod,
   type ThermalObservation,
 } from "../../data/schema/material.ts";
+import { partitionCompatibleThermalObservations } from "../../domain/thermal/compatibility-groups.ts";
 import {
   EVIDENCE_SCOPE_ORDER,
   FACT_STATE_PRESENTATION,
@@ -260,19 +260,6 @@ function scalarCell(
   };
 }
 
-function thermalIdentity(observation: ThermalObservation): string {
-  const method = observation.method;
-  return [
-    observation.metric,
-    observation.metricLabel,
-    method?.standard ?? "",
-    method?.loadMpa === undefined ? "" : String(method.loadMpa),
-    method?.annealed === undefined ? "" : String(method.annealed),
-    method?.conditioning ?? "",
-    method?.otherConditions ?? "",
-  ].join("\u0000");
-}
-
 function methodLabel(method: ThermalMethod | undefined): string {
   if (method === undefined) return "Method not represented";
   const parts = [
@@ -291,32 +278,26 @@ type ThermalGroupIndex = {
 };
 
 function buildThermalGroups(materials: readonly Material[]): ThermalGroupIndex {
-  const observations = materials.flatMap((material) => material.thermalObservations.map((observation) => ({ material, observation })))
-    .sort((left, right) =>
-      compareText(thermalIdentity(left.observation), thermalIdentity(right.observation)) ||
-      compareText(left.material.id, right.material.id) ||
-      compareText(left.observation.id, right.observation.id)
-    );
-  const representatives: ThermalObservation[] = [];
-  const membership = new Map<string, number>();
-  for (const { material, observation } of observations) {
-    let groupIndex = representatives.findIndex((candidate) => compareThermalObservations(candidate, observation).comparable);
-    if (groupIndex < 0) {
-      representatives.push(observation);
-      groupIndex = representatives.length - 1;
-    }
-    membership.set(`${material.id}\u0000${observation.id}`, groupIndex);
-  }
-  const groups = representatives.map((observation, index): ComparisonThermalGroup => ({
-    id: `thermal-group-${String(index + 1).padStart(3, "0")}`,
-    metric: observation.metric,
-    metricLabel: observation.metricLabel,
-    ...(observation.method === undefined ? {} : { method: { ...observation.method } }),
-    methodLabel: methodLabel(observation.method),
+  const partition = partitionCompatibleThermalObservations(
+    materials.flatMap((material) => material.thermalObservations.map((observation) => ({
+      materialId: material.id,
+      observation,
+    }))),
+  );
+  const groups = partition.map(({ id, metric, metricLabel, method }): ComparisonThermalGroup => ({
+    id,
+    metric,
+    metricLabel,
+    ...(method === undefined ? {} : { method: { ...method } }),
+    methodLabel: methodLabel(method),
   }));
+  const membership = new Map(partition.flatMap((group) => group.members.map(({ materialId, observation }) => [
+    `${materialId}\u0000${observation.id}`,
+    group.id,
+  ] as const)));
   return {
     groups,
-    byObservation: new Map([...membership].map(([key, index]) => [key, groups[index]!.id])),
+    byObservation: membership,
   };
 }
 
