@@ -201,6 +201,8 @@ test("selector keeps complete default meaning without JavaScript and when only i
     aborted.page.getByText("Interactive filtering needs JavaScript.", { exact: false }),
   ).toHaveCount(0);
   await expect(aborted.page.getByText("Selector is preparing", { exact: true })).toBeVisible();
+  await expect(aborted.page.locator(".selector-controls fieldset:disabled")).toHaveCount(2);
+  await expect(aborted.page.locator(".selector-actions button:disabled")).toHaveCount(2);
   await expect(aborted.page.getByRole("button", { name: "View recommendations" })).toBeDisabled();
   expect(await displayedRanking(aborted.page)).toEqual(
     defaultPresentation.compatible.map(
@@ -224,6 +226,8 @@ test("hydration preserves SSR ranking and controls drive transparent engine reco
       dataRequests.push(request.resourceType());
   });
   await waitForSelector(page);
+  await expect(page.locator(".selector-controls fieldset:enabled")).toHaveCount(2);
+  await expect(page.locator(".selector-actions button:enabled")).toHaveCount(2);
   expect(await displayedRanking(page)).toEqual(ssrRanking);
   await expect(page.getByRole("radio", { checked: true })).toHaveValue(
     pageModel.defaults["selector-primary-goal"],

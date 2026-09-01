@@ -108,7 +108,10 @@ describe("selector component boundary", () => {
   it("prepares once and keeps hydration and status updates below the results owner", () => {
     expect(island).toMatch(/useMemo\(\s*\(\) => prepareSelectorPresentationEvaluator/u);
     expect(island).not.toMatch(/setHydrated|announcementCause/u);
-    expect(controls).toContain("setHydrated");
+    expect(controls).toContain("useLayoutEffect");
+    expect(controls).not.toMatch(/setHydrated|useState/u);
+    expect(controls.match(/disabled\s+ref=/gu)).toHaveLength(4);
+    expect(controls.match(/\.current\.disabled = false/gu)).toHaveLength(4);
     expect(island).toMatch(/function SelectorStatus[\s\S]*?setTimeout/u);
     expect(island).toContain("if (immediate)");
     expect(island).toContain("window.clearTimeout(timer)");
