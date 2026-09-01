@@ -5,7 +5,10 @@ import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
 import { PUBLIC_ROUTE_REGISTRY } from "../../src/lib/public-route-registry.ts";
 import { buildSelectorPageModel } from "../../src/features/selector/page-model.ts";
 import { decodeSelectorClientModel } from "../../src/features/selector/client-model.ts";
-import { evaluateSelectorSafely } from "../../src/features/selector/safe-engine.ts";
+import {
+  evaluateSelectorSafely,
+  prepareSelectorEvaluator,
+} from "../../src/features/selector/safe-engine.ts";
 import { resolveCompareShortlistAction } from "../../src/components/selector/SelectorResults.tsx";
 
 const pageModel = decodeSelectorClientModel(
@@ -44,6 +47,22 @@ describe("evaluateSelectorSafely", () => {
     expect(JSON.stringify(failed)).not.toMatch(/compatible|eliminated|rank|projection/i);
     expect(JSON.stringify(failed)).not.toContain(secret);
   });
+
+  it("prepares the projection once and reuses the prepared evaluator across selections", () => {
+    const canonical = evaluateSelectorSafely(pageModel.projection, pageModel.defaults);
+    if (canonical.kind !== "success") throw new Error("EXPECTED_CANONICAL_SELECTOR_OUTCOME");
+    const evaluate = vi.fn(() => canonical.outcome);
+    const prepare = vi.fn(() => evaluate);
+
+    const prepared = prepareSelectorEvaluator(pageModel.projection, prepare);
+    const first = prepared(pageModel.defaults);
+    const second = prepared({ ...pageModel.defaults });
+
+    expect(first.kind).toBe("success");
+    expect(second).toEqual(first);
+    expect(prepare).toHaveBeenCalledTimes(1);
+    expect(evaluate).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("selector component boundary", () => {
@@ -75,9 +94,19 @@ describe("selector component boundary", () => {
   const allSource = `${componentSource}\n${island}`;
 
   it("keeps exactly one island and one engine invocation owner", () => {
-    expect(island).toContain("evaluateSelectorSafely");
-    expect(componentSource).not.toMatch(/selectProjectedMaterials|evaluateSelectorSafely/);
-    expect(allSource.match(/from ["']preact\/hooks["']/g)).toHaveLength(1);
+    expect(island).toContain("prepareSelectorEvaluator");
+    expect(island).not.toContain("evaluateSelectorSafely");
+    expect(componentSource).not.toMatch(
+      /selectProjectedMaterials|evaluateSelectorSafely|prepareSelectorEvaluator/,
+    );
+  });
+
+  it("prepares once and keeps hydration and status updates below the results owner", () => {
+    expect(island).toMatch(/useMemo\(\s*\(\) => prepareSelectorEvaluator/u);
+    expect(island).not.toMatch(/setHydrated|announcementCause|setTimeout/u);
+    expect(controls).toContain("setHydrated");
+    expect(island).toContain("function SelectorStatus");
+    expect(island).toContain("<SelectorStatus");
   });
 
   it("uses native form and disclosure semantics for all seven criteria", () => {
