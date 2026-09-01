@@ -58,7 +58,7 @@ function renderDecision(actions: MapSelectionAction[] = [], source: MapProjectio
   }));
 }
 
-function candidatesOfLength(lane: MapDecisionLane, length: number): readonly MapMaterialReference[] {
+function candidatesOfLength(length: number): readonly MapMaterialReference[] {
   return Array.from({ length }, (_, index) => {
     const original = projection.lanes.flatMap(({ candidates }) => candidates)[index % 23]!;
     return {
@@ -74,7 +74,7 @@ function candidatesOfLength(lane: MapDecisionLane, length: number): readonly Map
 function withCandidateCounts(counts: readonly number[]): MapProjection {
   const source = structuredClone(projection) as MapProjection;
   (source.lanes as unknown as MapDecisionLane[]) = source.lanes.map((lane, index) => {
-    const candidates = candidatesOfLength(lane, counts[index] ?? lane.candidates.length);
+    const candidates = candidatesOfLength(counts[index] ?? lane.candidates.length);
     return {
       ...lane,
       candidates,
