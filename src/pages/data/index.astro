@@ -1,57 +1,68 @@
 ---
+import { DataExplorerIsland } from "../../components/data-explorer/DataExplorerIsland.tsx";
+import { buildDataExplorerModel } from "../../features/data-explorer/model.ts";
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { compactFact } from "../../lib/compact-fact.ts";
 import { loadPublicAtlas } from "../../lib/public-atlas.ts";
 import { internalHref } from "../../lib/routes.ts";
-import "../../styles/reference-tools.css";
+import "../../styles/data-explorer.css";
 
-const atlas = loadPublicAtlas();
 const base = import.meta.env.BASE_URL;
+const model = buildDataExplorerModel(loadPublicAtlas(), base);
 const homeHref = internalHref(base, { id: "home" });
 const materialsHref = internalHref(base, { id: "materials" });
 const methodHref = internalHref(base, { id: "method" });
-const dataHref = internalHref(base, { id: "data" });
 const compareHref = internalHref(base, { id: "compare" });
 const mapHref = internalHref(base, { id: "map" });
+const dataHref = internalHref(base, { id: "data" });
 const navigation = [
-  { label: "Selector", href: homeHref, current: false },
-  { label: "Materials", href: materialsHref, current: false },
+  { label: "Material selector", href: homeHref, current: false },
+  { label: "Material atlas", href: materialsHref, current: false },
   { label: "Compare", href: compareHref, current: false },
   { label: "Map", href: mapHref, current: false },
   { label: "Data", href: dataHref, current: true },
   { label: "Method", href: methodHref, current: false },
 ] as const;
+const breadcrumbs = [
+  { label: "Home", href: homeHref },
+  { label: "Material data", current: true },
+] as const;
+const footerLinks = navigation.map(({ label, href }) => ({ label, href }));
 ---
 
-<BaseLayout title="Material data | FDM Material Atlas" description="A compact public data table for 23 FDM and FFF material families." canonicalPath={dataHref} homeHref={homeHref} navigation={navigation} footerLinks={navigation.map(({ label, href }) => ({ label, href }))}>
-  <article class="reference-tool">
-    <header class="reference-intro">
-      <p class="technical-eyebrow">Advanced data view</p>
-      <h1>Material data explorer</h1>
-      <p>This table uses the same validated records as the selector and material pages. Unknown and conditional values remain explicit.</p>
-    </header>
-    <div class="table-frame" tabindex="0" role="region" aria-label="Scrollable material data table">
-      <table class="material-matrix">
-        <caption>{atlas.materials.length} material families. Scroll horizontally for all screening fields.</caption>
-        <thead><tr><th scope="col">Material</th><th scope="col">Family or fill</th><th scope="col">Service guidance</th><th scope="col">Print difficulty</th><th scope="col">Enclosure</th><th scope="col">Hardened nozzle</th><th scope="col">Moisture</th><th scope="col">Outdoor / UV</th><th scope="col">Impact</th><th scope="col">Flexibility</th><th scope="col">Cost</th></tr></thead>
-        <tbody>
-          {atlas.materials.map((material) => (
-            <tr>
-              <th scope="row"><a href={internalHref(base, { id: "material", slug: material.slug })}>{material.name}</a></th>
-              <td>{compactFact(material.familyOrFill)}</td>
-              <td>{compactFact(material.serviceTemperature)}</td>
-              <td>{compactFact(material.process.printDifficulty)}</td>
-              <td>{compactFact(material.process.enclosure)}</td>
-              <td>{compactFact(material.process.hardenedNozzle)}</td>
-              <td>{compactFact(material.properties.moistureSensitivity)}</td>
-              <td>{compactFact(material.properties.outdoorUv)}</td>
-              <td>{compactFact(material.properties.impactResistance)}</td>
-              <td>{compactFact(material.properties.flexibility)}</td>
-              <td>{compactFact(material.costTier)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  </article>
+<BaseLayout
+  title="Material data explorer | FDM Material Atlas"
+  description="Search, filter, sort, and inspect the complete public FDM and FFF material attribute set."
+  canonicalPath={dataHref}
+  homeHref={homeHref}
+  navigation={navigation}
+  breadcrumbs={breadcrumbs}
+  footerLinks={footerLinks}
+>
+  <header class="data-orientation">
+    <p class="technical-eyebrow">Advanced material data</p>
+    <h1>Explore every material attribute</h1>
+    <p class="reading-measure">Inspect the same validated facts used by the selector, comparison, and material details. Search and filter material membership without hiding fields from retained rows.</p>
+    <p class="data-count"><strong>{model.materials.length}</strong> material families · <strong>{model.fields.length}</strong> registered attributes</p>
+    <aside class="data-thermal-caution" aria-label="Thermal comparison caution">
+      <strong>Named thermal tests are not directly interchangeable.</strong>
+      Practical service guidance, Tg, HDT, Vicat softening temperature, melting point, and other named tests retain separate identities and represented methods.
+    </aside>
+  </header>
+
+  <section class="data-experience" aria-label="Complete material data explorer">
+    <noscript><p class="data-noscript">Interactive filters require JavaScript. The complete default identity and thermal table remains available in this page.</p></noscript>
+    <DataExplorerIsland model={model} client:load />
+  </section>
+
+  <section class="data-group-guide" aria-labelledby="data-group-guide-heading">
+    <h2 id="data-group-guide-heading">Attribute group guide</h2>
+    <p>Choose one group at a time to keep the table readable. Every registered attribute remains available.</p>
+    <ol>{model.groups.map((group) => <li><strong>{group.label}</strong><span>{group.fieldKeys.length} attributes</span></li>)}</ol>
+  </section>
+
+  <aside class="data-method-note" aria-labelledby="data-method-heading">
+    <h2 id="data-method-heading">Read values with their evidence context</h2>
+    <p>Fact states, conditions, qualifications, units, and evidence scope are part of each value. Product formulations differ, and starting profiles are calibration starting points.</p>
+    <a href={methodHref}>Read sources, definitions, and methodology</a>
+  </aside>
 </BaseLayout>
