@@ -5,6 +5,7 @@ import { lstat, opendir, readFile, realpath, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { gzipSync } from "node:zlib";
 
 import { loadExactPatterns } from "./lib/publication-policy.mjs";
 import { parsePhase8Arguments, verifyPhase8Build } from "./verify-phase8-build.mjs";
@@ -383,9 +384,27 @@ const PREVIEW_CONTENT_TYPES = new Map([
   [".svg", "image/svg+xml"],
   [".woff2", "font/woff2"],
 ]);
+const PREVIEW_COMPRESSIBLE_EXTENSIONS = new Set([".css", ".html", ".js", ".json", ".mjs", ".svg"]);
 
-export async function createPreviewServer(mode) {
+function acceptsGzip(value) {
+  const header = Array.isArray(value) ? value.join(",") : (value ?? "");
+  return header.split(",").some((entry) => {
+    const [encoding, ...parameters] = entry
+      .trim()
+      .toLowerCase()
+      .split(";")
+      .map((part) => part.trim());
+    if (encoding !== "gzip") return false;
+    const quality = parameters.find((parameter) => parameter.startsWith("q="));
+    if (quality === undefined) return true;
+    const score = Number(quality.slice(2));
+    return Number.isFinite(score) && score > 0 && score <= 1;
+  });
+}
+
+export async function createPreviewServer(mode, { productionCompression = false } = {}) {
   const files = await collectFiles(mode.output);
+  const gzipCache = new Map();
   return createServer(async (request, response) => {
     try {
       if (request.method !== "GET" && request.method !== "HEAD") fail("SERVE_METHOD_INVALID");
@@ -411,13 +430,28 @@ export async function createPreviewServer(mode) {
         return;
       }
       const extension = posix.extname(relativeFile);
-      const bytes = request.method === "HEAD" ? undefined : await readFile(record.path);
-      response.writeHead(200, {
-        "content-length": String(record.size),
+      const negotiatesCompression =
+        productionCompression && PREVIEW_COMPRESSIBLE_EXTENSIONS.has(extension);
+      const useGzip = negotiatesCompression && acceptsGzip(request.headers["accept-encoding"]);
+      let bytes;
+      if (useGzip) {
+        bytes = gzipCache.get(relativeFile);
+        if (bytes === undefined) {
+          bytes = gzipSync(await readFile(record.path), { level: 9 });
+          gzipCache.set(relativeFile, bytes);
+        }
+      } else if (request.method === "GET") {
+        bytes = await readFile(record.path);
+      }
+      const headers = {
+        "content-length": String(useGzip ? bytes.length : record.size),
         "content-type": PREVIEW_CONTENT_TYPES.get(extension) ?? "application/octet-stream",
         "x-content-type-options": "nosniff",
-      });
-      response.end(bytes);
+      };
+      if (negotiatesCompression) headers.vary = "Accept-Encoding";
+      if (useGzip) headers["content-encoding"] = "gzip";
+      response.writeHead(200, headers);
+      response.end(request.method === "HEAD" ? undefined : bytes);
     } catch {
       response.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
       response.end("Invalid request");

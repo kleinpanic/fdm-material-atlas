@@ -499,7 +499,7 @@ export async function runPerformanceBudget() {
   const transfer = await exactTransfer(policy, modes);
   const reports = [];
   for (const mode of modes) {
-    const server = await createPreviewServer(mode);
+    const server = await createPreviewServer(mode, { productionCompression: true });
     try {
       const origin = await listen(server);
       const routes = await discoverRoutes(mode, policy);
