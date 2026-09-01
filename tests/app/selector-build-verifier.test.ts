@@ -12,9 +12,33 @@ import {
 
 const roots: string[] = [];
 
-function pageProps(route: Record<string, unknown> = { kind: "unavailable", label: "Comparison is unavailable" }) {
-  return JSON.stringify({
-    pageModel: {
+function compact(value: unknown): unknown {
+  const strings = new Set<string>();
+  const collect = (item: unknown): void => {
+    if (typeof item === "string") strings.add(item);
+    else if (Array.isArray(item)) item.forEach(collect);
+    else if (item !== null && typeof item === "object") Object.entries(item).forEach(([key, child]) => { strings.add(key); collect(child); });
+  };
+  collect(value);
+  const dictionary = [...strings].sort();
+  const indexes = new Map(dictionary.map((item, index) => [item, index]));
+  const encode = (item: unknown): unknown => {
+    if (typeof item === "string") return [0, indexes.get(item)];
+    if (typeof item === "number") return [3, item];
+    if (typeof item === "boolean") return [4, item ? 1 : 0];
+    if (item === null) return [5];
+    if (Array.isArray(item)) return [2, ...item.map(encode)];
+    const tuple: unknown[] = [1];
+    for (const [key, child] of Object.entries(item as object).sort(([left], [right]) => left.localeCompare(right, "en"))) {
+      tuple.push(indexes.get(key), encode(child));
+    }
+    return tuple;
+  };
+  return [1, dictionary, encode(value)];
+}
+
+function runtimePageModel(route: Record<string, unknown> = { kind: "unavailable", label: "Comparison is unavailable" }) {
+  return {
       projection: {
         kind: "selector-projection",
         criteria: [{ id: "selector-primary-goal", defaultOptionId: "option-goal-easy" }],
@@ -29,8 +53,11 @@ function pageProps(route: Record<string, unknown> = { kind: "unavailable", label
         decisionMapFallback: { kind: "unavailable", label: "Map is unavailable" },
         methodEvidence: { kind: "unavailable", label: "Method is unavailable" },
       },
-    },
-  });
+    };
+}
+
+function pageProps(route?: Record<string, unknown>, transform: (model: ReturnType<typeof runtimePageModel>) => unknown = (model) => model) {
+  return JSON.stringify({ pageModel: compact(transform(runtimePageModel(route))) });
 }
 
 function pagePropsWithCompiledRoutes(base: string) {
@@ -52,7 +79,7 @@ function pagePropsWithCompiledRoutes(base: string) {
     lanes: Object.freeze([]),
   });
   return JSON.stringify({
-    pageModel: {
+    pageModel: compact({
       projection: {
         kind: "selector-projection",
         criteria: [{ id: "selector-primary-goal", defaultOptionId: "option-goal-easy" }],
@@ -61,7 +88,7 @@ function pagePropsWithCompiledRoutes(base: string) {
       defaults: { "selector-primary-goal": "option-goal-easy" },
       display: { materials: [{ id: materialId, label: "PLA", familyOrFill: { state: "known", label: "PLA" } }] },
       routes,
-    },
+    }),
   });
 }
 
@@ -74,11 +101,12 @@ async function fixture(options: {
   extraRoute?: boolean;
   inlineScript?: string;
   scriptSrc?: string;
+  componentUrl?: string;
 } = {}) {
   const root = await mkdtemp(join(tmpdir(), "selector-build-"));
   roots.push(root);
   const base = options.base ?? "/atlas-preview/";
-  const asset = `${base}_astro/Selector.js`;
+  const asset = options.componentUrl ?? `${base}_astro/Selector.js`;
   const props = options.props ?? pageProps();
   const island = `<astro-island component-url="${asset}" renderer-url="${base}_astro/client.js" props="${props.replaceAll("&", "&amp;").replaceAll('"', "&quot;")}"></astro-island>`;
   await mkdir(join(root, "_astro"), { recursive: true });
@@ -121,6 +149,38 @@ describe("selector production build verifier", () => {
     expect(report).toMatchObject({ islandCount: 1, inlineScriptCount: 1, reachableJavaScriptCount: 3, availableHrefCount: 0 });
     expect(report.totalGzipBytes).toBeGreaterThan(0);
     expect(report.totalGzipBytes).toBeLessThanOrEqual(100 * 1024);
+    expect(report.indexHtmlBytes).toBeGreaterThan(0);
+    expect(report.selectorEntryJavaScriptBytes).toBeGreaterThan(0);
+  });
+
+  it("accepts exact raw boundaries and fails one byte over either cap", async () => {
+    const { root, base } = await fixture();
+    const report = await verifySelectorBuild({ outputRoot: root, base });
+    await expect(verifySelectorBuild({
+      outputRoot: root,
+      base,
+      maxIndexHtmlBytes: report.indexHtmlBytes,
+      maxSelectorEntryJavaScriptBytes: report.selectorEntryJavaScriptBytes,
+    })).resolves.toMatchObject({ indexHtmlBytes: report.indexHtmlBytes });
+    expect(await codeFor(() => verifySelectorBuild({ outputRoot: root, base, maxIndexHtmlBytes: report.indexHtmlBytes - 1 })))
+      .toBe("SELECTOR_INDEX_HTML_BUDGET_EXCEEDED");
+    expect(await codeFor(() => verifySelectorBuild({ outputRoot: root, base, maxSelectorEntryJavaScriptBytes: report.selectorEntryJavaScriptBytes - 1 })))
+      .toBe("SELECTOR_ENTRY_JAVASCRIPT_BUDGET_EXCEEDED");
+  });
+
+  it.each([
+    ["external", "https://outside.example/Selector.js"],
+    ["missing", "/atlas-preview/_astro/missing.js"],
+    ["escaped", "/atlas-preview/%2e%2e/index.html"],
+    ["non-JavaScript", "/atlas-preview/materials/pla/"],
+  ])("rejects a %s selector component entry", async (_label, componentUrl) => {
+    const { root, base } = await fixture({ componentUrl });
+    expect(await codeFor(() => verifySelectorBuild({ outputRoot: root, base }))).toBe("SELECTOR_CLIENT_REFERENCE_INVALID");
+  });
+
+  it("rejects the obsolete expanded page model boundary", async () => {
+    const { root, base } = await fixture({ props: JSON.stringify({ pageModel: runtimePageModel() }) });
+    expect(await codeFor(() => verifySelectorBuild({ outputRoot: root, base }))).toBe("SELECTOR_PROPS_SHAPE_INVALID");
   });
 
   it("follows minified static import syntax", async () => {
@@ -147,9 +207,8 @@ describe("selector production build verifier", () => {
   });
 
   it("requires projection, display, route, and default counts to agree", async () => {
-    const props = JSON.parse(pageProps()) as { pageModel: { display: { materials: unknown[] } } };
-    props.pageModel.display.materials = [];
-    const { root, base } = await fixture({ props: JSON.stringify(props) });
+    const props = pageProps(undefined, (model) => ({ ...model, display: { materials: [] } }));
+    const { root, base } = await fixture({ props });
     expect(await codeFor(() => verifySelectorBuild({ outputRoot: root, base }))).toBe("SELECTOR_PROPS_COUNT_INVALID");
   });
 
@@ -158,7 +217,7 @@ describe("selector production build verifier", () => {
     ["SELECTOR_SOURCE_MAP_FORBIDDEN", { sourceMap: true }],
     ["SELECTOR_CLIENT_IMPORT_FORBIDDEN", { component: 'import "cytoscape"; export const x=1;' }],
     ["SELECTOR_RUNTIME_FETCH_FORBIDDEN", { component: 'fetch("/api/materials"); export const x=1;' }],
-    ["SELECTOR_PROPS_BOUNDARY_VIOLATION", { props: '{"pageModel":{"projection":{},"defaults":{},"display":{},"routes":{},"evidence":[{"id":"secret"}]}}' }],
+    ["SELECTOR_PROPS_BOUNDARY_VIOLATION", { props: pageProps(undefined, (model) => ({ ...model, evidence: [{ id: "secret" }] })) }],
   ])("returns stable code %s", async (expected, options) => {
     const { root, base } = await fixture(options);
     expect(await codeFor(() => verifySelectorBuild({ outputRoot: root, base }))).toBe(expected);
@@ -166,7 +225,12 @@ describe("selector production build verifier", () => {
 
   it("fails one byte above the gzip budget without exposing payload content", async () => {
     const { root, base } = await fixture({ component: `export const x=${JSON.stringify(Array.from({ length: 200_000 }, (_, index) => `${index.toString(36)}-${Math.random()}`).join("|"))}` });
-    expect(await codeFor(() => verifySelectorBuild({ outputRoot: root, base, maxGzipBytes: 1 }))).toBe("SELECTOR_PAYLOAD_BUDGET_EXCEEDED");
+    expect(await codeFor(() => verifySelectorBuild({
+      outputRoot: root,
+      base,
+      maxGzipBytes: 1,
+      maxSelectorEntryJavaScriptBytes: 16 * 1024 * 1024,
+    }))).toBe("SELECTOR_PAYLOAD_BUDGET_EXCEEDED");
   }, 20_000);
 
   it.each([

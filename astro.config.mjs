@@ -125,6 +125,15 @@ export default defineConfig({
     plugins: [tailwindcss()],
     build: {
       sourcemap: false,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes("/src/domain/selector/") || id.includes("/src/features/selector/")) {
+              return "selector-runtime";
+            }
+          },
+        },
+      },
     },
   },
 });

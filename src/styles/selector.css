@@ -336,7 +336,11 @@
   }
 
   .selector-family-marker {
+    inline-size: 0.65rem;
+    block-size: 0.65rem;
+    border: var(--size-rule-strong) solid currentColor;
     color: var(--color-caution-unknown);
+    transform: rotate(45deg);
   }
 
   .selector-compatible-list > li,

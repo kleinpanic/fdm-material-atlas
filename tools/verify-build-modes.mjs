@@ -349,7 +349,7 @@ async function runBrowserChecks() {
 
 async function inspectExistingBuilds() {
   const reports = [];
-  for (const mode of MODES) reports.push(await inspectMode(mode));
+  for (const mode of MODES) reports.push(await inspectMode(mode, { runPublication: false }));
   if (JSON.stringify(reports[0].routes) !== JSON.stringify(reports[1].routes)) fail("ROUTE_PARITY_FAILED");
   return reports;
 }
@@ -370,6 +370,11 @@ export async function createPreviewServer(mode) {
     try {
       if (request.method !== "GET" && request.method !== "HEAD") fail("SERVE_METHOD_INVALID");
       const url = new URL(request.url ?? "", "http://127.0.0.1");
+      if (mode.base !== "/" && url.pathname === mode.base.slice(0, -1)) {
+        response.writeHead(308, { location: `${mode.base}${url.search}` });
+        response.end();
+        return;
+      }
       if (!url.pathname.startsWith(mode.base)) fail("SERVE_PATH_INVALID");
       const logical = decodeURIComponent(url.pathname.slice(mode.base.length));
       if (logical.includes("\\") || logical.split("/").some((segment) => segment === "." || segment === "..")) fail("SERVE_PATH_INVALID");

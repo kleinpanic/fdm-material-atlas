@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_MAX_GZIP_BYTES = 100 * 1024;
+const DEFAULT_MAX_INDEX_HTML_BYTES = 110 * 1024;
+const DEFAULT_MAX_SELECTOR_ENTRY_JAVASCRIPT_BYTES = 90 * 1024;
 const MAX_FILES = 20_000;
 const MAX_FILE_BYTES = 64 * 1024 * 1024;
 const PROHIBITED_PROP_KEYS = new Set([
@@ -136,11 +138,55 @@ function exactKeys(value, expected) {
     && Object.keys(value).sort().join("\0") === [...expected].sort().join("\0");
 }
 
-function validatePageModelShape(props) {
-  if (!exactKeys(props, ["pageModel"]) || !exactKeys(props.pageModel, ["projection", "defaults", "display", "routes"])) {
+function decodeCompactPageModel(value) {
+  if (!Array.isArray(value) || value.length !== 3 || value[0] !== 1 || !Array.isArray(value[1])) {
     fail("SELECTOR_PROPS_SHAPE_INVALID");
   }
-  const { projection, defaults, display, routes } = props.pageModel;
+  const dictionary = value[1];
+  if (dictionary.length > 16_384 || dictionary.some((entry, index) =>
+    typeof entry !== "string" || entry.length > 4_096 || (index > 0 && entry <= dictionary[index - 1]))) {
+    fail("SELECTOR_PROPS_SHAPE_INVALID");
+  }
+  let nodes = 0;
+  function decode(node, depth = 0) {
+    if (++nodes > 200_000 || depth > 64 || !Array.isArray(node) || node.length === 0) fail("SELECTOR_PROPS_SHAPE_INVALID");
+    if (node[0] === 0) {
+      if (node.length !== 2 || !Number.isInteger(node[1]) || node[1] < 0 || node[1] >= dictionary.length) fail("SELECTOR_PROPS_SHAPE_INVALID");
+      return dictionary[node[1]];
+    }
+    if (node[0] === 2) return node.slice(1).map((entry) => decode(entry, depth + 1));
+    if (node[0] === 3) {
+      if (node.length !== 2 || typeof node[1] !== "number" || !Number.isFinite(node[1])) fail("SELECTOR_PROPS_SHAPE_INVALID");
+      return node[1];
+    }
+    if (node[0] === 4) {
+      if (node.length !== 2 || (node[1] !== 0 && node[1] !== 1)) fail("SELECTOR_PROPS_SHAPE_INVALID");
+      return node[1] === 1;
+    }
+    if (node[0] === 5) {
+      if (node.length !== 1) fail("SELECTOR_PROPS_SHAPE_INVALID");
+      return null;
+    }
+    if (node[0] !== 1 || (node.length - 1) % 2 !== 0) fail("SELECTOR_PROPS_SHAPE_INVALID");
+    const result = Object.create(null);
+    for (let index = 1; index < node.length; index += 2) {
+      const keyIndex = node[index];
+      if (!Number.isInteger(keyIndex) || keyIndex < 0 || keyIndex >= dictionary.length) fail("SELECTOR_PROPS_SHAPE_INVALID");
+      const key = dictionary[keyIndex];
+      if (Object.hasOwn(result, key)) fail("SELECTOR_PROPS_SHAPE_INVALID");
+      result[key] = decode(node[index + 1], depth + 1);
+    }
+    return result;
+  }
+  return decode(value[2]);
+}
+
+function validatePageModelShape(props) {
+  if (!exactKeys(props, ["pageModel"])) fail("SELECTOR_PROPS_SHAPE_INVALID");
+  const pageModel = decodeCompactPageModel(props.pageModel);
+  inspectPropBoundary(pageModel, []);
+  if (!exactKeys(pageModel, ["projection", "defaults", "display", "routes"])) fail("SELECTOR_PROPS_SHAPE_INVALID");
+  const { projection, defaults, display, routes } = pageModel;
   if (
     typeof projection !== "object" || projection === null
     || projection.kind !== "selector-projection"
@@ -166,6 +212,7 @@ function validatePageModelShape(props) {
     || [...projectionIds].sort().join("\0") !== [...displayIds].sort().join("\0")
     || [...projectionIds].sort().join("\0") !== [...routeIds].sort().join("\0")
   ) fail("SELECTOR_PROPS_COUNT_INVALID");
+  return pageModel;
 }
 
 async function collectFiles(root) {
@@ -273,9 +320,12 @@ export async function verifySelectorBuild({
   outputRoot,
   base,
   maxGzipBytes = DEFAULT_MAX_GZIP_BYTES,
+  maxIndexHtmlBytes = DEFAULT_MAX_INDEX_HTML_BYTES,
+  maxSelectorEntryJavaScriptBytes = DEFAULT_MAX_SELECTOR_ENTRY_JAVASCRIPT_BYTES,
   prohibitedExactPatterns = /** @type {string[]} */ ([]),
 }) {
-  if (typeof outputRoot !== "string" || !/^\/(?:[a-z0-9-]+\/)*$/.test(base) || !Number.isInteger(maxGzipBytes) || maxGzipBytes < 1) {
+  if (typeof outputRoot !== "string" || !/^\/(?:[a-z0-9-]+\/)*$/.test(base)
+      || [maxGzipBytes, maxIndexHtmlBytes, maxSelectorEntryJavaScriptBytes].some((cap) => !Number.isInteger(cap) || cap < 1)) {
     fail("SELECTOR_ARGUMENTS_INVALID");
   }
   const root = await realpath(resolve(outputRoot)).catch(() => fail("SELECTOR_OUTPUT_MISSING"));
@@ -285,7 +335,10 @@ export async function verifySelectorBuild({
   // The selector contract owns the home island only. Other routes can ship
   // independently audited islands (for example the material atlas).
   const islands = [];
-  const selectorHtml = await readFile(files.get("index.html")?.path, "utf8").catch(() => fail("SELECTOR_OUTPUT_INVALID"));
+  const selectorHtmlBytes = await readFile(files.get("index.html")?.path).catch(() => fail("SELECTOR_OUTPUT_INVALID"));
+  const indexHtmlBytes = selectorHtmlBytes.byteLength;
+  if (indexHtmlBytes > maxIndexHtmlBytes) fail("SELECTOR_INDEX_HTML_BUDGET_EXCEEDED", { indexHtmlBytes, maxIndexHtmlBytes });
+  const selectorHtml = selectorHtmlBytes.toString("utf8");
   for (const match of selectorHtml.matchAll(/<astro-island\b[^>]*>/gi)) islands.push({ name: "index.html", attributes: attributes(match[0]) });
   if (islands.length !== 1 || islands[0].name !== "index.html") fail("SELECTOR_ISLAND_COUNT_INVALID", { islandCount: islands.length });
   const island = islands[0];
@@ -293,12 +346,19 @@ export async function verifySelectorBuild({
   if (typeof serializedProps !== "string") fail("SELECTOR_PROPS_INVALID");
   const props = parseProps(serializedProps);
   inspectPropBoundary(props, prohibitedExactPatterns);
-  validatePageModelShape(props);
+  const runtimePageModel = validatePageModelShape(props);
+  inspectPropBoundary(runtimePageModel, prohibitedExactPatterns);
 
   const entries = [island.attributes.get("component-url"), island.attributes.get("renderer-url")];
   if (entries.some((entry) => typeof entry !== "string" || entry === "")) fail("SELECTOR_CLIENT_REFERENCE_INVALID");
-  const pending = entries.map((entry) => fileForPublicUrl(entry, base, files).candidate);
-  const homeHtml = await readFile(files.get("index.html").path, "utf8").catch(() => fail("SELECTOR_OUTPUT_INVALID"));
+  const selectorEntry = fileForPublicUrl(entries[0], base, files).candidate;
+  if (!selectorEntry.endsWith(".js") && !selectorEntry.endsWith(".mjs")) fail("SELECTOR_CLIENT_REFERENCE_INVALID");
+  const selectorEntryJavaScriptBytes = files.get(selectorEntry).size;
+  if (selectorEntryJavaScriptBytes > maxSelectorEntryJavaScriptBytes) {
+    fail("SELECTOR_ENTRY_JAVASCRIPT_BUDGET_EXCEEDED", { selectorEntryJavaScriptBytes, maxSelectorEntryJavaScriptBytes });
+  }
+  const pending = [selectorEntry, fileForPublicUrl(entries[1], base, files).candidate];
+  const homeHtml = selectorHtml;
   let inlineScriptCount = 0;
   let inlineScriptGzipBytes = 0;
   for (const match of homeHtml.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
@@ -335,7 +395,7 @@ export async function verifySelectorBuild({
   const propsGzipBytes = gzipSync(Buffer.from(serializedProps), { level: 9, mtime: 0 }).byteLength;
   const totalGzipBytes = javascriptGzipBytes + inlineScriptGzipBytes + propsGzipBytes;
   if (totalGzipBytes > maxGzipBytes) fail("SELECTOR_PAYLOAD_BUDGET_EXCEEDED", { totalGzipBytes, maxGzipBytes });
-  const availableHrefCount = await validateRoutes(props, base, files);
+  const availableHrefCount = await validateRoutes({ pageModel: runtimePageModel }, base, files);
   return Object.freeze({
     islandCount: 1,
     inlineScriptCount,
@@ -346,6 +406,10 @@ export async function verifySelectorBuild({
     propsGzipBytes,
     totalGzipBytes,
     maxGzipBytes,
+    indexHtmlBytes,
+    maxIndexHtmlBytes,
+    selectorEntryJavaScriptBytes,
+    maxSelectorEntryJavaScriptBytes,
   });
 }
 

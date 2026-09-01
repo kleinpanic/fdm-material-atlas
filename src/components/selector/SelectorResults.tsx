@@ -99,7 +99,7 @@ export function SelectorResults({
                 <span>{labelFor(item.materialId)}</span>
                 <span class="selector-shortlist-status">
                   <span class="selector-state-marker" aria-hidden="true">
-                    {item.status === "compatible" ? "✓" : "×"}
+                    {item.status === "compatible" ? "OK" : "X"}
                   </span>
                   {item.status === "compatible" ? "Compatible" : "Now eliminated by current constraints"}
                 </span>
@@ -163,7 +163,7 @@ export function SelectorResults({
                     <article>
                       <p class="selector-rank" data-numeric>Rank {material.rank}</p>
                       <h3>{material.materialLabel}</h3>
-                      <p class="selector-family"><span class="selector-family-marker" aria-hidden="true">◇</span>{familyLabel(material.familyOrFill)}</p>
+                      <p class="selector-family"><span class="selector-family-marker" aria-hidden="true"></span>{familyLabel(material.familyOrFill)}</p>
                       <p>{material.compatibilityLabel}</p>
                       {material.highestAlignment && <p class="selector-highest-alignment">{material.highestAlignment}</p>}
                       <p class="selector-score" data-numeric>{material.scoreLabel}</p>
@@ -178,7 +178,7 @@ export function SelectorResults({
                             >
                               <span class="selector-contribution-points" data-numeric>
                                 {contribution.visualState === "zero" && (
-                                  <span class="selector-state-marker" aria-hidden="true">○</span>
+                                  <span class="selector-state-marker" aria-hidden="true">0</span>
                                 )}
                                 {contribution.pointsLabel}
                               </span>
@@ -226,12 +226,12 @@ export function SelectorResults({
               <span>{eliminatedDisclosure(presentation.eliminated.length)}</span>
               <span class="selector-eliminated-help">{SELECTOR_COPY.eliminatedHelp}</span>
             </summary>
-            <ol>
+            {(presentation.eliminationsOpen || eliminationsOpen) && <ol>
               {presentation.eliminated.map((material) => (
                 <li key={material.materialId}>
                   <article>
                     <h3 id={`eliminated-${material.materialId}`} tabIndex={-1}>{material.materialLabel}</h3>
-                    <p class="selector-family"><span class="selector-family-marker" aria-hidden="true">◇</span>{familyLabel(material.familyOrFill)}</p>
+                    <p class="selector-family"><span class="selector-family-marker" aria-hidden="true"></span>{familyLabel(material.familyOrFill)}</p>
                     <ul>
                       {material.reasons.map((reason) => (
                         <li
@@ -239,7 +239,7 @@ export function SelectorResults({
                           data-exclusion-state={reason.visualState}
                         >
                           <span class="selector-exclusion-marker" aria-hidden="true">
-                            {reason.visualState === "blocked" ? "×" : "!"}
+                            {reason.visualState === "blocked" ? "X" : "!"}
                           </span>
                           <strong>{reason.stateLabel}</strong>
                           <span>{reason.criterionLabel}: {reason.optionLabel}</span>
@@ -251,7 +251,7 @@ export function SelectorResults({
                   </article>
                 </li>
               ))}
-            </ol>
+            </ol>}
           </details>
         )}
       </section>

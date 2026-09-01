@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { Phase6BuildError, verifyPhase6Build } from "../../tools/verify-phase6-build.mjs";
+import { createPreviewServer } from "../../tools/verify-build-modes.mjs";
 
 const roots: string[] = [];
 const detailFragments = ["overview", "thermal", "properties", "process", "uses-tradeoffs", "starting-profile", "evidence", "limitations", "relationships"];
@@ -50,6 +51,25 @@ async function codeFor(action: () => Promise<unknown>) {
 }
 
 describe("Phase 6 emitted build verifier", () => {
+  it("redirects the slashless repository base to its canonical trailing-slash URL", async () => {
+    const input = await fixture();
+    const mode = input.modes[1]!;
+    const server = await createPreviewServer(mode);
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", resolve);
+    });
+    try {
+      const address = server.address();
+      if (address === null || typeof address === "string") throw new Error("PREVIEW_ADDRESS_INVALID");
+      const response = await fetch(`http://127.0.0.1:${address.port}/atlas-preview`, { redirect: "manual" });
+      expect(response.status).toBe(308);
+      expect(response.headers.get("location")).toBe("/atlas-preview/");
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("accepts both bases with 23 static detail routes and one atlas island", async () => {
     const input = await fixture();
     await expect(verifyPhase6Build({ ...input, runPublication: false })).resolves.toMatchObject({
