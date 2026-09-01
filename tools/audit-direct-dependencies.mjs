@@ -13,6 +13,15 @@ const LIFECYCLE_FIELDS = [
 ];
 
 const DIRECT_DEPENDENCIES = Object.freeze({
+  "@lhci/cli": {
+    section: "devDependencies",
+    version: "0.15.1",
+    repository: "https://github.com/GoogleChrome/lighthouse-ci",
+    directory: null,
+    resolved: `${REGISTRY_ORIGIN}/@lhci/cli/-/cli-0.15.1.tgz`,
+    integrity:
+      "sha512-yhC0oXnXqGHYy1xl4D8YqaydMZ/khFAnXGY/o2m/J3PqPa/D0nj3V6TLoH02oVMFeEF2AQim7UbmdXMiXx2tOw==",
+  },
   "@astrojs/preact": {
     section: "dependencies",
     version: "6.0.4",
@@ -97,6 +106,33 @@ const DIRECT_DEPENDENCIES = Object.freeze({
     integrity:
       "sha512-o5nZFo/bieF6rp4x9sQSLhI7GO7Bahpld38Y4LvX27nFoxNiuttjI+Hea81w5ksORLHgdPUlQpU9obPz5QRa8g==",
   },
+  eslint: {
+    section: "devDependencies",
+    version: "10.7.0",
+    repository: "https://github.com/eslint/eslint",
+    directory: null,
+    resolved: `${REGISTRY_ORIGIN}/eslint/-/eslint-10.7.0.tgz`,
+    integrity:
+      "sha512-GVTD7s1vdIl6UYvAfriOPeY1Df8LIZjfofLvHwde+erDHGGuHyuM6xoxRxmHiebhYuD2p1vN4wWh0XzPARSGDQ==",
+  },
+  "eslint-plugin-astro": {
+    section: "devDependencies",
+    version: "3.0.1",
+    repository: "https://github.com/ota-meshi/eslint-plugin-astro",
+    directory: null,
+    resolved: `${REGISTRY_ORIGIN}/eslint-plugin-astro/-/eslint-plugin-astro-3.0.1.tgz`,
+    integrity:
+      "sha512-skys0KV/5m/rQ6a4BDAGOGtrGoBlWNYiWtoDjx25bghDwTiKXng63s4Yv823iX3ht/tH/kHtoUM2poxESGsv3w==",
+  },
+  "html-validate": {
+    section: "devDependencies",
+    version: "11.5.7",
+    repository: "https://gitlab.com/html-validate/html-validate",
+    directory: null,
+    resolved: `${REGISTRY_ORIGIN}/html-validate/-/html-validate-11.5.7.tgz`,
+    integrity:
+      "sha512-PJOrBFyiaYapxSmzaW95G8TMcNGu7MdHSbRGCbrqWvTBsncjN9nv27P+fP6aCYuB6payeAVdpcwRmlaeB8VbuA==",
+  },
   preact: {
     section: "dependencies",
     version: "10.29.8",
@@ -108,6 +144,24 @@ const DIRECT_DEPENDENCIES = Object.freeze({
     lifecycle: {
       prepare: "husky && npm run test:install && run-s build",
     },
+  },
+  prettier: {
+    section: "devDependencies",
+    version: "3.9.6",
+    repository: "https://github.com/prettier/prettier",
+    directory: null,
+    resolved: `${REGISTRY_ORIGIN}/prettier/-/prettier-3.9.6.tgz`,
+    integrity:
+      "sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g==",
+  },
+  "prettier-plugin-astro": {
+    section: "devDependencies",
+    version: "0.14.1",
+    repository: "https://github.com/withastro/prettier-plugin-astro",
+    directory: null,
+    resolved: `${REGISTRY_ORIGIN}/prettier-plugin-astro/-/prettier-plugin-astro-0.14.1.tgz`,
+    integrity:
+      "sha512-RiBETaaP9veVstE4vUwSIcdATj6dKmXljouXc/DDNwBSPTp8FRkLGDSGFClKsAFeeg+13SB0Z1JZvbD76bigJw==",
   },
   tailwindcss: {
     section: "dependencies",
@@ -126,6 +180,15 @@ const DIRECT_DEPENDENCIES = Object.freeze({
     resolved: `${REGISTRY_ORIGIN}/typescript/-/typescript-6.0.3.tgz`,
     integrity:
       "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==",
+  },
+  "typescript-eslint": {
+    section: "devDependencies",
+    version: "8.65.0",
+    repository: "https://github.com/typescript-eslint/typescript-eslint",
+    directory: "packages/typescript-eslint",
+    resolved: `${REGISTRY_ORIGIN}/typescript-eslint/-/typescript-eslint-8.65.0.tgz`,
+    integrity:
+      "sha512-/ggrHAwyjENDusvyxbuqxAC2dTnZg/Z8F+fgQtYIz+L6n/9HfSlEZcFGV/NsMNa6CkGk0xUjUAFwC0vHOflvIA==",
   },
   vitest: {
     section: "devDependencies",
