@@ -1,9 +1,9 @@
 import type { ProcessGateId } from "../../data/schema/ids.ts";
 import {
-  SelectorFieldSchema,
+  isSelectorFieldValue,
   selectorFieldValues,
-  type SelectorField,
-} from "../../data/schema/selector.ts";
+  type SelectorFieldValue as SelectorField,
+} from "../../data/schema/selector-field-values.ts";
 import type {
   ExclusionOutcome,
   PredicateOutcome,
@@ -97,21 +97,19 @@ function compileNode(input: unknown, depth: number, state: CompilationState): Re
     case "equals": {
       if (!hasExactKeys(input, ["op", "field", "value"]))
         configurationError("PREDICATE_OPERAND_INVALID");
-      const fieldResult = SelectorFieldSchema.safeParse(input.field);
-      if (!fieldResult.success) configurationError("PREDICATE_FIELD_INVALID");
-      const kind = fieldKind(fieldResult.data);
+      if (!isSelectorFieldValue(input.field)) configurationError("PREDICATE_FIELD_INVALID");
+      const kind = fieldKind(input.field);
       if (kind === "text-list" || !isCompatibleScalar(input.value, kind)) {
         configurationError("PREDICATE_OPERAND_INVALID");
       }
-      return freezePredicate({ op: "equals", field: fieldResult.data, value: input.value });
+      return freezePredicate({ op: "equals", field: input.field, value: input.value });
     }
 
     case "one-of": {
       if (!hasExactKeys(input, ["op", "field", "values"]))
         configurationError("PREDICATE_OPERAND_INVALID");
-      const fieldResult = SelectorFieldSchema.safeParse(input.field);
-      if (!fieldResult.success) configurationError("PREDICATE_FIELD_INVALID");
-      const kind = fieldKind(fieldResult.data);
+      if (!isSelectorFieldValue(input.field)) configurationError("PREDICATE_FIELD_INVALID");
+      const kind = fieldKind(input.field);
       if (
         kind === "text-list" ||
         !Array.isArray(input.values) ||
@@ -123,7 +121,7 @@ function compileNode(input: unknown, depth: number, state: CompilationState): Re
       }
       return freezePredicate({
         op: "one-of",
-        field: fieldResult.data,
+        field: input.field,
         values: Object.freeze([...input.values]) as readonly (string | number | boolean)[],
       });
     }
@@ -132,21 +130,19 @@ function compileNode(input: unknown, depth: number, state: CompilationState): Re
     case "at-most": {
       if (!hasExactKeys(input, ["op", "field", "value"]))
         configurationError("PREDICATE_OPERAND_INVALID");
-      const fieldResult = SelectorFieldSchema.safeParse(input.field);
-      if (!fieldResult.success) configurationError("PREDICATE_FIELD_INVALID");
-      if (fieldKind(fieldResult.data) !== "number" || !isFiniteNumber(input.value)) {
+      if (!isSelectorFieldValue(input.field)) configurationError("PREDICATE_FIELD_INVALID");
+      if (fieldKind(input.field) !== "number" || !isFiniteNumber(input.value)) {
         configurationError("PREDICATE_OPERAND_INVALID");
       }
-      return freezePredicate({ op: input.op, field: fieldResult.data, value: input.value });
+      return freezePredicate({ op: input.op, field: input.field, value: input.value });
     }
 
     case "contains-any": {
       if (!hasExactKeys(input, ["op", "field", "values"]))
         configurationError("PREDICATE_OPERAND_INVALID");
-      const fieldResult = SelectorFieldSchema.safeParse(input.field);
-      if (!fieldResult.success) configurationError("PREDICATE_FIELD_INVALID");
+      if (!isSelectorFieldValue(input.field)) configurationError("PREDICATE_FIELD_INVALID");
       if (
-        fieldKind(fieldResult.data) !== "text-list" ||
+        fieldKind(input.field) !== "text-list" ||
         !Array.isArray(input.values) ||
         input.values.length < 1 ||
         input.values.length > 50 ||
@@ -158,7 +154,7 @@ function compileNode(input: unknown, depth: number, state: CompilationState): Re
       }
       return freezePredicate({
         op: "contains-any",
-        field: fieldResult.data as Extract<ReadonlyPredicate, { op: "contains-any" }>["field"],
+        field: input.field as Extract<ReadonlyPredicate, { op: "contains-any" }>["field"],
         values: Object.freeze([...input.values]) as readonly string[],
       });
     }

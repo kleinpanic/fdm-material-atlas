@@ -2,6 +2,9 @@ import * as z from "zod";
 
 import { NormalizedTextSchema } from "./fact-state.ts";
 import { ProcessGateIdSchema, SelectorOptionIdSchema } from "./ids.ts";
+import { selectorFieldValues, type SelectorFieldValue } from "./selector-field-values.ts";
+
+export { selectorFieldValues } from "./selector-field-values.ts";
 
 export const selectorCriterionIds = [
   "selector-primary-goal",
@@ -14,45 +17,6 @@ export const selectorCriterionIds = [
 ] as const;
 
 export const SelectorCriterionIdValueSchema = z.enum(selectorCriterionIds);
-
-export const selectorFieldValues = [
-  "serviceTemperature.minimum",
-  "serviceTemperature.maximum",
-  "properties.wearAbrasion",
-  "properties.wearAbrasion.order",
-  "properties.impactResistance",
-  "properties.impactResistance.order",
-  "properties.creepSustainedLoad",
-  "properties.creepSustainedLoad.order",
-  "properties.outdoorUv",
-  "properties.outdoorUv.order",
-  "properties.moistureSensitivity",
-  "properties.moistureSensitivity.order",
-  "properties.warpTendency",
-  "properties.warpTendency.order",
-  "properties.flexibility",
-  "properties.flexibility.order",
-  "properties.chemicalResistance",
-  "properties.chemicalResistance.order",
-  "properties.coolingShrinkRisk",
-  "properties.coolingShrinkRisk.order",
-  "properties.dimensionalStability",
-  "properties.dimensionalStability.order",
-  "process.printDifficulty",
-  "process.printDifficulty.order",
-  "process.enclosure",
-  "process.enclosure.order",
-  "process.hardenedNozzle",
-  "process.hardenedNozzle.order",
-  "process.dryingPriority",
-  "process.dryingPriority.order",
-  "process.ventilation",
-  "process.ventilation.order",
-  "costTier",
-  "costTier.order",
-  "guidance.bestSuitedFor",
-  "guidance.tradeoffs",
-] as const;
 
 export const SelectorFieldSchema = z.enum(selectorFieldValues);
 export const SelectorTextFieldSchema = z.enum(["guidance.bestSuitedFor", "guidance.tradeoffs"]);
@@ -176,6 +140,6 @@ export const SelectorDefinitionSchema = z
     }
   });
 
-export type SelectorField = z.infer<typeof SelectorFieldSchema>;
+export type SelectorField = SelectorFieldValue;
 export type SelectorCriterion = z.infer<typeof SelectorCriterionSchema>;
 export type SelectorDefinition = z.infer<typeof SelectorDefinitionSchema>;

@@ -1,4 +1,4 @@
-import { MaterialIdSchema, type MaterialId } from "../../data/schema/ids.ts";
+import type { MaterialId } from "../../data/schema/ids.ts";
 
 export const SHORTLIST_LIMIT = 4;
 export const SHORTLIST_LIMIT_ANNOUNCEMENT =
@@ -46,8 +46,11 @@ const unchanged = (
 });
 
 const parseMaterialId = (value: unknown): MaterialId | null => {
-  const parsed = MaterialIdSchema.safeParse(value);
-  return parsed.success ? parsed.data : null;
+  return typeof value === "string" &&
+    value.length <= 160 &&
+    /^material-[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(value)
+    ? (value as MaterialId)
+    : null;
 };
 
 /**
