@@ -36,9 +36,10 @@ describe("material detail continuity", () => {
     const knownIds = atlas.materials.map(({ id }) => id);
 
     expect(models).toHaveLength(23);
+    expect(models.filter(({ continuity }) => continuity.relatedMaterials.length > 0)).toHaveLength(22);
     for (const model of models) {
       expect(model.continuity.compare).toMatchObject({ kind: "link", href: compareHref });
-      expect(model.continuity.relatedMaterials.length).toBeGreaterThan(0);
+      expect(model.continuity.relatedMaterials.length > 0).toBe(model.relationships.length > 0);
       for (const related of model.continuity.relatedMaterials) {
         expect(related.id).not.toBe(model.id);
         expect(related.details).toMatchObject({ kind: "link" });
@@ -121,5 +122,12 @@ describe("material detail continuity", () => {
     const model = buildMaterialDetailModels(atlas, "/")[0]!;
     expect(decodeCompareUrlState(`?material=${model.id}`, atlas.materials.map(({ id }) => id)))
       .toMatchObject({ kind: "invalid" });
+  });
+
+  it("does not invent a related material for a material outside every lane", () => {
+    const model = buildMaterialDetailModels(loadPublicAtlas(), "/")
+      .find(({ id }) => id === "material-abs" as MaterialId);
+    expect(model?.relationships).toEqual([]);
+    expect(model?.continuity.relatedMaterials).toEqual([]);
   });
 });

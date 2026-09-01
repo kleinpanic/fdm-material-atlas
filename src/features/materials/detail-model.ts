@@ -1,7 +1,7 @@
 import type { AtlasV1 } from "../../data/schema/atlas.ts";
 import type { EvidenceScope } from "../../data/schema/evidence.ts";
 import type { FactState } from "../../data/schema/fact-state.ts";
-import type { ClaimId, MaterialId } from "../../data/schema/ids.ts";
+import type { ClaimId, DecisionLaneId, MaterialId } from "../../data/schema/ids.ts";
 import type { ThermalMethod, ThermalMetricKind } from "../../data/schema/material.ts";
 import { deriveDecisionLaneMembership } from "../../domain/decision-lanes/membership.ts";
 import {
@@ -10,6 +10,13 @@ import {
   type DisplayFact,
 } from "../../lib/presentation/labels.ts";
 import { internalFragmentHref, internalHref } from "../../lib/routes.ts";
+import {
+  PUBLIC_ROUTE_REGISTRY,
+  buildSelectorRouteAvailability,
+  type CompareRouteAvailability,
+  type PublicRouteRegistry,
+  type RouteAction,
+} from "../../lib/public-route-registry.ts";
 import {
   enumerateMaterialClaims,
   type EnumeratedMaterialClaim,
@@ -100,12 +107,28 @@ export type MaterialDetailModel = {
     }[];
   };
   readonly limitations: readonly string[];
+  readonly continuity: {
+    readonly currentMaterialId: MaterialId;
+    readonly compare: CompareRouteAvailability;
+    readonly relatedMaterials: readonly {
+      readonly id: MaterialId;
+      readonly slug: string;
+      readonly name: string;
+      readonly state: "candidate" | "indeterminate";
+      readonly details: RouteAction;
+      readonly sharedLanes: readonly {
+        readonly id: DecisionLaneId;
+        readonly label: string;
+      }[];
+    }[];
+  };
   readonly relationships: readonly {
-    readonly laneId: string;
+    readonly laneId: DecisionLaneId;
     readonly label: string;
     readonly state: "candidate" | "indeterminate";
     readonly processGateIds: readonly string[];
     readonly visualizationIds: readonly string[];
+    readonly action: RouteAction;
   }[];
 };
 
@@ -148,6 +171,7 @@ function recordId(target: EvidenceTarget): string {
 export function buildMaterialDetailModels(
   atlas: AtlasV1,
   base: string | undefined,
+  registry: PublicRouteRegistry = PUBLIC_ROUTE_REGISTRY,
 ): readonly MaterialDetailModel[] {
   const evidenceIndex = buildEvidenceIndex(atlas);
   const relationships = deriveDecisionLaneMembership(atlas);
@@ -156,6 +180,28 @@ export function buildMaterialDetailModels(
   if (ids.size !== atlas.materials.length || slugs.size !== atlas.materials.length) {
     fail("DETAIL_MATERIAL_DUPLICATE");
   }
+  const relationshipIdsByMaterial = new Map(atlas.materials.map(({ id }) => [
+    id,
+    relationships
+      .filter((lane) => lane.candidateMaterialIds.includes(id) || lane.indeterminateMaterialIds.includes(id))
+      .map(({ id: laneId }) => laneId),
+  ]));
+  const routeAvailability = buildSelectorRouteAvailability(base, registry, {
+    materials: atlas.materials.map(({ id, slug }) => ({
+      id,
+      slug,
+      decisionMapLaneIds: relationshipIdsByMaterial.get(id) ?? [],
+    })),
+    lanes: relationships.map(({ id, label }) => ({ id, label })),
+  });
+  const routeByMaterialId = new Map(routeAvailability.materials.map((route) => [route.materialId, route]));
+  const routeByLaneId = new Map(routeAvailability.decisionMaps.map(({ laneId, action }) => [laneId, action]));
+  const unavailableDecisionMap = Object.freeze({
+    kind: "unavailable" as const,
+    label: "Decision map is not available yet",
+  });
+  const materialById = new Map(atlas.materials.map((material) => [material.id, material]));
+  const laneOrder = new Map(relationships.map(({ id }, index) => [id, index]));
 
   const models = [...atlas.materials].sort(compareMaterial).map((material) => {
     const materialEvidence = buildMaterialEvidenceModel(atlas, material, evidenceIndex);
@@ -234,8 +280,62 @@ export function buildMaterialDetailModels(
         state,
         processGateIds: lane.processGates.map(({ id }) => id),
         visualizationIds: lane.visualizations.map(({ id }) => id),
+        action: routeByLaneId.get(lane.id) ?? unavailableDecisionMap,
       }];
     });
+    const relatedById = new Map<MaterialId, {
+      id: MaterialId;
+      slug: string;
+      name: string;
+      state: "candidate" | "indeterminate";
+      details: RouteAction;
+      sharedLanes: { id: DecisionLaneId; label: string }[];
+    }>();
+    for (const lane of relationships) {
+      const currentInLane = lane.candidateMaterialIds.includes(material.id)
+        || lane.indeterminateMaterialIds.includes(material.id);
+      if (!currentInLane) continue;
+      for (const state of ["candidate", "indeterminate"] as const) {
+        const relatedIds = state === "candidate" ? lane.candidateMaterialIds : lane.indeterminateMaterialIds;
+        for (const relatedId of relatedIds) {
+          if (relatedId === material.id) continue;
+          const relatedMaterial = materialById.get(relatedId);
+          const route = routeByMaterialId.get(relatedId);
+          if (!relatedMaterial || !route) return fail("DETAIL_CLAIM_MISSING");
+          const existing = relatedById.get(relatedId);
+          if (existing) {
+            if (!existing.sharedLanes.some(({ id }) => id === lane.id)) {
+              existing.sharedLanes.push({ id: lane.id, label: lane.label });
+            }
+            if (state === "candidate") existing.state = "candidate";
+          } else {
+            relatedById.set(relatedId, {
+              id: relatedId,
+              slug: relatedMaterial.slug,
+              name: relatedMaterial.name,
+              state,
+              details: route.details,
+              sharedLanes: [{ id: lane.id, label: lane.label }],
+            });
+          }
+        }
+      }
+    }
+    const relatedMaterials = [...relatedById.values()]
+      .map((related) => ({
+        ...related,
+        sharedLanes: related.sharedLanes.sort((left, right) =>
+          (laneOrder.get(left.id) ?? Number.MAX_SAFE_INTEGER) - (laneOrder.get(right.id) ?? Number.MAX_SAFE_INTEGER)
+        ),
+      }))
+      .sort((left, right) =>
+        (left.state === "candidate" ? 0 : 1) - (right.state === "candidate" ? 0 : 1)
+        || (laneOrder.get(left.sharedLanes[0]!.id) ?? Number.MAX_SAFE_INTEGER)
+          - (laneOrder.get(right.sharedLanes[0]!.id) ?? Number.MAX_SAFE_INTEGER)
+        || (materialById.get(left.id)?.displayOrder ?? Number.MAX_SAFE_INTEGER)
+          - (materialById.get(right.id)?.displayOrder ?? Number.MAX_SAFE_INTEGER)
+        || left.id.localeCompare(right.id, "en")
+      );
     const serviceGuidance = one("service-temperature");
     const profileSettings = claims.filter(({ group }) => group === "profile");
     if (profileSettings.length !== 4) fail("DETAIL_CLAIM_MISSING");
@@ -275,6 +375,11 @@ export function buildMaterialDetailModels(
         records: evidenceRecords,
       },
       limitations: [...LIMITATIONS],
+      continuity: {
+        currentMaterialId: material.id,
+        compare: routeAvailability.compare,
+        relatedMaterials,
+      },
       relationships: materialRelationships,
     } satisfies MaterialDetailModel;
   });
