@@ -30,6 +30,7 @@ export type ExploredMaterial = Readonly<{
   id: ExplorerMaterial["id"];
   name: string;
   family: string;
+  familyQualifier?: string | undefined;
   href: string;
   cells: readonly ExplorerCell[];
 }>;
@@ -206,7 +207,14 @@ export function exploreData(model: DataExplorerModel, input: unknown): ExplorerS
     }
     if (state.factState !== "all" && !cells.some(({ states }) => states.includes(state.factState as ExplorerFactState))) return [];
     if (state.evidenceScope !== "all" && !cells.some(({ scopes }) => scopes.includes(state.evidenceScope as EvidenceScope))) return [];
-    return [{ id: material.id, name: material.name, family: material.family, href: material.href, cells }];
+    return [{
+      id: material.id,
+      name: material.name,
+      family: material.family,
+      ...(material.familyQualifier === undefined ? {} : { familyQualifier: material.familyQualifier }),
+      href: material.href,
+      cells,
+    }];
   }).sort((left, right) => compareRows(left, right, state.sort.field, state.sort.direction));
 
   return deepFreeze({

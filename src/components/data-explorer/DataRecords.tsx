@@ -11,7 +11,7 @@ export function DataRecords({ result }: Props) {
       {materials.map((material) => (
         <article key={material.id}>
           <h2><a href={material.href}>{material.name}</a></h2>
-          <p>{material.family}</p>
+          <p>{material.family}{material.familyQualifier !== undefined && <> · {material.familyQualifier}</>}</p>
           <dl>{fields.map((field, index) => <div key={field.key}><dt>{field.label}</dt><dd><DataCell cell={material.cells[index]!} /></dd></div>)}</dl>
         </article>
       ))}

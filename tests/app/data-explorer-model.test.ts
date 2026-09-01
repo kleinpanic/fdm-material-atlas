@@ -21,6 +21,20 @@ describe("data explorer model", () => {
     }
   });
 
+  it("uses represented conditional family values without losing the qualifier", () => {
+    const atlas = structuredClone(loadPublicAtlas());
+    const target = atlas.materials[0]!;
+    target.familyOrFill.value = {
+      state: "conditional",
+      value: "Represented polymer family",
+      condition: "Depends on the exact filler formulation.",
+    };
+
+    const material = buildDataExplorerModel(atlas, "/").materials.find(({ id }) => id === target.id)!;
+    expect(material.family).toBe("Represented polymer family");
+    expect(material.familyQualifier).toBe("Conditional — Depends on the exact filler formulation.");
+  });
+
   it("is byte deterministic when canonical arrays are permuted", () => {
     const atlas = structuredClone(loadPublicAtlas());
     const expected = JSON.stringify(buildDataExplorerModel(atlas, "/"));

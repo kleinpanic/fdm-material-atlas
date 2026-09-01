@@ -87,6 +87,7 @@ export type ExplorerMaterial = Readonly<{
   id: MaterialId;
   name: string;
   family: string;
+  familyQualifier?: string | undefined;
   href: string;
   searchKey: string;
   cells: readonly ExplorerCell[];
@@ -293,11 +294,27 @@ export function buildDataExplorerModel(atlas: AtlasV1, base: string | undefined)
       };
     });
     const familyCell = cells.find(({ key }) => key === "family-or-fill");
-    const family = familyCell?.kind === "value" ? familyCell.display[0] : undefined;
+    const familyFact = material.familyOrFill.value;
+    const family = familyFact.state === "known" || (familyFact.state === "conditional" && familyFact.value !== undefined)
+      ? familyFact.value
+      : familyCell?.kind === "value"
+        ? familyCell.display[0]
+        : undefined;
     if (family === undefined || cells.length !== 32) fail("DATA_EXPLORER_VALUE_INVALID");
+    const familyQualifier = familyFact.state === "conditional"
+      ? `Conditional — ${familyFact.condition}`
+      : undefined;
     const visibleText = cells.flatMap(({ searchText }) => searchText);
     const searchKey = [projected.name, family, ...visibleText].map(normalizeSearch).join("\u0000");
-    return { id: projected.id, name: projected.name, family, href: projected.href, searchKey, cells };
+    return {
+      id: projected.id,
+      name: projected.name,
+      family,
+      ...(familyQualifier === undefined ? {} : { familyQualifier }),
+      href: projected.href,
+      searchKey,
+      cells,
+    };
   });
 
   const thermalMetrics: ExplorerThermalMetricOption[] = comparison.thermalGroups.map((group) => ({

@@ -77,7 +77,7 @@ export function DataTable({ result, onSort }: Props) {
             </TableHeader>
           );
         })}</TableRow></TableHead>
-        <TableBody>{result.materials.map((material) => <TableRow key={material.id}><TableHeader scope="row"><a href={material.href}>{material.name}</a><span>{material.family}</span></TableHeader>{material.cells.map((cell) => <TableData key={cell.key}><DataCell cell={cell} /></TableData>)}</TableRow>)}</TableBody>
+        <TableBody>{result.materials.map((material) => <TableRow key={material.id}><TableHeader scope="row"><a href={material.href}>{material.name}</a><span>{material.family}</span>{material.familyQualifier !== undefined && <small>{material.familyQualifier}</small>}</TableHeader>{material.cells.map((cell) => <TableData key={cell.key}><DataCell cell={cell} /></TableData>)}</TableRow>)}</TableBody>
       </Table>
     </div>
   );
