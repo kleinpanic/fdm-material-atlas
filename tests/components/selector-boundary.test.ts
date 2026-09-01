@@ -109,6 +109,10 @@ describe("selector component boundary", () => {
     expect(island).toContain("if (immediate)");
     expect(island).toContain("window.clearTimeout(timer)");
     expect(island).toContain("<SelectorStatus");
+    expect(island).not.toContain("<SelectorResults");
+    expect(island).toContain("resultsMountId");
+    expect(island).toContain("replaceChildren()");
+    expect(island).toContain("renderSelectorResults");
   });
 
   it("uses native form and disclosure semantics for all seven criteria", () => {

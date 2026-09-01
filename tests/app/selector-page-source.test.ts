@@ -15,7 +15,11 @@ describe("selector landing page source contract", () => {
 
     expect(source).toContain("loadPublicAtlas()");
     expect(source).toContain("buildSelectorPageModel(atlas, base, PUBLIC_ROUTE_REGISTRY)");
-    expect(source).toContain("<SelectorIsland pageModel={pageModel} client:load />");
+    expect(source).toContain(
+      '<SelectorIsland pageModel={pageModel} resultsMountId="selector-results-mount" client:load />',
+    );
+    expect(source).toContain('<div id="selector-results-mount" class="selector-results-mount">');
+    expect(source).toContain("<SelectorStaticResults pageModel={pageModel} />");
     expect(source.match(/client:load/gu)).toHaveLength(1);
     expect(source.match(/<h1\b/gu)).toHaveLength(1);
     expect(source).toContain("Choose a material that fits your process");

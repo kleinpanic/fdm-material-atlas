@@ -246,6 +246,25 @@ test("hydration preserves SSR ranking and controls drive transparent engine reco
   }
 });
 
+test("eager controls leave SSR results unowned until the first real selector change", async ({
+  page,
+}) => {
+  await waitForSelector(page);
+  const mount = page.locator("#selector-results-mount");
+  await expect(mount).toHaveAttribute("data-selector-results-owner", "server");
+  await expect(mount.locator(".selector-compatible-list > li")).toHaveCount(
+    defaultPresentation.compatible.length,
+  );
+  await expect(page.locator("astro-island .selector-results")).toHaveCount(0);
+
+  await page.getByLabel("Enclosure capability").selectOption("option-enclosure-available");
+  await expect(mount).toHaveAttribute("data-selector-results-owner", "client");
+  await expect(mount.getByRole("heading", { name: "Compatible materials" })).toBeVisible();
+  await expect(page.locator("[role=status]")).toContainText(
+    /compatible materials; \d+ eliminated\./u,
+  );
+});
+
 test("shortlist is ordered, bounded, retained across exclusions, and returns focus deterministically", async ({
   page,
 }) => {
