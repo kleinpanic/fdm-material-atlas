@@ -123,13 +123,38 @@ export function verifyRemoteSnapshot(input) {
       continue;
     }
     const serviceRefs = value.refs.filter(
-      (ref) => ref.sha === commit.sha && ref.name.startsWith("refs/heads/dependabot/"),
+      (ref) =>
+        ref.sha === commit.sha &&
+        (ref.name.startsWith("refs/heads/dependabot/") ||
+          /^refs\/pull\/\d+\/head$/u.test(ref.name)),
     );
     const actorIsDependabot =
       commit.author?.name === "dependabot[bot]" &&
       commit.author?.email === "49699333+dependabot[bot]@users.noreply.github.com";
     const githubCommitter =
       commit.committer?.name === "GitHub" && commit.committer?.email === "noreply@github.com";
+    const pullMergeRef = value.refs.find(
+      (ref) => ref.sha === commit.sha && /^refs\/pull\/\d+\/merge$/u.test(ref.name),
+    );
+    if (pullMergeRef) {
+      const pullNumber = pullMergeRef.name.split("/")[2];
+      const pullHead = value.refs.find(({ name }) => name === `refs/pull/${pullNumber}/head`);
+      const authorAllowed = actorIsDependabot || sameIdentity(commit.author, value.human);
+      if (
+        !pullHead ||
+        commit.parents.length !== 2 ||
+        commit.parents[0] !== value.expectedSha ||
+        commit.parents[1] !== pullHead.sha ||
+        !authorAllowed ||
+        !githubCommitter ||
+        commit.signature !== "valid"
+      )
+        fail("REMOTE_SERVICE_IDENTITY_INVALID");
+      if (commit.paths.length < 1 || commit.paths.some((path) => !DEPENDENCY_PATHS.has(path)))
+        fail("REMOTE_SERVICE_PATH_INVALID");
+      classes.githubService += 1;
+      continue;
+    }
     if (
       serviceRefs.length !== 1 ||
       !actorIsDependabot ||

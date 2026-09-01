@@ -121,14 +121,29 @@ describe("remote release snapshot", () => {
     );
     value.commits.push(
       {
-        sha: sha("b"), parents: [sha("a")], reachableFromMain: false,
-        author: { name: "dependabot[bot]", email: "49699333+dependabot[bot]@users.noreply.github.com" },
-        committer: { name: "GitHub", email: "noreply@github.com" }, message: "Bump dependencies", trailers: [], paths: ["package-lock.json"], signature: "valid",
+        sha: sha("b"),
+        parents: [sha("a")],
+        reachableFromMain: false,
+        author: {
+          name: "dependabot[bot]",
+          email: "49699333+dependabot[bot]@users.noreply.github.com",
+        },
+        committer: { name: "GitHub", email: "noreply@github.com" },
+        message: "Bump dependencies",
+        trailers: [],
+        paths: ["package-lock.json"],
+        signature: "valid",
       },
       {
-        sha: sha("c"), parents: [sha("a"), sha("b")], reachableFromMain: false,
-        author: { ...human }, committer: { name: "GitHub", email: "noreply@github.com" },
-        message: "Merge pull request 3", trailers: [], paths: ["package-lock.json"], signature: "valid",
+        sha: sha("c"),
+        parents: [sha("a"), sha("b")],
+        reachableFromMain: false,
+        author: { ...human },
+        committer: { name: "GitHub", email: "noreply@github.com" },
+        message: "Merge pull request 3",
+        trailers: [],
+        paths: ["package-lock.json"],
+        signature: "valid",
       },
     );
     expect(verifyRemoteSnapshot(value).identityClasses.githubService).toBe(1);
