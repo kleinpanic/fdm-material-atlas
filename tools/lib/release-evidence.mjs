@@ -276,7 +276,14 @@ function parseCandidate(value, rootSha) {
 }
 
 function parsePublication(value) {
-  const publication = exactKeys(value, ["observedAt", "repository", "history", "policy"]);
+  const publication = exactKeys(value, [
+    "observedAt",
+    "repository",
+    "advertisedRefs",
+    "identityClasses",
+    "history",
+    "policy",
+  ]);
   timestamp(publication.observedAt);
   const repository = exactKeys(publication.repository, [
     "nameWithOwner",
@@ -289,6 +296,19 @@ function parsePublication(value) {
   publicUrl(repository.url, "repository");
   if (repository.visibility !== "PUBLIC" || repository.defaultBranch !== "main")
     fail("RELEASE_EVIDENCE_VALUE_INVALID");
+  const advertisedRefs = exactKeys(publication.advertisedRefs, ["count", "digest"]);
+  integer(advertisedRefs.count, { minimum: 1 });
+  digest(advertisedRefs.digest);
+  const identityClasses = exactKeys(publication.identityClasses, [
+    "human",
+    "dependabot",
+    "githubService",
+    "unexpected",
+  ]);
+  integer(identityClasses.human, { minimum: 1 });
+  integer(identityClasses.dependabot);
+  integer(identityClasses.githubService);
+  if (integer(identityClasses.unexpected) !== 0) fail("RELEASE_EVIDENCE_FAILED_STATUS");
   const history = exactKeys(publication.history, [
     "refCount",
     "commitCount",
@@ -368,7 +388,7 @@ function parseDeployment(value, rootSha) {
   return clone(deployment);
 }
 
-function parseVerification(value) {
+function parseVerification(value, rootSha) {
   const verification = exactKeys(value, [
     "observedAt",
     "live",
@@ -377,13 +397,26 @@ function parseVerification(value) {
     "performance",
   ]);
   timestamp(verification.observedAt);
-  for (const key of ["live", "remote"]) {
-    const fields = key === "live" ? ["routeCount", "assetCount"] : ["refCount", "commitCount"];
-    const item = exactKeys(verification[key], [...fields, "findingCount", "status"]);
-    for (const field of fields) integer(item[field], { minimum: 1 });
-    if (integer(item.findingCount) !== 0 || item.status !== "passed")
-      fail("RELEASE_EVIDENCE_FAILED_STATUS");
-  }
+  const live = exactKeys(verification.live, ["routeCount", "assetCount", "findingCount", "status"]);
+  integer(live.routeCount, { minimum: 1 });
+  integer(live.assetCount, { minimum: 1 });
+  if (integer(live.findingCount) !== 0 || live.status !== "passed")
+    fail("RELEASE_EVIDENCE_FAILED_STATUS");
+  const remote = exactKeys(verification.remote, [
+    "refCount",
+    "commitCount",
+    "advertisedRefDigest",
+    "mainSha",
+    "findingCount",
+    "status",
+  ]);
+  integer(remote.refCount, { minimum: 1 });
+  integer(remote.commitCount, { minimum: 1 });
+  digest(remote.advertisedRefDigest);
+  if (remote.mainSha !== rootSha) fail("RELEASE_REMOTE_SHA_MISMATCH");
+  sha(remote.mainSha);
+  if (integer(remote.findingCount) !== 0 || remote.status !== "passed")
+    fail("RELEASE_EVIDENCE_FAILED_STATUS");
   for (const key of ["accessibility", "performance"]) {
     const item = exactKeys(verification[key], ["status", "scope"]);
     if (item.status !== "passed") fail("RELEASE_EVIDENCE_FAILED_STATUS");
@@ -428,7 +461,7 @@ export function parseReleaseEvidence(value) {
   if (stageIndex >= 1) parseCandidate(input.candidate, input.commitSha);
   if (stageIndex >= 2) parsePublication(input.publication);
   if (stageIndex >= 3) parseDeployment(input.deployment, input.commitSha);
-  if (stageIndex >= 4) parseVerification(input.verification);
+  if (stageIndex >= 4) parseVerification(input.verification, input.commitSha);
   const times = [
     input.startedAt,
     input.candidate?.observedAt,
@@ -468,6 +501,10 @@ function inside(root, path) {
   return rel !== "" && rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
 }
 
+function insideOrSame(root, path) {
+  return path === root || inside(root, path);
+}
+
 async function gitOk(root, args) {
   try {
     await execFileAsync("git", args, {
@@ -488,6 +525,10 @@ export async function writeReleaseEvidence(path, value, { root = process.cwd() }
   );
   const destination = resolve(path);
   if (!inside(physicalRoot, destination)) fail("RELEASE_EVIDENCE_DESTINATION_UNSAFE");
+  const physicalParent = await realpath(dirname(destination)).catch(() =>
+    fail("RELEASE_EVIDENCE_DESTINATION_UNSAFE"),
+  );
+  if (!insideOrSame(physicalRoot, physicalParent)) fail("RELEASE_EVIDENCE_DESTINATION_UNSAFE");
   const rel = relative(physicalRoot, destination).split(sep).join("/");
   if (
     !(await gitOk(physicalRoot, ["check-ignore", "-q", "--", rel])) ||
