@@ -112,6 +112,31 @@ describe("remote release snapshot", () => {
       expect.objectContaining({ code: "REMOTE_SERVICE_PATH_INVALID" }),
     );
   });
+
+  it("accepts only topology-bound GitHub pull merge commits as the second service class", () => {
+    const value = validSnapshot();
+    value.refs.push(
+      { name: "refs/pull/3/head", sha: sha("b") },
+      { name: "refs/pull/3/merge", sha: sha("c") },
+    );
+    value.commits.push(
+      {
+        sha: sha("b"), parents: [sha("a")], reachableFromMain: false,
+        author: { name: "dependabot[bot]", email: "49699333+dependabot[bot]@users.noreply.github.com" },
+        committer: { name: "GitHub", email: "noreply@github.com" }, message: "Bump dependencies", trailers: [], paths: ["package-lock.json"], signature: "valid",
+      },
+      {
+        sha: sha("c"), parents: [sha("a"), sha("b")], reachableFromMain: false,
+        author: { ...human }, committer: { name: "GitHub", email: "noreply@github.com" },
+        message: "Merge pull request 3", trailers: [], paths: ["package-lock.json"], signature: "valid",
+      },
+    );
+    expect(verifyRemoteSnapshot(value).identityClasses.githubService).toBe(1);
+    value.commits[2]!.parents = [sha("b"), sha("a")];
+    expect(() => verifyRemoteSnapshot(value)).toThrowError(
+      expect.objectContaining({ code: "REMOTE_SERVICE_IDENTITY_INVALID" }),
+    );
+  });
 });
 
 describe("bounded archive inspection", () => {
