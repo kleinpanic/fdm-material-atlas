@@ -39,6 +39,7 @@ function repository() {
     },
     refs: refs(),
     relation: "ancestor",
+    localHeadSha: CANDIDATE,
   };
 }
 
@@ -150,6 +151,11 @@ describe("authenticated established GitHub target", () => {
     [
       "divergence",
       (value: ReturnType<typeof repository>) => (value.relation = "diverged"),
+      "GITHUB_CANDIDATE_DIVERGED",
+    ],
+    [
+      "local SHA drift",
+      (value: ReturnType<typeof repository>) => (value.localHeadSha = "7".repeat(40)),
       "GITHUB_CANDIDATE_DIVERGED",
     ],
     [
@@ -413,6 +419,7 @@ describe("fixed read-only process seam", () => {
           .map((ref) => `${ref.sha}\t${ref.name}`)
           .join("\n"),
       },
+      { stdout: `${CANDIDATE}\n` },
       { stdout: "" },
     ];
     const run = async (
@@ -425,7 +432,16 @@ describe("fixed read-only process seam", () => {
     };
     const proof = await collectGitHubReleaseEvidence({ expected, stage: "existing-prepush", run });
     expect(proof).toMatchObject({ code: "GITHUB_PREPUSH_VERIFIED" });
-    expect(calls.map((call) => call.file)).toEqual(["gh", "gh", "gh", "gh", "git", "git", "git"]);
+    expect(calls.map((call) => call.file)).toEqual([
+      "gh",
+      "gh",
+      "gh",
+      "gh",
+      "git",
+      "git",
+      "git",
+      "git",
+    ]);
     expect(
       calls.every(
         (call) => !Object.keys(call.env).some((key) => /TOKEN|SECRET|GOOGLE|GOG/u.test(key)),

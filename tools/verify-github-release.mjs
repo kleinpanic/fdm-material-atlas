@@ -179,6 +179,7 @@ function proofFromTarget(stage, expected, target) {
 function verifyPrepush(expected, evidence) {
   const target = verifyTarget(expected, evidence);
   if (target.mainSha !== expected.priorRemoteMainSha) fail("GITHUB_REMOTE_MAIN_CHANGED");
+  if (evidence.localHeadSha !== expected.candidateSha) fail("GITHUB_CANDIDATE_DIVERGED");
   if (expected.refBaseline === undefined || digest(target.refs) !== digest(expected.refBaseline))
     fail("GITHUB_REF_TOPOLOGY_INVALID");
   if (!new Set(["ancestor", "equal"]).has(evidence.relation)) fail("GITHUB_CANDIDATE_DIVERGED");
@@ -455,6 +456,8 @@ export async function collectGitHubReleaseEvidence({
   const pagesRaw = parseJson((await runRead(run, "gh", ["api", `repos/${target}/pages`])).stdout);
   const origin = (await runRead(run, "git", ["remote", "get-url", "origin"])).stdout.trim();
   const refs = parseLsRemote((await runRead(run, "git", ["ls-remote", "origin"])).stdout);
+  const localHeadSha = (await runRead(run, "git", ["rev-parse", "HEAD"])).stdout.trim();
+  if (!fullSha(localHeadSha)) fail("GITHUB_COMMAND_FAILED");
   let relation = "equal";
   if (expected.priorRemoteMainSha !== expected.candidateSha) {
     try {
@@ -479,6 +482,7 @@ export async function collectGitHubReleaseEvidence({
       pages: pagesFromApi(pagesRaw),
       refs,
       relation,
+      localHeadSha,
     },
   });
 }
