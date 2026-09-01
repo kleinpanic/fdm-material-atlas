@@ -308,7 +308,7 @@ async function validateRoutes(props, base, files) {
     if (fragment !== "") {
       const html = await readFile(files.get(candidate).path, "utf8").catch(() => fail("SELECTOR_LINK_HREF_INVALID"));
       const escaped = fragment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const count = [...html.matchAll(new RegExp(`\\bid=(?:"${escaped}"|'${escaped}')`, "g"))].length;
+      const count = [...html.matchAll(new RegExp(`(?:^|\\s)id=(?:"${escaped}"|'${escaped}')`, "g"))].length;
       if (count !== 1) fail("SELECTOR_LINK_HREF_INVALID");
     }
     availableHrefCount += 1;

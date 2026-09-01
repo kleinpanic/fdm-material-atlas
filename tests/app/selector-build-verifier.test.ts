@@ -102,6 +102,7 @@ async function fixture(options: {
   inlineScript?: string;
   scriptSrc?: string;
   componentUrl?: string;
+  materialHtml?: string;
 } = {}) {
   const root = await mkdtemp(join(tmpdir(), "selector-build-"));
   roots.push(root);
@@ -115,7 +116,7 @@ async function fixture(options: {
     ? `<script>${options.inlineScript ?? "window.__selectorBoot=1"}</script>`
     : `<script src="${options.scriptSrc}"></script>`;
   await writeFile(join(root, "index.html"), `<!doctype html><a href="${base}materials/pla/">PLA</a>${island}${options.secondIsland ? island : ""}${script}`);
-  await writeFile(join(root, "materials/pla/index.html"), '<!doctype html><h1 id="profile">PLA</h1>');
+  await writeFile(join(root, "materials/pla/index.html"), options.materialHtml ?? '<!doctype html><h1 id="profile">PLA</h1>');
   await writeFile(join(root, "_astro/Selector.js"), options.component ?? 'import "./shared.js"; export const SelectorIsland=()=>null;');
   await writeFile(join(root, "_astro/shared.js"), "export const shared=1;");
   await writeFile(join(root, "_astro/client.js"), "export const start=1;");
@@ -249,6 +250,15 @@ describe("selector production build verifier", () => {
   it("accepts one valid link and live fragment", async () => {
     const props = pageProps({ kind: "link", label: "Details", href: "/atlas-preview/materials/pla/#profile" });
     const { root, base } = await fixture({ props });
+    await expect(verifySelectorBuild({ outputRoot: root, base })).resolves.toMatchObject({ availableHrefCount: 1 });
+  });
+
+  it("does not count data attributes as duplicate fragment IDs", async () => {
+    const props = pageProps({ kind: "link", label: "Details", href: "/atlas-preview/materials/pla/#profile" });
+    const { root, base } = await fixture({
+      props,
+      materialHtml: '<!doctype html><h1 id="profile">PLA</h1><div data-lane-id="profile"></div>',
+    });
     await expect(verifySelectorBuild({ outputRoot: root, base })).resolves.toMatchObject({ availableHrefCount: 1 });
   });
 
