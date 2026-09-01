@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "modes": [
+    { "label": "root", "base": "/", "artifact": "dist-test/root" },
+    {
+      "label": "repository",
+      "base": "/atlas-preview/",
+      "artifact": "dist-test/repository"
+    }
+  ],
+  "routes": [
+    { "label": "selector", "path": "/", "marker": ".selector-compatible-list" },
+    {
+      "label": "material",
+      "discoverFrom": "/materials/",
+      "pathPattern": "^/materials/[a-z0-9-]+/$",
+      "marker": "#thermal"
+    },
+    {
+      "label": "compare",
+      "path": "/compare/",
+      "marker": "[aria-label='Material comparison tool']"
+    },
+    { "label": "data", "path": "/data/", "marker": ".data-explorer-island" },
+    { "label": "map", "path": "/map/", "marker": ".map-explorer" }
+  ],
+  "lighthouse": {
+    "runs": 3,
+    "performanceScore": 0.9,
+    "firstContentfulPaintMs": 2000,
+    "largestContentfulPaintMs": 2500,
+    "cumulativeLayoutShift": 0.1,
+    "totalBlockingTimeMs": 200,
+    "totalBytes": 819200,
+    "javascriptBytes": 225280,
+    "cssBytes": 102400,
+    "fontBytes": 256000
+  },
+  "gzip": {
+    "selectorBytes": 102400,
+    "atlasBytes": 102400,
+    "compareBytes": 143360,
+    "dataBytes": 184320,
+    "mapTotalBytes": 122880,
+    "mapPreVisibleBytes": 8192,
+    "mapDynamicChunkBytes": 30720
+  },
+  "limits": {
+    "navigationTimeoutMs": 15000,
+    "collectionTimeoutMs": 360000,
+    "maxArtifactFiles": 5000,
+    "maxArtifactBytes": 104857600
+  },
+  "reports": { "directory": "test-results/performance", "retentionDays": 3 }
+}
