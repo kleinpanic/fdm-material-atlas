@@ -211,7 +211,7 @@ test("selector handoff preserves shortlist insertion order", async ({ page }) =>
   await expect(page.getByLabel("Material 2")).toHaveValue(expectedOrder[1]!);
 });
 
-test("material details submit current-first pairs and every displayed continuity link resolves", async ({
+test("material details submit current-first pairs by pointer and every displayed continuity link resolves", async ({
   page,
 }) => {
   test.setTimeout(120_000);
@@ -223,7 +223,16 @@ test("material details submit current-first pairs and every displayed continuity
   const select = page.getByLabel(`Compare ${detail.name} with`);
   const related = detail.continuity.relatedMaterials[0]!;
   await select.selectOption(related.id);
-  await page.getByRole("button", { name: "Add to comparison" }).click();
+  const addToComparison = page.getByRole("button", { name: "Add to comparison" });
+  await expect(addToComparison).toBeVisible();
+  await addToComparison.scrollIntoViewIfNeeded();
+  const buttonBounds = await addToComparison.boundingBox();
+  expect(buttonBounds).not.toBeNull();
+  if (buttonBounds === null) throw new Error("DETAIL_COMPARE_BUTTON_BOUNDS_MISSING");
+  await page.mouse.click(
+    buttonBounds.x + buttonBounds.width / 2,
+    buttonBounds.y + buttonBounds.height / 2,
+  );
   await waitForComparison(page, 2);
   expect(new URL(page.url()).searchParams.getAll("material")).toEqual([detail.id, related.id]);
 
