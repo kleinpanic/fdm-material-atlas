@@ -6,12 +6,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   advanceReleaseEvidence,
+  attachPrepushEvidence,
   parseReleaseEvidence,
   startFreshReleaseCycle,
   writeReleaseEvidence,
 } from "../../tools/lib/release-evidence.mjs";
 import { readProtectedPolicyFromFd } from "../../tools/lib/protected-policy-input.mjs";
-import { DIGEST, SHA } from "./fixtures.js";
+import { candidateObservationFixture, DIGEST, prepushEvidenceFixture, SHA } from "./fixtures.js";
 
 export function draft() {
   return startFreshReleaseCycle({
@@ -162,5 +163,25 @@ describe("release evidence boundary", () => {
     ).rejects.toMatchObject({
       code: "RELEASE_EVIDENCE_DESTINATION_UNSAFE",
     });
+  });
+
+  it("attaches one fresh exact-candidate prepush proof without changing the release stage", () => {
+    const candidate = {
+      ...draft(),
+      stage: "candidate",
+      priorVerifiedCycle: { commitSha: "9".repeat(40), digest: DIGEST },
+      candidate: candidateObservationFixture(),
+    };
+    const proof = prepushEvidenceFixture();
+    expect(attachPrepushEvidence(candidate, proof)).toMatchObject({
+      stage: "candidate",
+      candidate: { prepushEvidence: proof },
+    });
+    expect(() =>
+      attachPrepushEvidence(
+        { ...candidate, candidate: { ...candidate.candidate, prepushEvidence: proof } },
+        proof,
+      ),
+    ).toThrowError(expect.objectContaining({ code: "RELEASE_PREPUSH_DUPLICATE" }));
   });
 });

@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import { renderReleaseReport } from "../../tools/render-release-report.mjs";
-import { DIGEST, REPO_DIGEST, reviewBarrierFixture, ROOT_DIGEST, SHA } from "./fixtures.js";
+import {
+  DIGEST,
+  prepushEvidenceFixture,
+  PRIOR_SHA,
+  REPO_DIGEST,
+  reviewBarrierFixture,
+  ROOT_DIGEST,
+  SHA,
+  targetBaselineFixture,
+} from "./fixtures.js";
 
 export function verifiedEvidence() {
   return {
@@ -11,9 +20,11 @@ export function verifiedEvidence() {
     commitSha: SHA,
     startedAt: "2026-09-01T18:00:00.000Z",
     reason: "candidate-updated",
-    priorVerifiedCycle: null,
+    priorVerifiedCycle: { commitSha: PRIOR_SHA, digest: DIGEST },
     candidate: {
       observedAt: "2026-09-01T18:10:00.000Z",
+      targetBaseline: targetBaselineFixture(),
+      prepushEvidence: prepushEvidenceFixture(),
       product: {
         materialCount: 23,
         sourceRecordCount: 22,
@@ -39,6 +50,8 @@ export function verifiedEvidence() {
     },
     publication: {
       observedAt: "2026-09-01T18:20:00.000Z",
+      targetBaseline: targetBaselineFixture(),
+      prepushEvidence: prepushEvidenceFixture(),
       repository: {
         nameWithOwner: "kleinpanic/fdm-material-atlas",
         url: "https://github.com/kleinpanic/fdm-material-atlas",
@@ -126,5 +139,84 @@ describe("fact-only completion report", () => {
     }
     expect(message).toContain("RELEASE_EVIDENCE_VALUE_INVALID");
     expect(message).not.toContain(rejected);
+  });
+
+  it.each([
+    [
+      "missing baseline",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        delete (value.candidate as { targetBaseline?: unknown }).targetBaseline,
+    ],
+    [
+      "stale baseline",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        (value.candidate.targetBaseline.observedAt = "2026-08-01T00:00:00.000Z"),
+    ],
+    [
+      "wrong candidate",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        (value.candidate.targetBaseline.candidateSha = "1".repeat(40)),
+    ],
+    [
+      "wrong prior main",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        (value.candidate.targetBaseline.priorRemoteMainSha = "2".repeat(40)),
+    ],
+    [
+      "raw baseline key",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        Object.assign(value.candidate.targetBaseline, {
+          origin: "git@example.test:owner/repo.git",
+        }),
+    ],
+    [
+      "unsorted refs",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        value.candidate.targetBaseline.advertisedRefs.refs.reverse(),
+    ],
+    [
+      "wrong ref kind",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        (value.candidate.targetBaseline.advertisedRefs.refs[0]!.kind = "main"),
+    ],
+    [
+      "wrong ref count",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        (value.candidate.targetBaseline.advertisedRefs.count = 3),
+    ],
+    [
+      "wrong ref digest",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        (value.candidate.targetBaseline.advertisedRefs.digest = DIGEST),
+    ],
+    [
+      "missing prepush",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        delete (value.candidate as { prepushEvidence?: unknown }).prepushEvidence,
+    ],
+    [
+      "stale prepush",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        (value.candidate.prepushEvidence.observedAt = "2026-09-01T18:01:00.000Z"),
+    ],
+    [
+      "wrong proof digest",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        (value.candidate.prepushEvidence.proofDigest = DIGEST),
+    ],
+    [
+      "publication baseline drift",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        (value.publication.targetBaseline.repositoryName = "other-atlas"),
+    ],
+    [
+      "publication proof drift",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        (value.publication.prepushEvidence.settingsDigest = REPO_DIGEST),
+    ],
+  ])("rejects %s", (_name, mutate) => {
+    const value = verifiedEvidence();
+    mutate(value);
+    expect(() => renderReleaseReport(value, { format: "json" })).toThrow();
   });
 });
