@@ -6,12 +6,13 @@ import {
   buildSelectorRouteAvailability,
   type PublicRouteRegistry,
 } from "../../src/lib/public-route-registry.ts";
+import { mapLaneFragments } from "../../src/lib/routes.ts";
 import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
 import { buildSelectorPageModel } from "../../src/features/selector/page-model.ts";
 import { decodeSelectorClientModel } from "../../src/features/selector/client-model.ts";
 
 const MATERIAL_ID = "material-synthetic-alpha" as MaterialId;
-const LANE_ID = "lane-synthetic-alpha" as DecisionLaneId;
+const LANE_ID = "lane-easy-prototypes" as DecisionLaneId;
 
 const catalog = Object.freeze({
   materials: Object.freeze([{
@@ -19,7 +20,7 @@ const catalog = Object.freeze({
     slug: "synthetic-alpha",
     decisionMapLaneIds: Object.freeze([LANE_ID]),
   }]),
-  lanes: Object.freeze([{ id: LANE_ID, label: "Synthetic alpha" }]),
+  lanes: Object.freeze([{ id: LANE_ID, label: "Easy prototypes" }]),
 });
 
 function completedRegistry(): PublicRouteRegistry {
@@ -37,7 +38,7 @@ function completedRegistry(): PublicRouteRegistry {
     ]),
     compare: Object.freeze({ target: { id: "compare" as const }, fragment: "comparison-matrix", verifiedFragments: Object.freeze(["comparison-matrix"]) }),
     decisionMaps: Object.freeze([
-      Object.freeze({ laneId: LANE_ID, target: { id: "home" as const }, fragment: "lane-synthetic-alpha", verifiedFragments: Object.freeze(["lane-synthetic-alpha"]) }),
+      Object.freeze({ laneId: LANE_ID, target: { id: "map" as const }, fragment: LANE_ID, verifiedFragments: mapLaneFragments }),
     ]),
     methodEvidence: Object.freeze({ target: { id: "home" as const }, fragment: "method", verifiedFragments: Object.freeze(["method"]) }),
   });
@@ -90,8 +91,8 @@ describe("public selector route registry", () => {
   });
 
   it.each([
-    ["/", "/materials/synthetic-alpha/", "/materials/synthetic-alpha/#starting-profile", "/compare/#comparison-matrix", "/#lane-synthetic-alpha", "/#method"],
-    ["/atlas-preview/", "/atlas-preview/materials/synthetic-alpha/", "/atlas-preview/materials/synthetic-alpha/#starting-profile", "/atlas-preview/compare/#comparison-matrix", "/atlas-preview/#lane-synthetic-alpha", "/atlas-preview/#method"],
+    ["/", "/materials/synthetic-alpha/", "/materials/synthetic-alpha/#starting-profile", "/compare/#comparison-matrix", "/map/#lane-easy-prototypes", "/#method"],
+    ["/atlas-preview/", "/atlas-preview/materials/synthetic-alpha/", "/atlas-preview/materials/synthetic-alpha/#starting-profile", "/atlas-preview/compare/#comparison-matrix", "/atlas-preview/map/#lane-easy-prototypes", "/atlas-preview/#method"],
   ])("activates only verified targets under base %s", (base, details, profile, compare, map, method) => {
     const availability = buildSelectorRouteAvailability(base, completedRegistry(), catalog);
 
@@ -104,14 +105,17 @@ describe("public selector route registry", () => {
       base,
       knownMaterialIds: [MATERIAL_ID],
     });
-    expect(availability.decisionMaps[0]?.action).toEqual({ kind: "link", href: map, label: "View Synthetic alpha decision map" });
-    expect(availability.materials[0]?.decisionMaps[0]?.action).toEqual({ kind: "link", href: map, label: "View Synthetic alpha decision map" });
+    expect(availability.decisionMaps[0]?.action).toEqual({ kind: "link", href: map, label: "Open Easy prototypes decision path" });
+    expect(availability.materials[0]?.decisionMaps[0]?.action).toEqual({ kind: "link", href: map, label: "Open Easy prototypes decision path" });
     expect(availability.methodEvidence).toEqual({ kind: "link", href: method, label: "Read scoring method and evidence" });
   });
 
   it.each([
     ["ROUTE_REGISTRY_MATERIAL_UNKNOWN", () => ({ ...completedRegistry(), materialDetails: [{ materialId: "material-unknown" as MaterialId, target: { id: "material", slug: "synthetic-alpha" } }] })],
-    ["ROUTE_REGISTRY_LANE_UNKNOWN", () => ({ ...completedRegistry(), decisionMaps: [{ laneId: "lane-unknown" as DecisionLaneId, target: { id: "home" }, fragment: "lane-unknown", verifiedFragments: ["lane-unknown"] }] })],
+    ["ROUTE_REGISTRY_LANE_UNKNOWN", () => ({ ...completedRegistry(), decisionMaps: [{ laneId: "lane-unknown" as DecisionLaneId, target: { id: "map" }, fragment: "lane-easy-prototypes", verifiedFragments: mapLaneFragments }] })],
+    ["ROUTE_REGISTRY_TARGET_MISMATCH", () => ({ ...completedRegistry(), decisionMaps: [{ laneId: LANE_ID, target: { id: "home" }, fragment: LANE_ID, verifiedFragments: mapLaneFragments }] })],
+    ["ROUTE_REGISTRY_TARGET_MISMATCH", () => ({ ...completedRegistry(), decisionMaps: [{ laneId: LANE_ID, target: { id: "map" }, fragment: "lane-outdoor", verifiedFragments: mapLaneFragments }] })],
+    ["ROUTE_REGISTRY_TARGET_MISMATCH", () => ({ ...completedRegistry(), decisionMaps: [...completedRegistry().decisionMaps, ...completedRegistry().decisionMaps] })],
     ["ROUTE_REGISTRY_FRAGMENT_MISSING", () => ({ ...completedRegistry(), methodEvidence: { target: { id: "home" }, fragment: "method", verifiedFragments: [] } })],
     ["ROUTE_REGISTRY_TARGET_MISMATCH", () => ({ ...completedRegistry(), materialDetails: [{ materialId: MATERIAL_ID, target: { id: "material", slug: "different" } }] })],
     ["ROUTE_TARGET_INVALID", () => ({ ...completedRegistry(), compare: { target: { id: "external", url: "https://example.com" } as never } })],

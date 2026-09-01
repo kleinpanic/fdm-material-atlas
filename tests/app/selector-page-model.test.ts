@@ -5,6 +5,7 @@ import { PUBLIC_ROUTE_REGISTRY } from "../../src/lib/public-route-registry.ts";
 import { buildSelectorPageModel } from "../../src/features/selector/page-model.ts";
 import { decodeSelectorClientModel } from "../../src/features/selector/client-model.ts";
 import { selectMaterials, selectProjectedMaterials } from "../../src/domain/selector/index.ts";
+import { mapLaneFragments } from "../../src/lib/routes.ts";
 
 const atlas = loadPublicAtlas();
 
@@ -32,19 +33,50 @@ describe("buildSelectorPageModel", () => {
   });
 
   it.each(["/", "/atlas-preview/"])(
-    "keeps selector map actions unavailable before emitted proof under %s",
+    "exposes only receipt-proven canonical selector map actions under %s",
     (base) => {
       const model = decodeSelectorClientModel(buildSelectorPageModel(atlas, base, PUBLIC_ROUTE_REGISTRY));
 
-      expect(model.routes.decisionMaps).toEqual([]);
+      expect(model.routes.decisionMaps).toHaveLength(mapLaneFragments.length);
+      expect(model.routes.decisionMaps.map(({ laneId, action }) => ({ laneId, action }))).toEqual(
+        [...atlas.decisionLanes]
+          .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
+          .map((lane) => ({
+            laneId: lane.id,
+            action: {
+              kind: "link",
+              href: `${base === "/" ? "/" : base}map/#${lane.id}`,
+              label: `Open ${lane.label} decision path`,
+            },
+          })),
+      );
       expect(model.routes.decisionMapFallback).toEqual({
         kind: "unavailable",
         label: "Decision map is not available yet",
       });
-      expect(model.routes.materials.every(({ decisionMaps }) => decisionMaps.length === 0)).toBe(true);
-      expect(JSON.stringify(model.routes)).not.toContain("/map/");
+      expect(model.routes.materials.every(({ decisionMaps }) => decisionMaps.every(({ laneId, action }) =>
+        mapLaneFragments.includes(laneId as (typeof mapLaneFragments)[number])
+        && action.kind === "link"
+        && action.href.endsWith(`/map/#${laneId}`),
+      ))).toBe(true);
     },
   );
+
+  it("fails closed when a registered selector lane fragment does not match its lane", () => {
+    const invalidRegistry = {
+      ...PUBLIC_ROUTE_REGISTRY,
+      decisionMaps: [{
+        laneId: atlas.decisionLanes[0]!.id,
+        target: { id: "map" as const },
+        fragment: atlas.decisionLanes[1]!.id,
+        verifiedFragments: mapLaneFragments,
+      }],
+    };
+
+    expect(() => buildSelectorPageModel(atlas, "/", invalidRegistry)).toThrow(
+      "SELECTOR_PAGE_ROUTE_REGISTRY_INVALID",
+    );
+  });
 
   it("is byte deterministic when canonical record arrays are reordered", () => {
     const reordered = {
