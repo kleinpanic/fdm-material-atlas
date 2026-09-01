@@ -90,6 +90,10 @@ describe("selector component boundary", () => {
     new URL("../../src/components/selector/SelectorIsland.tsx", import.meta.url),
     "utf8",
   );
+  const staticResults = readFileSync(
+    new URL("../../src/components/selector/SelectorStaticResults.tsx", import.meta.url),
+    "utf8",
+  );
   const componentSource = `${controls}\n${results}`;
   const allSource = `${componentSource}\n${island}`;
 
@@ -113,6 +117,9 @@ describe("selector component boundary", () => {
     expect(island).toContain('const RESULTS_MOUNT_ID = "selector-results-mount"');
     expect(island).toContain("replaceChildren()");
     expect(island).toContain("renderSelectorResults");
+    expect(staticResults).toContain('renderMode="static-compact"');
+    expect(results).toContain('renderMode = "interactive"');
+    expect(results).toContain('renderMode === "static-compact"');
   });
 
   it("uses native form and disclosure semantics for all seven criteria", () => {

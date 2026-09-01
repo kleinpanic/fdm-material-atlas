@@ -140,6 +140,60 @@ test("selector keeps complete default meaning without JavaScript and when only i
       (material) => `Rank ${material.rank}|${material.materialLabel}|${material.scoreLabel}`,
     ),
   );
+  await expect(noScript.page.locator(".selector-static-contributions")).toHaveCount(
+    defaultPresentation.compatible.length,
+  );
+  for (const [index, material] of defaultPresentation.compatible.entries()) {
+    const card = compatibleItems(noScript.page).nth(index);
+    const cardText = (await card.textContent()) ?? "";
+    expect(cardText).toContain(material.compatibilityLabel);
+    expect(cardText).toContain(material.summaryExplanation);
+    for (const contribution of material.contributions) {
+      expect(cardText).toContain(contribution.pointsLabel);
+      expect(cardText).toContain(contribution.criterionLabel);
+      expect(cardText).toContain(contribution.optionLabel);
+      expect(cardText).toContain(contribution.explanation);
+    }
+    for (const action of [
+      material.routes.details,
+      material.routes.startingProfile,
+      ...material.routes.decisionMaps.map(({ action }) => action),
+      material.routes.methodEvidence,
+    ]) {
+      if (action.kind === "link") {
+        await expect(card.getByRole("link", { name: action.label })).toHaveAttribute(
+          "href",
+          action.href,
+        );
+      } else {
+        await expect(card.getByText(action.label, { exact: true })).toBeVisible();
+      }
+    }
+  }
+  await expect(noScript.page.locator(".selector-calculation")).toHaveCount(0);
+  const eliminated = noScript.page.locator("details.selector-eliminated");
+  await eliminated.locator(":scope > summary").click();
+  await expect(eliminated.locator(".selector-static-elimination")).toHaveCount(
+    defaultPresentation.eliminated.length,
+  );
+  for (const [index, material] of defaultPresentation.eliminated.entries()) {
+    const item = eliminated.locator(".selector-static-elimination").nth(index);
+    const itemText = (await item.textContent()) ?? "";
+    expect(itemText).toContain(material.materialLabel);
+    for (const reason of material.reasons) {
+      expect(itemText).toContain(reason.stateLabel);
+      expect(itemText).toContain(reason.criterionLabel);
+      expect(itemText).toContain(reason.optionLabel);
+      expect(itemText).toContain(reason.explanation);
+    }
+    if (material.routes.details.kind === "link") {
+      await expect(item.getByRole("link", { name: material.routes.details.label })).toHaveAttribute(
+        "href",
+        material.routes.details.href,
+      );
+    }
+  }
+  expect(await noScript.page.locator("#selector-results-mount *").count()).toBeLessThan(220);
   await noScript.context.close();
 
   const aborted = await openWithSelectorChunkAborted(browser);
@@ -200,6 +254,10 @@ test("hydration preserves SSR ranking and controls drive transparent engine reco
   await enclosure.focus();
   await enclosure.selectOption("option-enclosure-available");
   await expect(enclosure).toBeFocused();
+  await expect(page.locator(".selector-static-contributions")).toHaveCount(0);
+  await expect(page.locator(".selector-calculation")).toHaveCount(
+    await compatibleItems(page).count(),
+  );
   await expect(firstResult.locator("details")).toHaveAttribute("open", "");
   await expect(page.locator("[role=status]")).toContainText(
     /compatible materials; \d+ eliminated\./u,
