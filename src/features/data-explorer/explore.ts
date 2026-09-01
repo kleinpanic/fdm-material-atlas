@@ -82,7 +82,7 @@ export function defaultExplorerState(model: DataExplorerModel): ExplorerState {
     factState: "all",
     evidenceScope: "all",
     view: "table",
-    sort: { field: firstSortable.key, direction: "asc" },
+    sort: { field: firstSortable.key as ExplorerSortableField, direction: "asc" },
   });
 }
 

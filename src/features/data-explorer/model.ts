@@ -163,8 +163,8 @@ function knownValue(descriptor: DataAttributeDescriptor, material: Material): un
 function vocabularyOrder(atlas: AtlasV1): ReadonlyMap<string, number> {
   const order = new Map<string, number>();
   for (const vocabulary of [...atlas.vocabularies].sort((a, b) => a.id.localeCompare(b.id, "en"))) {
-    for (const term of [...vocabulary.terms].sort((a, b) => a.displayOrder - b.displayOrder || a.value.localeCompare(b.value, "en"))) {
-      if (!order.has(term.value)) order.set(term.value, term.displayOrder);
+    for (const term of [...vocabulary.terms].sort((a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER) || a.value.localeCompare(b.value, "en"))) {
+      if (term.order !== undefined && !order.has(term.value)) order.set(term.value, term.order);
     }
   }
   return order;

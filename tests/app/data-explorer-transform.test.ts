@@ -16,15 +16,14 @@ function withState(patch: Partial<ExplorerState>): ExplorerState {
 }
 
 function sortableFixture(states: readonly [string, string, number | undefined][]): DataExplorerModel {
-  const fixture = structuredClone(model);
-  fixture.materials = fixture.materials.slice(0, states.length).map((material, index) => {
+  const materials = model.materials.slice(0, states.length).map((material, index) => {
     const [id, state, value] = states[index]!;
     const cells = material.cells.map((cell) => cell.key === "density"
       ? { ...cell, states: state === "identity" ? [] : [state], sortKey: { kind: "number", state, ...(value === undefined ? {} : { value }) } }
-      : cell);
-    return { ...material, id, cells };
-  }) as DataExplorerModel["materials"];
-  return fixture;
+      : cell) as DataExplorerModel["materials"][number]["cells"];
+    return { ...material, id: id as typeof material.id, cells };
+  });
+  return { ...model, materials };
 }
 
 describe("data explorer transform", () => {

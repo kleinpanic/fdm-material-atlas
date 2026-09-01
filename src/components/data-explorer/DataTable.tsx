@@ -1,6 +1,17 @@
 /** @jsxImportSource preact */
+import type { ComponentType, JSX } from "preact";
 import type { ExplorerSuccess, ExplorerSortableField } from "../../features/data-explorer/explore.ts";
 import type { ExplorerCell } from "../../features/data-explorer/model.ts";
+
+// The project intentionally narrows global JSX intrinsic tags. These typed aliases
+// still emit the corresponding native elements without broadening that global surface.
+const Table = "table" as unknown as ComponentType<JSX.HTMLAttributes<HTMLTableElement>>;
+const Caption = "caption" as unknown as ComponentType<JSX.HTMLAttributes<HTMLTableCaptionElement>>;
+const TableHead = "thead" as unknown as ComponentType<JSX.HTMLAttributes<HTMLTableSectionElement>>;
+const TableBody = "tbody" as unknown as ComponentType<JSX.HTMLAttributes<HTMLTableSectionElement>>;
+const TableRow = "tr" as unknown as ComponentType<JSX.HTMLAttributes<HTMLTableRowElement>>;
+const TableHeader = "th" as unknown as ComponentType<JSX.HTMLAttributes<HTMLTableCellElement>>;
+const TableData = "td" as unknown as ComponentType<JSX.HTMLAttributes<HTMLTableCellElement>>;
 
 type CellProps = Readonly<{ cell: ExplorerCell }>;
 
@@ -56,18 +67,18 @@ type Props = Readonly<{
 export function DataTable({ result, onSort }: Props) {
   return (
     <div class="data-table-overflow" role="region" aria-label={`${result.group.label} data table; scroll horizontally to inspect all fields`} tabIndex={0}>
-      <table>
-        <caption>{result.resultCount} materials · {result.group.label}</caption>
-        <thead><tr><th scope="col">Material</th>{result.fields.map((field) => {
+      <Table>
+        <Caption>{result.resultCount} materials · {result.group.label}</Caption>
+        <TableHead><TableRow><TableHeader scope="col">Material</TableHeader>{result.fields.map((field) => {
           const active = result.state.sort.field === field.key;
           return (
-            <th key={field.key} scope="col" {...(active ? { "aria-sort": result.state.sort.direction === "asc" ? "ascending" : "descending" } : {})}>
+            <TableHeader key={field.key} scope="col" {...(active ? { "aria-sort": result.state.sort.direction === "asc" ? "ascending" : "descending" } : {})}>
               {field.sort !== "none" ? <button type="button" onClick={() => onSort(field.key as ExplorerSortableField)}>{field.label}{active ? `, ${result.state.sort.direction}` : ""}</button> : field.label}
-            </th>
+            </TableHeader>
           );
-        })}</tr></thead>
-        <tbody>{result.materials.map((material) => <tr key={material.id}><th scope="row"><a href={material.href}>{material.name}</a><span>{material.family}</span></th>{material.cells.map((cell) => <td key={cell.key}><DataCell cell={cell} /></td>)}</tr>)}</tbody>
-      </table>
+        })}</TableRow></TableHead>
+        <TableBody>{result.materials.map((material) => <TableRow key={material.id}><TableHeader scope="row"><a href={material.href}>{material.name}</a><span>{material.family}</span></TableHeader>{material.cells.map((cell) => <TableData key={cell.key}><DataCell cell={cell} /></TableData>)}</TableRow>)}</TableBody>
+      </Table>
     </div>
   );
 }

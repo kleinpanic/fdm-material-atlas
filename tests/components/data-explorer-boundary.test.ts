@@ -44,8 +44,8 @@ describe("data explorer component boundary", () => {
 
   it("renders a captioned native sortable table inside one named focusable overflow region", () => {
     const table = source("../../src/components/data-explorer/DataTable.tsx");
-    expect(table).toMatch(/<table\b/u);
-    expect(table).toMatch(/<caption\b/u);
+    expect(table).toContain('const Table = "table"');
+    expect(table).toContain('const Caption = "caption"');
     expect(table).toContain('scope="col"');
     expect(table).toContain('scope="row"');
     expect(table).toContain("aria-sort");
