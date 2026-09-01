@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  inspectArchiveEntries,
-  verifyRemoteSnapshot,
-} from "../../tools/verify-remote-release.mjs";
+import { inspectArchiveEntries, verifyRemoteSnapshot } from "../../tools/verify-remote-release.mjs";
 
 const sha = (value: string) => value.repeat(40);
 const human = { name: "Release Owner", email: "owner@example.test" };
@@ -18,8 +15,8 @@ function validSnapshot() {
         sha: sha("a"),
         parents: [],
         reachableFromMain: true,
-        author: human,
-        committer: human,
+        author: { ...human },
+        committer: { ...human },
         message: "feat: release atlas",
         trailers: [],
         paths: ["src/pages/index.astro"],
@@ -52,11 +49,40 @@ describe("remote release snapshot", () => {
   });
 
   it.each([
-    ["hidden ref", (value: ReturnType<typeof validSnapshot>) => value.refs.push({ name: "refs/hidden/x", sha: sha("a") }), "REMOTE_REF_UNEXPECTED"],
-    ["wrong main", (value: ReturnType<typeof validSnapshot>) => { value.refs[0]!.sha = sha("b"); }, "REMOTE_MAIN_SHA_MISMATCH"],
-    ["human mismatch", (value: ReturnType<typeof validSnapshot>) => { value.commits[0]!.author.email = "bot@example.test"; }, "REMOTE_IDENTITY_INVALID"],
-    ["unscanned logs", (value: ReturnType<typeof validSnapshot>) => { value.runs[0]!.logsScanned = false; }, "REMOTE_LOG_UNSCANNED"],
-    ["unscanned artifact", (value: ReturnType<typeof validSnapshot>) => { value.artifacts[0]!.scanned = false; }, "REMOTE_ARTIFACT_UNSCANNED"],
+    [
+      "hidden ref",
+      (value: ReturnType<typeof validSnapshot>) =>
+        value.refs.push({ name: "refs/hidden/x", sha: sha("a") }),
+      "REMOTE_REF_UNEXPECTED",
+    ],
+    [
+      "wrong main",
+      (value: ReturnType<typeof validSnapshot>) => {
+        value.refs[0]!.sha = sha("b");
+      },
+      "REMOTE_MAIN_SHA_MISMATCH",
+    ],
+    [
+      "human mismatch",
+      (value: ReturnType<typeof validSnapshot>) => {
+        value.commits[0]!.author.email = "bot@example.test";
+      },
+      "REMOTE_IDENTITY_INVALID",
+    ],
+    [
+      "unscanned logs",
+      (value: ReturnType<typeof validSnapshot>) => {
+        value.runs[0]!.logsScanned = false;
+      },
+      "REMOTE_LOG_UNSCANNED",
+    ],
+    [
+      "unscanned artifact",
+      (value: ReturnType<typeof validSnapshot>) => {
+        value.artifacts[0]!.scanned = false;
+      },
+      "REMOTE_ARTIFACT_UNSCANNED",
+    ],
   ])("rejects %s", (_label, mutate, code) => {
     const value = validSnapshot();
     mutate(value);
@@ -67,10 +93,18 @@ describe("remote release snapshot", () => {
     const value = validSnapshot();
     value.refs.push({ name: "refs/heads/dependabot/npm_and_yarn/minor", sha: sha("b") });
     value.commits.push({
-      sha: sha("b"), parents: [sha("a")], reachableFromMain: false,
-      author: { name: "dependabot[bot]", email: "49699333+dependabot[bot]@users.noreply.github.com" },
+      sha: sha("b"),
+      parents: [sha("a")],
+      reachableFromMain: false,
+      author: {
+        name: "dependabot[bot]",
+        email: "49699333+dependabot[bot]@users.noreply.github.com",
+      },
       committer: { name: "GitHub", email: "noreply@github.com" },
-      message: "Bump dependencies", trailers: [], paths: ["package.json", "package-lock.json"], signature: "valid",
+      message: "Bump dependencies",
+      trailers: [],
+      paths: ["package.json", "package-lock.json"],
+      signature: "valid",
     });
     expect(verifyRemoteSnapshot(value).identityClasses.dependabot).toBe(1);
     value.commits[1]!.paths = ["src/pages/index.astro"];
@@ -83,7 +117,12 @@ describe("remote release snapshot", () => {
 describe("bounded archive inspection", () => {
   it("scans regular entries and rejects links, escapes, excess bytes, and protected bytes", () => {
     const policy = { exactPatterns: [Buffer.from("protected-value")] };
-    expect(inspectArchiveEntries([{ name: "job/log.txt", type: "file", bytes: Buffer.from("clean") }], policy)).toEqual({ entryCount: 1, byteCount: 5, findingCount: 0 });
+    expect(
+      inspectArchiveEntries(
+        [{ name: "job/log.txt", type: "file", bytes: Buffer.from("clean") }],
+        policy,
+      ),
+    ).toEqual({ entryCount: 1, byteCount: 5, findingCount: 0 });
     for (const entry of [
       { name: "../escape", type: "file", bytes: Buffer.from("clean") },
       { name: "link", type: "symlink", bytes: Buffer.alloc(0) },
