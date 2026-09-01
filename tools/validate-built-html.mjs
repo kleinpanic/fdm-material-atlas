@@ -29,6 +29,7 @@ const DANGEROUS_PATH_PATTERN = /(?:^|\/)(?:(?:\.|%2e){2})(?:\/|%2f|%5c|\\|$)/iu;
 const SOURCE_MAP_PATTERN = /(?:^|\.)map$/iu;
 const SCRIPT_EXTENSIONS = new Set([".js", ".mjs"]);
 const STYLE_EXTENSIONS = new Set([".css"]);
+const FONT_PRELOAD_EXTENSIONS = new Set([".woff2"]);
 const IMAGE_EXTENSIONS = new Set([".avif", ".gif", ".jpeg", ".jpg", ".png", ".svg", ".webp"]);
 const MEDIA_EXTENSIONS = new Set([...IMAGE_EXTENSIONS, ".mp3", ".mp4", ".ogg", ".ogv", ".webm"]);
 const CSS_ASSET_EXTENSIONS = new Set([
@@ -196,11 +197,20 @@ function fileForUrl(url, mode, files) {
   return candidate;
 }
 
-function assertExtension(tag, attribute, target, kind) {
+function assertExtension(tag, attribute, target, kind, element) {
   const extension = extname(target).toLowerCase();
   let allowed;
   if (tag === "script" && attribute === "src") allowed = SCRIPT_EXTENSIONS;
-  if (tag === "link" && attribute === "href" && kind === "asset") allowed = STYLE_EXTENSIONS;
+  if (tag === "link" && attribute === "href" && kind === "asset") {
+    const rel = element?.getAttributeValue("rel") ?? "";
+    const relTokens = new Set(rel.toLowerCase().split(/\s+/u).filter(Boolean));
+    const as = element?.getAttributeValue("as")?.toLowerCase();
+    const type = element?.getAttributeValue("type")?.toLowerCase();
+    allowed =
+      relTokens.has("preload") && as === "font" && type === "font/woff2"
+        ? FONT_PRELOAD_EXTENSIONS
+        : STYLE_EXTENSIONS;
+  }
   if (["img", "image"].includes(tag) && ["src", "href"].includes(attribute)) {
     allowed = IMAGE_EXTENSIONS;
   }
@@ -223,7 +233,7 @@ function cssUrls(source) {
 }
 
 function resolveReference(raw, context) {
-  const { attribute, currentUrl, files, kind, mode, origin, tag } = context;
+  const { attribute, currentUrl, element, files, kind, mode, origin, tag } = context;
   if (typeof raw !== "string" || raw === "") fail("ARTIFACT_REFERENCE_INVALID");
   assertRawPath(raw);
 
@@ -244,7 +254,7 @@ function resolveReference(raw, context) {
   }
   if (url.search !== "") fail("ARTIFACT_REFERENCE_INVALID");
   const target = fileForUrl(url, mode, files);
-  assertExtension(tag, attribute, target, kind);
+  assertExtension(tag, attribute, target, kind, element);
   return { target, url };
 }
 
@@ -316,6 +326,7 @@ async function inspectMode(mode, options) {
         const reference = resolveReference(raw, {
           attribute,
           currentUrl,
+          element,
           files: artifact.files,
           kind,
           mode,
