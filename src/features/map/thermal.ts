@@ -284,6 +284,7 @@ export function buildNamedThermalModel(
     members: group.members.map(({ materialId, observation }): MapThermalMember => {
       const material = materialById.get(materialId);
       if (material === undefined) throw new Error("NAMED_THERMAL_MATERIAL_MISSING");
+      const measurement = serviceMeasurement(observation.measurement);
       return {
         material: materialReference(material, base),
         metric: observation.metric,
@@ -291,9 +292,7 @@ export function buildNamedThermalModel(
         ...(observation.method === undefined ? {} : { method: { ...observation.method } }),
         methodLabel: methodLabel(observation.method),
         fact: displayTemperatureFact(observation.measurement),
-        ...(serviceMeasurement(observation.measurement) === undefined
-          ? {}
-          : { measurement: serviceMeasurement(observation.measurement) }),
+        ...(measurement === undefined ? {} : { measurement }),
         evidence: evidenceContextFromScopes(observation.basisScopes, observation.qualification),
         disposition: { disposition: "plotted" },
       };

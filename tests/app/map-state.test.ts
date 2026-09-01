@@ -113,12 +113,15 @@ describe("closed map state", () => {
   });
 
   it("switches thermal concepts explicitly and exposes complete sorted/filterable records", () => {
+    const uniqueMaterial = projection.serviceGuidance.records.find(
+      ({ material: recordMaterial }) => recordMaterial.id === "material-peek",
+    )!.material;
     const state = run([
       { type: "set-mode", mode: "thermal-ranges" },
       { type: "set-thermal-view", mode: "thermal-ranges", view: "named-observations" },
       { type: "select-thermal-group", mode: "thermal-ranges", groupId: group.id },
       { type: "set-service-sort", sort: "high-endpoint" },
-      { type: "set-search", target: "thermal", query: material.name },
+      { type: "set-search", target: "thermal", query: uniqueMaterial.name },
     ]);
     const view = buildMapView(projection, state).thermal;
     expect(view.view).toBe("named-observations");
@@ -127,7 +130,10 @@ describe("closed map state", () => {
     expect(view.serviceRecords).toHaveLength(23);
     expect(view.serviceRecords.filter(({ disposition }) => disposition.disposition === "plotted"))
       .toHaveLength(1);
-    expect(view.serviceRecords.at(-1)?.measurement).toBeUndefined();
+    const highEndpoints = view.serviceRecords.flatMap(({ measurement }) => measurement === undefined
+      ? []
+      : [measurement.shape === "point" ? measurement.value : measurement.high]);
+    expect(highEndpoints).toEqual([...highEndpoints].sort((left, right) => left - right));
   });
 
   it("derives impact filters without dropping records and labels a selected filtered material", () => {

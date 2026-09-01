@@ -1,4 +1,12 @@
 import type { MapProjection } from "./contracts.ts";
+import type { MapSelectionAction } from "./contracts.ts";
+import {
+  createInitialMapState,
+  createMapReducer,
+  recoverMapState,
+  type MapReducer,
+  type MapState,
+} from "./state.ts";
 
 export type SafeMapProjection =
   | Readonly<{ readonly kind: "success"; readonly projection: MapProjection }>
@@ -17,4 +25,19 @@ export function safeCompileMapProjection(compile: () => MapProjection): SafeMapP
   } catch {
     return PROJECTION_FAILURE;
   }
+}
+
+/** Bind one total, non-echoing reducer for direct use by a single useReducer owner. */
+export function createSafeMapReducer(
+  projection: MapProjection,
+  reducer: MapReducer = createMapReducer(projection),
+): MapReducer {
+  const initial = createInitialMapState(projection);
+  return (state: MapState, action: MapSelectionAction): MapState => {
+    try {
+      return reducer(state, action);
+    } catch {
+      return recoverMapState(initial.hydrated || state.hydrated ? { hydrated: true } : { hydrated: false });
+    }
+  };
 }

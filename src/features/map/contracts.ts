@@ -206,19 +206,66 @@ export type MapProjection = {
 };
 
 export type MapSelectionTarget =
-  | { readonly kind: "lane"; readonly id: DecisionLaneId }
-  | { readonly kind: "material"; readonly id: MaterialId }
-  | { readonly kind: "gate"; readonly id: ProcessGateId }
-  | { readonly kind: "thermal-group"; readonly id: string };
+  | {
+      readonly kind: "lane";
+      readonly mode: "decision-paths" | "process-gates";
+      readonly id: DecisionLaneId;
+    }
+  | {
+      readonly kind: "material";
+      readonly mode: "decision-paths";
+      readonly laneId: DecisionLaneId;
+      readonly id: MaterialId;
+    }
+  | {
+      readonly kind: "material";
+      readonly mode: "thermal-ranges" | "impact-flex-space";
+      readonly id: MaterialId;
+    }
+  | { readonly kind: "gate"; readonly mode: "process-gates"; readonly id: ProcessGateId }
+  | { readonly kind: "thermal-group"; readonly mode: "thermal-ranges"; readonly id: string };
 
 export type MapSelectionAction =
+  | { readonly type: "hydration-ready" }
   | { readonly type: "set-mode"; readonly mode: MapMode }
-  | { readonly type: "select-lane"; readonly laneId: DecisionLaneId }
-  | { readonly type: "select-material"; readonly materialId: MaterialId }
-  | { readonly type: "select-gate"; readonly gateId: ProcessGateId }
-  | { readonly type: "select-thermal-group"; readonly groupId: string }
-  | { readonly type: "preview-selection"; readonly target: MapSelectionTarget; readonly source: "focus" | "hover" }
-  | { readonly type: "clear-preview"; readonly source: "focus" | "hover" }
+  | {
+      readonly type: "set-thermal-view";
+      readonly mode: "thermal-ranges";
+      readonly view: "service-guidance" | "named-observations";
+    }
+  | {
+      readonly type: "select-lane";
+      readonly mode: "decision-paths" | "process-gates";
+      readonly laneId: DecisionLaneId;
+    }
+  | {
+      readonly type: "select-material";
+      readonly mode: "decision-paths";
+      readonly laneId: DecisionLaneId;
+      readonly materialId: MaterialId;
+    }
+  | {
+      readonly type: "select-material";
+      readonly mode: "thermal-ranges" | "impact-flex-space";
+      readonly materialId: MaterialId;
+    }
+  | { readonly type: "select-gate"; readonly mode: "process-gates"; readonly gateId: ProcessGateId }
+  | {
+      readonly type: "select-thermal-group";
+      readonly mode: "thermal-ranges";
+      readonly groupId: string;
+    }
+  | {
+      readonly type: "preview-selection";
+      readonly mode: MapMode;
+      readonly target: MapSelectionTarget;
+      readonly source: "focus" | "hover";
+    }
+  | {
+      readonly type: "clear-preview";
+      readonly mode: MapMode;
+      readonly source: "focus" | "hover";
+    }
   | { readonly type: "set-search"; readonly target: "thermal" | "impact-flex"; readonly query: string }
   | { readonly type: "set-service-sort"; readonly sort: "canonical" | "low-endpoint" | "high-endpoint" }
   | { readonly type: "set-maximum-difficulty"; readonly value?: PrintDifficulty }
@@ -226,5 +273,7 @@ export type MapSelectionAction =
   | { readonly type: "clear-filters"; readonly target: "thermal" | "impact-flex" | "all" }
   | {
       readonly type: "clear-selection";
+      readonly mode: MapMode;
       readonly target: "all" | "lane" | "material" | "gate" | "thermal-group";
-    };
+    }
+  | { readonly type: "reset-view"; readonly mode: MapMode | "all" };
