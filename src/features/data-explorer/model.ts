@@ -89,7 +89,6 @@ export type ExplorerMaterial = Readonly<{
   family: string;
   familyQualifier?: string | undefined;
   href: string;
-  searchKey: string;
   cells: readonly ExplorerCell[];
 }>;
 
@@ -304,15 +303,12 @@ export function buildDataExplorerModel(atlas: AtlasV1, base: string | undefined)
     const familyQualifier = familyFact.state === "conditional"
       ? `Conditional — ${familyFact.condition}`
       : undefined;
-    const visibleText = cells.flatMap(({ searchText }) => searchText);
-    const searchKey = [projected.name, family, ...visibleText].map(normalizeSearch).join("\u0000");
     return {
       id: projected.id,
       name: projected.name,
       family,
       ...(familyQualifier === undefined ? {} : { familyQualifier }),
       href: projected.href,
-      searchKey,
       cells,
     };
   });

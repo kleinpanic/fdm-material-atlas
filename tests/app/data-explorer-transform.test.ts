@@ -61,6 +61,34 @@ describe("data explorer transform", () => {
     }
   });
 
+  it("searches identity plus only the active group's visible cells", () => {
+    const material = model.materials[0]!;
+    const token = "exclusive-hidden-group-token";
+    const fixture: DataExplorerModel = {
+      ...model,
+      materials: [{
+        ...material,
+        cells: material.cells.map((cell) => cell.key === "print-difficulty"
+          ? { ...cell, searchText: [token] }
+          : cell),
+      }],
+    };
+
+    const hidden = exploreData(fixture, {
+      ...defaultExplorerState(fixture),
+      query: token,
+    });
+    expect(hidden.resultCount).toBe(0);
+
+    const visible = exploreData(fixture, {
+      ...defaultExplorerState(fixture),
+      query: token,
+      group: "print-process",
+      sort: { field: "print-difficulty", direction: "asc" },
+    });
+    expect(visible.kind === "exploration" && visible.materials.map(({ id }) => id)).toEqual([material.id]);
+  });
+
   it("filters by exact thermal compatibility group and narrows only thermal member lists", () => {
     const metric = model.thermalMetrics[0]!;
     const result = exploreData(model, withState({ thermalMetric: metric.id }));

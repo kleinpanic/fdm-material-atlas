@@ -49,17 +49,10 @@ describe("data explorer model", () => {
     expect(JSON.stringify(buildDataExplorerModel(atlas, "/"))).toBe(expected);
   });
 
-  it("searches only normalized public identity and visible cell text", () => {
+  it("does not serialize a duplicate all-field search corpus", () => {
     const model = buildDataExplorerModel(loadPublicAtlas(), "/");
     for (const material of model.materials) {
-      expect(material.searchKey).toBe(material.searchKey.normalize("NFC").toLocaleLowerCase("en-US"));
-      expect(material.searchKey).toContain(material.name.normalize("NFC").toLocaleLowerCase("en-US"));
-      expect(material.searchKey).toContain(material.family.normalize("NFC").toLocaleLowerCase("en-US"));
-      for (const cell of material.cells) {
-        for (const text of cell.searchText) {
-          expect(material.searchKey).toContain(text.normalize("NFC").toLocaleLowerCase("en-US"));
-        }
-      }
+      expect("searchKey" in material).toBe(false);
     }
   });
 
