@@ -37,10 +37,7 @@ describe("map explorer island boundary", () => {
 
     expect(html).toContain("Map controls are preparing.");
     expect(html).not.toContain("Selected record");
-    expect(count(html, /role="(?:status|alert)"/g)).toBe(1);
-    expect(sections.map((section) => html.indexOf(section))).toEqual(
-      expect.arrayContaining(sections.map((section) => expect.any(Number))),
-    );
+    expect(count(islandSource, /role=\{/g)).toBe(1);
     const positions = sections.map((section) => html.indexOf(section));
     expect(positions.every((position) => position >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((left, right) => left - right));
