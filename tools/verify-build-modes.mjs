@@ -7,6 +7,7 @@ import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { loadExactPatterns } from "./lib/publication-policy.mjs";
+import { parsePhase8Arguments, verifyPhase8Build } from "./verify-phase8-build.mjs";
 import { verifyPhase7Build } from "./verify-phase7-build.mjs";
 import { SelectorBuildError, verifySelectorBuild } from "./verify-selector-build.mjs";
 
@@ -424,6 +425,11 @@ async function main() {
     await serveMode(process.argv[3]);
     return;
   }
+  if (command === "phase8") {
+    const report = await verifyPhase8Build(parsePhase8Arguments(process.argv.slice(3)));
+    process.stdout.write(`${JSON.stringify({ ok: true, command, stage: report.stage, routeCount: report.routeCount, modes: report.modes })}\n`);
+    return;
+  }
   if (process.argv.length !== 3 || !["build", "browser", "selector", "phase7"].includes(command)) fail("ARGUMENTS_INVALID");
   if (command === "phase7") {
     const report = await verifyPhase7Build();
@@ -450,7 +456,9 @@ async function main() {
 
 if (resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   main().catch((error) => {
-    const code = error instanceof VerificationError ? error.code : "VERIFICATION_FAILED";
+    const code = error instanceof VerificationError || (typeof error?.code === "string" && /^[A-Z0-9_]+$/u.test(error.code))
+      ? error.code
+      : "VERIFICATION_FAILED";
     process.stderr.write(`${JSON.stringify({ ok: false, code })}\n`);
     process.exitCode = 1;
   });

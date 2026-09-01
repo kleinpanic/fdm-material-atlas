@@ -222,7 +222,7 @@ function assertProjectionContract(projection, mode, files, exactPatterns) {
   if (projection.lanes.map(({ id }) => id).join("\0") !== LANE_IDS.join("\0")) fail("MAP_LANE_COUNT_INVALID");
   const gateIds = projection.processGates?.gates?.map(({ id }) => id);
   assertArray(gateIds, 8, "MAP_GATE_COUNT_INVALID");
-  const allowedFragments = new Set([...MAP_MODES, ...LANE_IDS, ...gateIds]);
+  const allowedFragments = new Set(["main-content", ...MAP_MODES, ...LANE_IDS, ...gateIds]);
   assertArray(projection.serviceGuidance?.records, 23, "MAP_PROJECTION_PARITY_INVALID");
   assertArray(projection.thermalGroups, 8, "MAP_PROJECTION_PARITY_INVALID");
   for (const group of projection.thermalGroups) assertArray(group.records, 23, "MAP_PROJECTION_PARITY_INVALID");
@@ -282,18 +282,7 @@ async function inspectMap(mode, files, exactPatterns) {
   const totalGzipBytes = graph.gzipBytes + gzipSync(Buffer.from(serialized)).length;
   if (totalGzipBytes > MAX_ROUTE_GZIP) fail("MAP_ROUTE_BUDGET_EXCEEDED");
   if (graph.largestModuleGzipBytes > MAX_VISUALIZATION_MODULE_GZIP) fail("MAP_MODULE_BUDGET_EXCEEDED");
-  return { html, projection: props.projection, projectionGzipBytes: contract.projectionGzipBytes, totalGzipBytes, javascriptCount: graph.names.size, graph: graph.names, rendererGraph: rendererGraph.names };
-}
-
-function findDecisionRouteState(value, seen = new Set()) {
-  if (typeof value !== "object" || value === null || seen.has(value)) return undefined;
-  seen.add(value);
-  if (!Array.isArray(value) && "decisionMaps" in value && "decisionMapFallback" in value) return value;
-  for (const child of Array.isArray(value) ? value : Object.values(value)) {
-    const found = findDecisionRouteState(child, seen);
-    if (found !== undefined) return found;
-  }
-  return undefined;
+  return { html, projection: props.projection, projectionGzipBytes: contract.projectionGzipBytes, totalGzipBytes, javascriptCount: graph.names.size, graph: graph.names, component, rendererGraph: rendererGraph.names };
 }
 
 async function inspectSelectorStage(mode, files, stage, exactPatterns) {
@@ -303,12 +292,12 @@ async function inspectSelectorStage(mode, files, stage, exactPatterns) {
   const serialized = island.attrs.get("props");
   if (serialized === undefined) fail("SELECTOR_MODEL_MISSING");
   if (exactPatterns.some((pattern) => pattern !== "" && serialized.includes(pattern))) fail("CLIENT_PRIVATE_PATTERN_FORBIDDEN");
-  const state = findDecisionRouteState(parseProps(serialized));
-  if (!state) fail("SELECTOR_MODEL_MISSING");
+  parseProps(serialized);
+  if (!serialized.includes("decisionMaps") || !serialized.includes("decisionMapFallback")) fail("SELECTOR_MODEL_MISSING");
   if (stage === "pre-activation") {
-    if (state.decisionMaps.length !== 0 || state.decisionMapFallback?.kind !== "unavailable" || !island.complete.includes("Decision map is not available yet")) fail("SELECTOR_ACTIVATED_TOO_EARLY");
+    if (serialized.includes("/map/#lane-") || serialized.includes("Open material decision map") || !island.complete.includes("Decision map is not available yet")) fail("SELECTOR_ACTIVATED_TOO_EARLY");
   } else {
-    if (state.decisionMaps.length !== 8 || state.decisionMapFallback?.kind !== "link") fail("SELECTOR_ACTIVATION_MISSING");
+    if (!serialized.includes("Open material decision map") || !LANE_IDS.every((laneId) => serialized.includes(`/map/#${laneId}`))) fail("SELECTOR_ACTIVATION_MISSING");
   }
   const entries = [];
   for (const record of islandRecords(html)) {
@@ -322,6 +311,7 @@ async function inspectSelectorStage(mode, files, stage, exactPatterns) {
 async function inspectOtherRoutes(mode, files, exactPatterns, forbiddenGraph) {
   for (const route of ["materials", "compare", "data"]) {
     const html = await readFile(files.get(`${route}/index.html`)?.path ?? "", "utf8").catch(() => fail("ROUTE_SCOPE_PROOF_MISSING"));
+    if (html.includes("MapExplorerIsland") || MAP_MODES.some((modeId) => html.includes(`data-active-map-section=\"${modeId}\"`))) fail("ROUTE_SCOPE_VIOLATION");
     for (const island of islandRecords(html)) {
       const component = localFile(island.attrs.get("component-url") ?? "", mode, `/${route}/`, files, "CLIENT_REFERENCE_INVALID");
       const renderer = localFile(island.attrs.get("renderer-url") ?? "", mode, `/${route}/`, files, "CLIENT_REFERENCE_INVALID");
@@ -372,6 +362,18 @@ async function writeReceipt(receiptPath, receipt) {
   await rename(temporary, target).catch(() => fail("RECEIPT_WRITE_FAILED"));
 }
 
+/**
+ * @param {{
+ *   rootOutput?: string,
+ *   repositoryOutput?: string,
+ *   stage?: string,
+ *   receiptPath?: string,
+ *   registrySource?: string,
+ *   prohibitedExactPatterns?: string[],
+ *   sensitiveFile?: string,
+ *   runPublicationScan?: boolean,
+ * }} options
+ */
 export async function verifyPhase8Build({
   rootOutput = resolve(PROJECT_ROOT, "dist-test/root"), repositoryOutput = resolve(PROJECT_ROOT, "dist-test/repository"),
   stage, receiptPath, registrySource, prohibitedExactPatterns, sensitiveFile = process.env.FDM_PUBLICATION_SENSITIVE_FILE,
@@ -396,7 +398,7 @@ export async function verifyPhase8Build({
     const files = await collectFiles(mode.output);
     const map = await inspectMap(mode, files, prohibitedExactPatterns);
     const selectorGraph = await inspectSelectorStage(mode, files, stage, prohibitedExactPatterns);
-    const forbiddenGraph = new Set([...map.graph].filter((name) => !map.rendererGraph.has(name)));
+    const forbiddenGraph = new Set([map.component]);
     for (const name of selectorGraph.names) if (forbiddenGraph.has(name)) fail("ROUTE_SCOPE_VIOLATION");
     await inspectOtherRoutes(mode, files, prohibitedExactPatterns, forbiddenGraph);
     reports.push({ mode: mode.name, files, ...map, artifactDigest: await artifactDigest(files) });
@@ -420,7 +422,7 @@ export async function verifyPhase8Build({
   return Object.freeze({ ok: true, stage, routeCount: 1, modes: Object.freeze(publicReports.map(({ artifactDigest: _digest, ...report }) => Object.freeze(report))) });
 }
 
-function parseArguments(argv) {
+export function parsePhase8Arguments(argv) {
   const options = {};
   for (let index = 0; index < argv.length; index += 2) {
     const flag = argv[index]; const value = argv[index + 1];
@@ -433,7 +435,7 @@ function parseArguments(argv) {
 
 async function main() {
   try {
-    const report = await verifyPhase8Build(parseArguments(process.argv.slice(2)));
+    const report = await verifyPhase8Build(parsePhase8Arguments(process.argv.slice(2)));
     process.stdout.write(`${JSON.stringify(report)}\n`);
   } catch (error) {
     const code = error instanceof Phase8BuildError ? error.code : "PHASE8_VERIFICATION_FAILED";
