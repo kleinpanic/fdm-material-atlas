@@ -221,6 +221,7 @@ function verifyPostpush(expected, evidence, prepush) {
       item,
     ]),
   );
+  if (synthesis.size !== (evidence.mergeSyntheses?.length ?? 0)) fail("GITHUB_POSTPUSH_INVALID");
   const usedSyntheses = new Set();
   for (const ref of target.refs.filter((item) => item.name.endsWith("/merge"))) {
     if (priorMerges.get(ref.name) === ref.sha) continue;
@@ -412,6 +413,19 @@ function pagesFromApi(value) {
   };
 }
 
+function activeAuthLogins(value) {
+  const status = object(value, "GITHUB_AUTH_INVALID");
+  const hosts = object(status.hosts ?? status, "GITHUB_AUTH_INVALID");
+  const accounts = hosts["github.com"];
+  if (!Array.isArray(accounts)) fail("GITHUB_AUTH_INVALID");
+  const logins = accounts
+    .filter((account) => account?.active === true)
+    .map((account) => account?.login)
+    .filter((login) => typeof login === "string" && NAME.test(login));
+  if (logins.length !== 1) fail("GITHUB_AUTH_INVALID");
+  return logins;
+}
+
 export async function collectGitHubReleaseEvidence({
   expected: rawExpected,
   stage,
@@ -419,8 +433,13 @@ export async function collectGitHubReleaseEvidence({
 }) {
   const expected = expectedInput(rawExpected);
   if (!new Set(["established-target", "existing-prepush"]).has(stage)) fail("GITHUB_INPUT_INVALID");
+  const authStatus = parseJson(
+    (await runRead(run, "gh", ["auth", "status", "--active", "--json", "hosts"])).stdout,
+    "GITHUB_AUTH_INVALID",
+  );
+  const logins = activeAuthLogins(authStatus);
   const user = parseJson((await runRead(run, "gh", ["api", "user"])).stdout);
-  if (typeof user.login !== "string" || !NAME.test(user.login)) fail("GITHUB_AUTH_INVALID");
+  if (user.login !== logins[0]) fail("GITHUB_AUTH_INVALID");
   const target = `${user.login}/${expected.repositoryName}`;
   const repository = parseJson(
     (
@@ -454,7 +473,7 @@ export async function collectGitHubReleaseEvidence({
     stage,
     expected,
     evidence: {
-      auth: { logins: [user.login] },
+      auth: { logins },
       repository,
       origin,
       pages: pagesFromApi(pagesRaw),

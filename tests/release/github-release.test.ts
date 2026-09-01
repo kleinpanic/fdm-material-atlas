@@ -399,6 +399,11 @@ describe("fixed read-only process seam", () => {
     const calls: Array<{ file: string; args: string[]; env: Record<string, string | undefined> }> =
       [];
     const outputs = [
+      {
+        stdout: JSON.stringify({
+          hosts: { "github.com": [{ active: true, login: "atlas-owner" }] },
+        }),
+      },
       { stdout: JSON.stringify({ login: "atlas-owner" }) },
       { stdout: JSON.stringify(repository().repository) },
       { stdout: JSON.stringify(repository().pages) },
@@ -420,7 +425,7 @@ describe("fixed read-only process seam", () => {
     };
     const proof = await collectGitHubReleaseEvidence({ expected, stage: "existing-prepush", run });
     expect(proof).toMatchObject({ code: "GITHUB_PREPUSH_VERIFIED" });
-    expect(calls.map((call) => call.file)).toEqual(["gh", "gh", "gh", "git", "git", "git"]);
+    expect(calls.map((call) => call.file)).toEqual(["gh", "gh", "gh", "gh", "git", "git", "git"]);
     expect(
       calls.every(
         (call) => !Object.keys(call.env).some((key) => /TOKEN|SECRET|GOOGLE|GOG/u.test(key)),
