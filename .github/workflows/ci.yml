@@ -172,8 +172,17 @@ jobs:
       - name: Verify dependency installation did not alter the lockfile
         run: git diff --exit-code -- package-lock.json
 
-      - name: Retain bounded browser diagnostics on failure
+      - name: Check failure diagnostic bounds
+        id: diagnostic_bounds
         if: failure()
+        run: |
+          test -d test-results
+          test -z "$(find test-results -type l -print -quit)"
+          test "$(find test-results -type f -printf . | wc -c)" -le 200
+          test "$(du -sk test-results | cut -f1)" -le 20480
+
+      - name: Retain bounded browser diagnostics on failure
+        if: failure() && steps.diagnostic_bounds.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-browser-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}

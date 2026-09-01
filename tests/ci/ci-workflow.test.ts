@@ -122,7 +122,10 @@ describe("production CI workflow contract", () => {
   it("retains only short-lived failure diagnostics and never promotes CI output", () => {
     const source = job("browser");
     expect(source).toContain(`uses: actions/upload-artifact@${UPLOAD_ARTIFACT_SHA} # v7.0.1`);
-    expect(source).toContain("if: failure()");
+    expect(source).toContain("id: diagnostic_bounds");
+    expect(source).toContain('find test-results -type f -printf . | wc -c)" -le 200');
+    expect(source).toContain('du -sk test-results | cut -f1)" -le 20480');
+    expect(source).toContain("if: failure() && steps.diagnostic_bounds.outcome == 'success'");
     expect(source).toContain("path: test-results");
     expect(source).toMatch(/retention-days: [1-7]\b/u);
     expect(source).not.toMatch(/src\/data\/public|sensitive|exact-pattern|\.env/iu);
