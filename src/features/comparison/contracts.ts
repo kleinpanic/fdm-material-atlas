@@ -82,3 +82,53 @@ export type ComparisonModel = Readonly<{
   thermalGroups: readonly ComparisonThermalGroup[];
   materials: readonly ComparisonMaterial[];
 }>;
+
+export type ComparedValue =
+  | Readonly<{ kind: "value"; materialId: MaterialId; materialName: string; cell: ComparisonValueCell }>
+  | Readonly<{ kind: "thermal"; materialId: MaterialId; materialName: string; member: ComparisonThermalMember }>
+  | Readonly<{
+      kind: "no-comparable-observation";
+      materialId: MaterialId;
+      materialName: string;
+      groupId: string;
+      label: "No comparable observation in this metric and method group";
+    }>;
+
+export type ComparisonRow = Readonly<{
+  key: MaterialSemanticKey;
+  label: string;
+  thermalGroupId?: string | undefined;
+  differs: boolean;
+  values: readonly ComparedValue[];
+}>;
+
+export type ComparisonResultGroup = Readonly<{
+  key: DataAttributeGroupKey;
+  label: string;
+  differenceCount: number;
+  equalCount: number;
+  differing: readonly ComparisonRow[];
+  equal: readonly ComparisonRow[];
+}>;
+
+export type ComparisonSuccess = Readonly<{
+  kind: "comparison";
+  materials: readonly Readonly<{ id: MaterialId; name: string; href: string }>[];
+  groups: readonly ComparisonResultGroup[];
+  differenceCount: number;
+  equalCount: number;
+}>;
+
+export type ComparisonInvalid = Readonly<{
+  kind: "invalid";
+  code: "COMPARISON_SELECTION_INVALID";
+}>;
+
+export type SafeComparisonFailure = Readonly<{
+  kind: "failure";
+  code: "COMPARE_FAILED";
+  materials: readonly never[];
+  groups: readonly never[];
+  differenceCount: 0;
+  equalCount: 0;
+}>;
