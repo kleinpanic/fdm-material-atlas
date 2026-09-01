@@ -353,7 +353,9 @@ test("show-all preserves order and every browser resource maps to the built depl
   await expect(
     page.getByText("Showing all 23 compatible materials", { exact: true }),
   ).toBeVisible();
-  const ranks = await compatibleItems(page).locator("article > p:first-child").allInnerTexts();
+  const ranks = await compatibleItems(page)
+    .locator("article > p:first-child")
+    .evaluateAll((elements: Element[]) => elements.map((element) => element.textContent?.trim()));
   expect(ranks).toEqual(Array.from({ length: 23 }, (_, index) => `Rank ${index + 1}`));
   expect(badResources).toEqual([]);
 });

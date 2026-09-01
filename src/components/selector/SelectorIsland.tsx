@@ -7,12 +7,10 @@ import {
   type SelectorRuntimePageModel,
 } from "../../features/selector/client-model.ts";
 import type { MaterialId } from "../../data/schema/ids.ts";
+import { isMaterialIdValue } from "../../data/schema/public-id-values.ts";
 import { SELECTOR_COPY } from "../../features/selector/copy.ts";
-import {
-  presentSelectorOutcome,
-  type SelectorPresentation,
-} from "../../features/selector/presentation.ts";
-import { prepareSelectorEvaluator } from "../../features/selector/safe-engine.ts";
+import type { SelectorPresentation } from "../../features/selector/presentation.ts";
+import { prepareSelectorPresentationEvaluator } from "../../features/selector/runtime-evaluator.ts";
 import {
   presentShortlist,
   reduceShortlist,
@@ -21,9 +19,11 @@ import {
   type ShortlistState,
 } from "../../features/selector/shortlist.ts";
 import { SelectorControls } from "./SelectorControls.tsx";
-import { SelectorResults } from "./SelectorResults.tsx";
+import type { SelectorResultsProps } from "./SelectorResults.tsx";
 
 type Props = Readonly<{ pageModel: SelectorClientModel }>;
+type ResultsRenderer = typeof import("./render-selector-results.tsx");
+const RESULTS_MOUNT_ID = "selector-results-mount";
 
 function aggregateAnnouncement(presentation: SelectorPresentation): string {
   if (presentation.kind === "ranked") {
@@ -37,8 +37,8 @@ function aggregateAnnouncement(presentation: SelectorPresentation): string {
 }
 
 function SelectorStatus({ message, immediate }: Readonly<{ message: string; immediate: boolean }>) {
-  const [announcement, setAnnouncement] = useState(SELECTOR_COPY.hydrationStatus);
-  const previousMessage = useRef(SELECTOR_COPY.hydrationStatus);
+  const [announcement, setAnnouncement] = useState<string>(SELECTOR_COPY.hydrationStatus);
+  const previousMessage = useRef<string>(SELECTOR_COPY.hydrationStatus);
 
   useEffect(() => {
     if (previousMessage.current === message) return;
@@ -52,7 +52,7 @@ function SelectorStatus({ message, immediate }: Readonly<{ message: string; imme
   }, [immediate, message]);
 
   return (
-    <p role="status" aria-live="polite" aria-atomic="true">
+    <p class="selector-status" role="status" aria-live="polite" aria-atomic="true">
       {announcement}
     </p>
   );
@@ -68,7 +68,7 @@ export function SelectorIsland({ pageModel }: Props) {
   }, [pageModel]);
   if (runtimeModel === null) {
     return (
-      <div class="selector-island">
+      <div class="selector-controls-runtime">
         <section class="selector-error" role="alert">
           <h2>Recommendations are unavailable</h2>
           <p>{SELECTOR_COPY.errorState}</p>
@@ -91,7 +91,7 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
   const [shortlistIds, setShortlistIds] = useState<ShortlistState>([]);
   const [showAll, setShowAll] = useState(false);
   const [eliminationsOpen, setEliminationsOpen] = useState(false);
-  const [focusRevision, setFocusRevision] = useState(0);
+  const [resultsActive, setResultsActive] = useState(false);
   const resultsHeadingRef = useRef<HTMLHeadingElement>(null);
   const shortlistHeadingRef = useRef<HTMLHeadingElement>(null);
   const primaryFirstRef = useRef<HTMLInputElement>(null);
@@ -99,22 +99,22 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
   const secondarySummaryRef = useRef<HTMLElement>(null);
   const resultControlRefs = useRef(new Map<MaterialId, HTMLButtonElement>());
   const pendingFocusIntentRef = useRef<ShortlistFocusIntent | null>(null);
+  const pendingPreservedMaterialRef = useRef<MaterialId | null>(null);
+  const rendererPromiseRef = useRef<Promise<ResultsRenderer> | null>(null);
+  const rendererRef = useRef<ResultsRenderer | null>(null);
+  const renderQueuedRef = useRef(false);
+  const activationFailedRef = useRef(false);
+  const disposedRef = useRef(false);
+  const latestResultsPropsRef = useRef<SelectorResultsProps | null>(null);
+  const staticActionRef = useRef<(action: string, materialId?: string) => void>(() => undefined);
 
-  const evaluator = useMemo(
-    () => prepareSelectorEvaluator(pageModel.projection),
-    [pageModel.projection],
+  const evaluatePresentation = useMemo(
+    () => prepareSelectorPresentationEvaluator(pageModel),
+    [pageModel],
   );
-  const evaluation = useMemo(() => evaluator(evaluationInput), [evaluationInput, evaluator]);
   const presentation = useMemo(
-    () =>
-      evaluation.kind === "success"
-        ? presentSelectorOutcome(pageModel, evaluation.outcome)
-        : {
-            kind: "error" as const,
-            body: SELECTOR_COPY.errorState,
-            action: SELECTOR_COPY.errorAction,
-          },
-    [evaluation, pageModel],
+    () => evaluatePresentation(evaluationInput),
+    [evaluatePresentation, evaluationInput],
   );
   const compatibleIds =
     presentation.kind === "ranked"
@@ -123,10 +123,24 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
   const shortlist = presentShortlist(shortlistIds, compatibleIds);
   const announcement = announcementOverride ?? aggregateAnnouncement(presentation);
 
-  useLayoutEffect(() => {
+  const focusResultsHeading = () => {
+    const mount = document.getElementById(RESULTS_MOUNT_ID);
+    (
+      resultsHeadingRef.current ??
+      mount?.querySelector<HTMLHeadingElement>("#selector-results-heading")
+    )?.focus();
+  };
+
+  const applyPendingFocus = () => {
+    const preservedMaterial = pendingPreservedMaterialRef.current;
+    pendingPreservedMaterialRef.current = null;
+    if (preservedMaterial) {
+      (resultControlRefs.current.get(preservedMaterial) ?? resultsHeadingRef.current)?.focus();
+      return;
+    }
     const intent = pendingFocusIntentRef.current;
-    if (!intent || intent.kind === "preserve-trigger") return;
     pendingFocusIntentRef.current = null;
+    if (!intent || intent.kind === "preserve-trigger") return;
     if (intent.kind === "result-shortlist-control") {
       (resultControlRefs.current.get(intent.materialId) ?? resultsHeadingRef.current)?.focus();
     } else if (intent.kind === "shortlist-heading") {
@@ -134,7 +148,7 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
     } else {
       resultsHeadingRef.current?.focus();
     }
-  }, [focusRevision, shortlistIds]);
+  };
 
   const reset = () => {
     setSelection(pageModel.defaults);
@@ -146,16 +160,154 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
 
   const applyShortlist = (action: ShortlistAction) => {
     const transition = reduceShortlist(shortlistIds, action);
+    if (
+      !resultsActive &&
+      (action.type === "add" || action.type === "remove") &&
+      isMaterialIdValue(action.materialId)
+    ) {
+      pendingPreservedMaterialRef.current = action.materialId;
+    }
     pendingFocusIntentRef.current = transition.focusIntent;
     setShortlistIds(transition.ids);
     if (transition.announcement) setAnnouncementOverride(transition.announcement);
-    if (transition.focusIntent.kind !== "preserve-trigger") {
-      setFocusRevision((revision) => revision + 1);
+    setResultsActive(true);
+  };
+
+  const resultsProps: SelectorResultsProps = {
+    pageModel,
+    presentation,
+    shortlist,
+    showAll,
+    eliminationsOpen,
+    resultsHeadingRef,
+    shortlistHeadingRef,
+    registerResultControl: (materialId, element) => {
+      if (element) resultControlRefs.current.set(materialId, element);
+      else resultControlRefs.current.delete(materialId);
+    },
+    onShowAll: () => setShowAll(true),
+    onEliminationsToggle: setEliminationsOpen,
+    onToggleShortlist: (materialId) =>
+      applyShortlist(
+        shortlistIds.includes(materialId)
+          ? { type: "remove", materialId, currentResultIds: compatibleIds }
+          : { type: "add", materialId },
+      ),
+    onClearShortlist: () => applyShortlist({ type: "clear" }),
+    onReview: (target) => {
+      if (target === "secondary-summary") {
+        if (secondaryDetailsRef.current) secondaryDetailsRef.current.open = true;
+        secondarySummaryRef.current?.focus();
+      } else {
+        primaryFirstRef.current?.focus();
+      }
+    },
+    onReset: reset,
+  };
+  latestResultsPropsRef.current = resultsProps;
+
+  useLayoutEffect(() => {
+    if (!resultsActive || renderQueuedRef.current || activationFailedRef.current) return;
+    const mount = document.getElementById(RESULTS_MOUNT_ID);
+    if (!mount) {
+      activationFailedRef.current = true;
+      setAnnouncementOverride(SELECTOR_COPY.errorState);
+      return;
+    }
+    renderQueuedRef.current = true;
+    mount.setAttribute("aria-busy", "true");
+    const openCalculationIds = Array.from(
+      mount.querySelectorAll<HTMLElement>(".selector-compatible-list > li"),
+    ).flatMap((item) => {
+      const details = item.querySelector<HTMLDetailsElement>("details.selector-calculation");
+      const materialId = item.querySelector<HTMLButtonElement>("button[data-material-id]")?.dataset
+        .materialId;
+      return details?.open && isMaterialIdValue(materialId) ? [materialId] : [];
+    });
+    const eliminationsWereOpen =
+      mount.querySelector<HTMLDetailsElement>("details.selector-eliminated")?.open ?? false;
+    const rendererPromise = rendererRef.current
+      ? Promise.resolve(rendererRef.current)
+      : (rendererPromiseRef.current ??= import("./render-selector-results.tsx"));
+    void rendererPromise
+      .then((renderer) => {
+        if (disposedRef.current) return;
+        rendererRef.current = renderer;
+        const props = latestResultsPropsRef.current;
+        if (!props) throw new Error("SELECTOR_RESULTS_PROPS_MISSING");
+        if (mount.dataset.selectorResultsOwner !== "client") {
+          mount.replaceChildren();
+          mount.dataset.selectorResultsOwner = "client";
+        }
+        renderer.renderSelectorResults(mount, props);
+        for (const materialId of openCalculationIds) {
+          const button = mount.querySelector<HTMLButtonElement>(
+            `button[data-material-id="${materialId}"]`,
+          );
+          const details = button
+            ?.closest("li")
+            ?.querySelector<HTMLDetailsElement>("details.selector-calculation");
+          if (details) details.open = true;
+        }
+        const eliminations = mount.querySelector<HTMLDetailsElement>("details.selector-eliminated");
+        if (eliminations && eliminationsWereOpen) eliminations.open = true;
+        mount.setAttribute("aria-busy", "false");
+        applyPendingFocus();
+      })
+      .catch(() => {
+        activationFailedRef.current = true;
+        mount.setAttribute("aria-busy", "false");
+        setAnnouncementOverride(SELECTOR_COPY.errorState);
+      })
+      .finally(() => {
+        renderQueuedRef.current = false;
+      });
+  }, [resultsActive, resultsProps]);
+
+  staticActionRef.current = (action, materialId) => {
+    if (action === "toggle-shortlist") {
+      if (!isMaterialIdValue(materialId) || !compatibleIds.includes(materialId as MaterialId)) {
+        setAnnouncementOverride(SELECTOR_COPY.errorState);
+        return;
+      }
+      applyShortlist({ type: "add", materialId: materialId as MaterialId });
+    } else if (action === "show-all") {
+      setShowAll(true);
+      setResultsActive(true);
     }
   };
 
+  useEffect(() => {
+    const mount = document.getElementById(RESULTS_MOUNT_ID);
+    if (!mount) return;
+    const onClick = (event: MouseEvent) => {
+      if (mount.dataset.selectorResultsOwner === "client" || !(event.target instanceof Element)) {
+        return;
+      }
+      const button = event.target.closest<HTMLButtonElement>("button[data-selector-command]");
+      if (!button || !mount.contains(button) || button.type !== "button") return;
+      const action = button.dataset.selectorCommand;
+      if (action !== "toggle-shortlist" && action !== "show-all") return;
+      event.preventDefault();
+      staticActionRef.current(action, button.dataset.materialId);
+    };
+    mount.addEventListener("click", onClick);
+    return () => mount.removeEventListener("click", onClick);
+  }, []);
+
+  useEffect(
+    () => () => {
+      disposedRef.current = true;
+      const mount = document.getElementById(RESULTS_MOUNT_ID);
+      if (mount?.dataset.selectorResultsOwner === "client") {
+        rendererRef.current?.unmountSelectorResults(mount);
+      }
+    },
+    [],
+  );
+
   return (
-    <div class="selector-island">
+    <div class="selector-controls-runtime">
       <SelectorControls
         pageModel={pageModel}
         selection={selection}
@@ -168,47 +320,17 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
           setSelection(next);
           setEvaluationInput(next);
           setShortlistIds(reduceShortlist(shortlistIds, { type: "criteria-changed" }).ids);
+          setResultsActive(true);
         }}
         onInvalid={(criterionId) => {
           setAnnouncementOverride(null);
           setEvaluationInput({ ...selection, [criterionId]: null });
+          setResultsActive(true);
         }}
-        onView={() => resultsHeadingRef.current?.focus()}
+        onView={focusResultsHeading}
         onReset={reset}
       />
       <SelectorStatus message={announcement} immediate={announcementOverride !== null} />
-      <SelectorResults
-        pageModel={pageModel}
-        presentation={presentation}
-        shortlist={shortlist}
-        showAll={showAll}
-        eliminationsOpen={eliminationsOpen}
-        resultsHeadingRef={resultsHeadingRef}
-        shortlistHeadingRef={shortlistHeadingRef}
-        registerResultControl={(materialId, element) => {
-          if (element) resultControlRefs.current.set(materialId, element);
-          else resultControlRefs.current.delete(materialId);
-        }}
-        onShowAll={() => setShowAll(true)}
-        onEliminationsToggle={setEliminationsOpen}
-        onToggleShortlist={(materialId) =>
-          applyShortlist(
-            shortlistIds.includes(materialId)
-              ? { type: "remove", materialId, currentResultIds: compatibleIds }
-              : { type: "add", materialId },
-          )
-        }
-        onClearShortlist={() => applyShortlist({ type: "clear" })}
-        onReview={(target) => {
-          if (target === "secondary-summary") {
-            if (secondaryDetailsRef.current) secondaryDetailsRef.current.open = true;
-            secondarySummaryRef.current?.focus();
-          } else {
-            primaryFirstRef.current?.focus();
-          }
-        }}
-        onReset={reset}
-      />
     </div>
   );
 }

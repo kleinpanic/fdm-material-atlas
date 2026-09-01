@@ -62,6 +62,15 @@
     gap: var(--spacing-8);
   }
 
+  .selector-island > astro-island,
+  .selector-controls-runtime {
+    display: contents;
+  }
+
+  .selector-results-host[aria-busy="true"] {
+    cursor: progress;
+  }
+
   .selector-controls {
     min-inline-size: 0;
     padding: var(--spacing-6);
@@ -569,12 +578,12 @@
       grid-row: 1 / span 2;
     }
 
-    .selector-island > [role="status"] {
+    .selector-status {
       grid-column: 2;
       grid-row: 1;
     }
 
-    .selector-results {
+    .selector-results-host {
       grid-column: 2;
       grid-row: 2;
     }

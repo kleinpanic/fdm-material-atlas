@@ -1,4 +1,4 @@
-import { lstatSync, readFileSync, realpathSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 
 import {
@@ -211,8 +211,10 @@ export function discoverSelectorModules(routes: ReleaseRoutes): Readonly<{
     ?.replaceAll("&amp;", "&");
   if (componentUrl === undefined) fail("RELEASE_FIXTURE_SELECTOR_COMPONENT_MISSING");
   const componentPath = htmlPathFromHref(routes.basePath, componentUrl);
-  const componentSource = readEmittedFile(routes.outputRoot, componentPath);
-  const preactFile = componentSource.match(/from"\.\/(preact\.module\.[^"]+\.js)"/u)?.[1];
+  readEmittedFile(routes.outputRoot, componentPath);
+  const preactFile = readdirSync(resolve(routes.outputRoot, "_astro")).find((entry) =>
+    /^preact\.module\.[A-Za-z0-9_-]+\.js$/u.test(entry),
+  );
   if (preactFile === undefined) fail("RELEASE_FIXTURE_PREACT_MODULE_MISSING");
   return Object.freeze({
     componentUrl,

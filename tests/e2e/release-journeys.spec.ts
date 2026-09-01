@@ -54,6 +54,7 @@ async function mountNoCompatibleState(page: Page): Promise<void> {
     },
     { ...modules, pageModel },
   );
+  await page.locator("input[type=radio]:checked").dispatchEvent("change");
   await expect(
     page.getByRole("heading", { name: "No materials match every selected constraint" }),
   ).toBeVisible();

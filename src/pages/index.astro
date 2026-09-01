@@ -1,5 +1,6 @@
 ---
 import { SelectorIsland } from "../components/selector/SelectorIsland.tsx";
+import { SelectorStaticResults } from "../components/selector/SelectorStaticResults.tsx";
 import { buildSelectorPageModel } from "../features/selector/page-model.ts";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { loadPublicAtlas } from "../lib/public-atlas.ts";
@@ -70,6 +71,16 @@ const footerLinks = [
         below.
       </p>
     </noscript>
-    <SelectorIsland pageModel={pageModel} client:load />
+    <div class="selector-island">
+      <SelectorIsland pageModel={pageModel} client:load />
+      <div
+        id="selector-results-mount"
+        class="selector-results-mount selector-results-host"
+        data-selector-results-owner="server"
+        aria-busy="false"
+      >
+        <SelectorStaticResults pageModel={pageModel} />
+      </div>
+    </div>
   </section>
 </BaseLayout>

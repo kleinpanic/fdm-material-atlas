@@ -94,23 +94,23 @@ describe("selector component boundary", () => {
   const allSource = `${componentSource}\n${island}`;
 
   it("keeps exactly one island and one engine invocation owner", () => {
-    expect(island).toContain("prepareSelectorEvaluator");
+    expect(island).toContain("prepareSelectorPresentationEvaluator");
     expect(island).not.toContain("evaluateSelectorSafely");
     expect(componentSource).not.toMatch(
-      /selectProjectedMaterials|evaluateSelectorSafely|prepareSelectorEvaluator/,
+      /selectProjectedMaterials|evaluateSelectorSafely|prepareSelectorPresentationEvaluator/,
     );
   });
 
   it("prepares once and keeps hydration and status updates below the results owner", () => {
-    expect(island).toMatch(/useMemo\(\s*\(\) => prepareSelectorEvaluator/u);
+    expect(island).toMatch(/useMemo\(\s*\(\) => prepareSelectorPresentationEvaluator/u);
     expect(island).not.toMatch(/setHydrated|announcementCause/u);
     expect(controls).toContain("setHydrated");
     expect(island).toMatch(/function SelectorStatus[\s\S]*?setTimeout/u);
     expect(island).toContain("if (immediate)");
     expect(island).toContain("window.clearTimeout(timer)");
     expect(island).toContain("<SelectorStatus");
-    expect(island).not.toContain("<SelectorResults");
-    expect(island).toContain("resultsMountId");
+    expect(island).not.toMatch(/<SelectorResults(?:\s|>)/u);
+    expect(island).toContain('const RESULTS_MOUNT_ID = "selector-results-mount"');
     expect(island).toContain("replaceChildren()");
     expect(island).toContain("renderSelectorResults");
   });

@@ -14,7 +14,7 @@ import type { SelectorRuntimePageModel } from "../../features/selector/client-mo
 import type { SelectorPresentation } from "../../features/selector/presentation.ts";
 import type { PresentedShortlistItem } from "../../features/selector/shortlist.ts";
 
-type Props = Readonly<{
+export type SelectorResultsProps = Readonly<{
   pageModel: SelectorRuntimePageModel;
   presentation: SelectorPresentation;
   shortlist: readonly PresentedShortlistItem[];
@@ -99,7 +99,7 @@ export function SelectorResults({
   onClearShortlist,
   onReview,
   onReset,
-}: Props) {
+}: SelectorResultsProps) {
   const labelFor = (materialId: MaterialId) =>
     pageModel.display.materials.find((material) => material.id === materialId)?.label ?? "Material";
   const shortlisted = new Set(shortlist.map(({ materialId }) => materialId));
@@ -275,6 +275,8 @@ export function SelectorResults({
                           registerResultControl(material.materialId, element)
                         }
                         type="button"
+                        data-selector-command="toggle-shortlist"
+                        data-material-id={material.materialId}
                         onClick={() => onToggleShortlist(material.materialId)}
                       >
                         {isShortlisted
@@ -302,7 +304,7 @@ export function SelectorResults({
               })}
             </ol>
             {compatible.length > 10 && !showAll ? (
-              <button type="button" onClick={onShowAll}>
+              <button type="button" data-selector-command="show-all" onClick={onShowAll}>
                 Show all {compatible.length} compatible materials
               </button>
             ) : (

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import AxeBuilderImport from "@axe-core/playwright";
@@ -65,8 +65,10 @@ function emittedModuleUrls(): { componentUrl: string; preactUrl: string } {
   const logicalPath = componentPath.startsWith(basePath)
     ? componentPath.slice(basePath.length)
     : componentPath.replace(/^\//u, "");
-  const source = readFileSync(resolve(outputRoot, logicalPath), "utf8");
-  const preactFile = source.match(/from"\.\/(preact\.module\.[^"]+\.js)"/u)?.[1];
+  readFileSync(resolve(outputRoot, logicalPath), "utf8");
+  const preactFile = readdirSync(resolve(outputRoot, "_astro")).find((entry) =>
+    /^preact\.module\.[A-Za-z0-9_-]+\.js$/u.test(entry),
+  );
   if (!preactFile) throw new Error("PREACT_MODULE_URL_MISSING");
   return {
     componentUrl: componentPath,
@@ -135,6 +137,7 @@ async function mountNoCompatibleState(page: Page): Promise<void> {
     },
     { ...modules, pageModel: model },
   );
+  await page.locator("input[type=radio]:checked").dispatchEvent("change");
   await expect(
     page.getByRole("heading", { name: "No materials match every selected constraint" }),
   ).toBeVisible();
@@ -282,7 +285,7 @@ test("wide layout keeps controls narrow, results broad, and native radio glyphs 
     };
     return {
       controls: rect(".selector-controls"),
-      status: rect('.selector-island > [role="status"]'),
+      status: rect(".selector-status"),
       results: rect(".selector-results"),
       goal: rect(".selector-goal"),
       radio: rect('.selector-goal input[type="radio"]'),
@@ -305,6 +308,7 @@ test("reduced motion and forced colors retain text, borders, shapes, and focus m
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce", forcedColors: "active" });
   await waitForSelector(page);
+  await page.getByRole("radio", { name: "Outdoor and UV exposure" }).check();
   await page.locator("details.selector-eliminated > summary").click();
   const addButton = page.getByRole("button", { name: /^Add .+ to shortlist$/u }).first();
   const addName = (await addButton.textContent())!.trim();
