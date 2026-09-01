@@ -6,7 +6,11 @@ import { describe, expect, it, vi } from "vitest";
 import { parseAtlas } from "../../src/data/schema/parse-atlas.ts";
 import type { MaterialId, ProcessGateId, SelectorOptionId } from "../../src/data/schema/ids.ts";
 import * as fieldResolver from "../../src/domain/selector/field-resolver.ts";
-import { selectMaterials, selectProjectedMaterials } from "../../src/domain/selector/engine.ts";
+import {
+  prepareSelectorProjection,
+  selectMaterials,
+  selectProjectedMaterials,
+} from "../../src/domain/selector/engine.ts";
 import { compileSelectorProjection } from "../../src/domain/selector/projection.ts";
 import type {
   ProjectedSelectorCriterion,
@@ -88,6 +92,21 @@ function projection(overrides: Partial<SelectorProjectionV1> = {}): SelectorProj
 }
 
 describe("selectProjectedMaterials", () => {
+  it("prepares an immutable projection snapshot for repeated evaluation", () => {
+    const mutable = projection() as SelectorProjectionV1;
+    const prepared = prepareSelectorProjection(mutable);
+    const first = prepared({});
+
+    (mutable.criteria[0] as { defaultOptionId: string }).defaultOptionId =
+      "option-invented-after-prepare";
+    const firstField = mutable.materials[0]?.fields[0];
+    if (firstField?.state === "resolved") {
+      (firstField as { value: string }).value = "changed-after-prepare";
+    }
+
+    expect(prepared({})).toEqual(first);
+  });
+
   it("applies defaults, normalizes criteria, awards 2:1, and sorts ASCII ties", () => {
     const result = selectProjectedMaterials(
       projection({
