@@ -1,5 +1,7 @@
 import { createRequire } from "node:module";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
@@ -41,5 +43,30 @@ describe("performance release policy", () => {
     expect(config.ci.upload.target).toBe("filesystem");
     expect(config.ci.upload.outputDir).toMatch(/^test-results\/performance/u);
     expect(JSON.stringify(config)).not.toContain("temporary-public-storage");
+  });
+});
+
+describe("bounded performance runner", () => {
+  it("rejects a missing production artifact with a stable code", async () => {
+    const temporaryRoot = await mkdtemp(join(tmpdir(), "atlas-performance-"));
+    try {
+      const { inspectArtifact } = await import("../../tools/run-performance-budget.mjs");
+      await expect(
+        inspectArtifact({ label: "root", base: "/", artifact: join(temporaryRoot, "missing") }),
+      ).rejects.toMatchObject({ code: "PERFORMANCE_ARTIFACT_MISSING" });
+    } finally {
+      await rm(temporaryRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps failures controlled and report storage local", async () => {
+    const source = await readFile("tools/run-performance-budget.mjs", "utf8");
+    expect(source).toContain("finally");
+    expect(source).toContain("PERFORMANCE_NAVIGATION_TIMEOUT");
+    expect(source).toContain("PERFORMANCE_CONTENT_MISSING");
+    expect(source).toContain("PERFORMANCE_EXTERNAL_NAVIGATION");
+    expect(source).toContain("PERFORMANCE_REPORT_INVALID");
+    expect(source).toContain("PERFORMANCE_BUDGET_EXCEEDED");
+    expect(source).not.toContain("temporary-public-storage");
   });
 });
