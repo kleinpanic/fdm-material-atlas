@@ -47,6 +47,9 @@
     "test:performance": "node tools/run-performance-budget.mjs",
     "verify:exact-artifact": "node tools/verify-build-modes.mjs pages && ATLAS_TEST_MODE=pages node tools/run-performance-budget.mjs",
     "test:probe-pages": "vitest run tests/maintenance/probe-pages.test.ts",
+    "test:phase10-smoke": "vitest run tests/release",
+    "release:local:pre": "node tools/verify-release.mjs pre-publication",
+    "release:local:post": "node tools/verify-release.mjs post-publication",
     "summarize:data-change": "node tools/summarize-public-data-change.mjs",
     "ci:quality": "npm run format:check && npm run lint && npm run typecheck && npm run validate:data && npm run test:unit && npm run test:integration",
     "ci:all": "npm run audit:dependencies && npm run ci:quality && npm run test:ci-contracts && npm run build:test-modes && npm run validate:html && npm run validate:routes && npm run test:browser && npm run test:accessibility && npm run test:performance && npm run test:probe-pages"
