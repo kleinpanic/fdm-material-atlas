@@ -15,15 +15,38 @@ const TEST_MODES = {
     resultOutput: "test-results/repository",
     previewCommand: "npm run preview:repository",
   },
+  pages: {
+    port: 4323,
+    basePath: readPagesBase(process.env.ATLAS_PAGES_BASE),
+    buildOutput: readPagesArtifact(process.env.ATLAS_PAGES_ARTIFACT),
+    resultOutput: "test-results/pages",
+    previewCommand: "node tools/verify-build-modes.mjs serve pages",
+  },
 } as const;
 
 export type AtlasTestMode = keyof typeof TEST_MODES;
 
 export function readAtlasTestMode(value: string | undefined): AtlasTestMode {
-  if (value !== "root" && value !== "repository") {
+  if (value !== "root" && value !== "repository" && value !== "pages") {
     throw new Error("ATLAS_TEST_MODE_INVALID");
   }
 
+  return value;
+}
+
+function readPagesArtifact(value: string | undefined): "dist-pages" {
+  if (value !== "dist-pages") throw new Error("ATLAS_PAGES_ARTIFACT_INVALID");
+  return value;
+}
+
+function readPagesBase(value: string | undefined): string {
+  if (
+    value === undefined ||
+    !/^\/(?:[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?\/)*$/u.test(value) ||
+    value.includes("//") ||
+    value.includes("..")
+  )
+    throw new Error("ATLAS_PAGES_BASE_INVALID");
   return value;
 }
 

@@ -10,7 +10,7 @@ import { selectProjectedMaterials } from "../../src/domain/selector/index.ts";
 import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
 import { PUBLIC_ROUTE_REGISTRY } from "../../src/lib/public-route-registry.ts";
 
-export type ReleaseMode = "root" | "repository";
+export type ReleaseMode = "root" | "repository" | "pages";
 
 type EmittedLink = Readonly<{
   href: string;
@@ -130,8 +130,16 @@ function route(outputRoot: string, basePath: string, pathname: string): EmittedL
 }
 
 export function discoverReleaseRoutes(mode: ReleaseMode): ReleaseRoutes {
-  const basePath = mode === "root" ? "/" : "/atlas-preview/";
-  const outputRoot = realpathSync(resolve(`dist-test/${mode}`));
+  const basePath =
+    mode === "root"
+      ? "/"
+      : mode === "repository"
+        ? "/atlas-preview/"
+        : process.env.ATLAS_PAGES_BASE;
+  const artifact = mode === "pages" ? process.env.ATLAS_PAGES_ARTIFACT : `dist-test/${mode}`;
+  if (basePath === undefined || artifact === undefined) fail("RELEASE_FIXTURE_MODE_INVALID");
+  if (mode === "pages" && artifact !== "dist-pages") fail("RELEASE_FIXTURE_MODE_INVALID");
+  const outputRoot = realpathSync(resolve(artifact));
   for (const pathname of REQUIRED_ROUTES) {
     readRouteHtml(outputRoot, basePath, `${basePath}${pathname}`);
   }

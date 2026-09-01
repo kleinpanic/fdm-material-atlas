@@ -45,7 +45,7 @@ function fail(code) {
 function exactMode(mode) {
   if (
     !mode ||
-    !["root", "repository"].includes(mode.label) ||
+    !["root", "repository", "pages"].includes(mode.label) ||
     !/^\/(?:[a-z0-9-]+\/)*$/u.test(mode.base) ||
     typeof mode.artifact !== "string"
   )
@@ -276,7 +276,7 @@ export async function exactTransfer(policy, modes) {
   }).catch(() => fail("PERFORMANCE_BUDGET_EXCEEDED"));
   const phase7 = await verifyPhase7Build({
     rootOutput: modes[0].output,
-    repositoryOutput: modes[1].output,
+    repositoryOutput: (modes[1] ?? modes[0]).output,
     runPublicationScan: false,
   }).catch(() => fail("PERFORMANCE_BUDGET_EXCEEDED"));
   const reports = [];
@@ -494,8 +494,18 @@ async function collectMode(origin, mode, routes, policy) {
 
 export async function runPerformanceBudget() {
   const policy = JSON.parse(await readFile(POLICY_PATH, "utf8"));
+  const configuredModes =
+    process.env.ATLAS_TEST_MODE === "pages"
+      ? [
+          {
+            label: "pages",
+            base: process.env.ATLAS_PAGES_BASE,
+            artifact: process.env.ATLAS_PAGES_ARTIFACT,
+          },
+        ]
+      : policy.modes;
   const modes = [];
-  for (const mode of policy.modes) modes.push(await inspectArtifact(mode, policy.limits));
+  for (const mode of configuredModes) modes.push(await inspectArtifact(mode, policy.limits));
   const transfer = await exactTransfer(policy, modes);
   const reports = [];
   for (const mode of modes) {

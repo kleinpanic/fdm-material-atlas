@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
 import { verifyWorkflowContracts } from "../../tools/verify-workflow-contracts.mjs";
@@ -12,6 +13,17 @@ function expectCode(source: string, code: string) {
 }
 
 describe("exact-artifact Pages contract", () => {
+  it("accepts the repository Pages workflow", async () => {
+    const source = await readFile(".github/workflows/pages.yml", "utf8");
+    expect(verify(source)).toEqual({ ok: true, issues: [] });
+    expect(source.match(/upload-pages-artifact@/gu)).toHaveLength(1);
+    expect(source.match(/astro build --outDir dist-pages/gu)).toHaveLength(1);
+    expect(source).toContain("ATLAS_PAGES_ARTIFACT: dist-pages");
+    expect(source).toContain("npm ci --ignore-scripts --no-audit --no-fund");
+    expect(source).toContain("npm exec --no -- playwright install --with-deps chromium");
+    expect(source).not.toMatch(/download-artifact|gh run download/iu);
+  });
+
   it("accepts build, test, one upload, deploy, and read-only probe ordering", () => {
     expect(verify(safePagesWorkflow())).toEqual({ ok: true, issues: [] });
   });
@@ -87,5 +99,21 @@ describe("exact-artifact Pages contract", () => {
         ? safePagesWorkflow().replaceAll(search, replacement)
         : safePagesWorkflow().replace(search, replacement);
     expectCode(source, code);
+  });
+
+  it.each([
+    ["missing deployment id", "      - id: deployment", "      - id: omitted"],
+    [
+      "missing deploy output",
+      "      page_url: ${{ steps.deployment.outputs.page_url }}",
+      "      omitted_url: ${{ steps.deployment.outputs.page_url }}",
+    ],
+    [
+      "cross-job step reference",
+      "${{ needs.deploy.outputs.page_url }}",
+      "${{ steps.deployment.outputs.page_url }}",
+    ],
+  ])("rejects %s", (_name, search, replacement) => {
+    expect(verify(safePagesWorkflow().replace(search, replacement)).ok).toBe(false);
   });
 });

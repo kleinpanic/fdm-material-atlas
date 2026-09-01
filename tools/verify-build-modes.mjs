@@ -42,6 +42,39 @@ const MODES = Object.freeze([
   },
 ]);
 
+function pagesMode() {
+  const artifact = process.env.ATLAS_PAGES_ARTIFACT;
+  const base = process.env.ATLAS_PAGES_BASE;
+  const origin = process.env.ATLAS_PAGES_ORIGIN;
+  if (artifact !== "dist-pages") fail("PAGES_ARTIFACT_INVALID");
+  if (!/^\/(?:[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?\/)*$/u.test(base ?? ""))
+    fail("PAGES_BASE_INVALID");
+  let parsed;
+  try {
+    parsed = new URL(origin);
+  } catch {
+    fail("PAGES_ORIGIN_INVALID");
+  }
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.username !== "" ||
+    parsed.password !== "" ||
+    parsed.port !== "" ||
+    parsed.pathname !== "/" ||
+    parsed.search !== "" ||
+    parsed.hash !== "" ||
+    parsed.origin !== origin
+  )
+    fail("PAGES_ORIGIN_INVALID");
+  return Object.freeze({
+    name: "pages",
+    base,
+    origin,
+    output: resolve(PROJECT_ROOT, artifact),
+    e2eScript: "test:e2e:pages",
+  });
+}
+
 class VerificationError extends Error {
   constructor(code) {
     super(code);
@@ -156,11 +189,11 @@ function localFileForUrl(mode, rawValue, currentPublicPath, files, { allowExtern
 
   let url;
   try {
-    url = new URL(value, new URL(currentPublicPath, PUBLIC_ORIGIN));
+    url = new URL(value, new URL(currentPublicPath, mode.origin ?? PUBLIC_ORIGIN));
   } catch {
     fail("URL_INVALID");
   }
-  if (url.origin !== PUBLIC_ORIGIN) {
+  if (url.origin !== (mode.origin ?? PUBLIC_ORIGIN)) {
     if (allowExternal && url.protocol === "https:") return undefined;
     fail("REMOTE_ASSET_FORBIDDEN");
   }
@@ -204,7 +237,7 @@ function inspectHtml(mode, name, html, files) {
     ...html.matchAll(/<link\b[^>]*\brel=["']canonical["'][^>]*\bhref=["']([^"']+)["'][^>]*>/gi),
   ];
   if (canonicalMatches.length !== 1) fail("CANONICAL_COUNT_INVALID");
-  const expectedCanonical = new URL(publicPath, PUBLIC_ORIGIN).href;
+  const expectedCanonical = new URL(publicPath, mode.origin ?? PUBLIC_ORIGIN).href;
   if (canonicalMatches[0][1] !== expectedCanonical) fail("CANONICAL_URL_INVALID");
 
   for (const attribute of attributeValues(html)) {
@@ -460,10 +493,11 @@ export async function createPreviewServer(mode, { productionCompression = false 
 }
 
 async function serveMode(modeName) {
-  const mode = MODES.find((candidate) => candidate.name === modeName);
+  const mode =
+    modeName === "pages" ? pagesMode() : MODES.find((candidate) => candidate.name === modeName);
   if (mode === undefined) fail("SERVE_MODE_INVALID");
   const server = await createPreviewServer(mode);
-  const port = mode.name === "root" ? 4321 : 4322;
+  const port = mode.name === "root" ? 4321 : mode.name === "repository" ? 4322 : 4323;
   await new Promise((accept, reject) => {
     server.once("error", reject);
     server.listen(port, "127.0.0.1", accept);
@@ -483,6 +517,24 @@ async function main() {
     const report = await verifyPhase8Build(parsePhase8Arguments(process.argv.slice(3)));
     process.stdout.write(
       `${JSON.stringify({ ok: true, command, stage: report.stage, routeCount: report.routeCount, modes: report.modes })}\n`,
+    );
+    return;
+  }
+  if (command === "pages") {
+    if (process.argv.length !== 3) fail("ARGUMENTS_INVALID");
+    const mode = pagesMode();
+    const report = await inspectMode(mode, { runPublication: true });
+    await run("npm", ["exec", "--no", "--", "playwright", "test"], {
+      code: "BROWSER_TEST_FAILED",
+      env: safeEnvironment({
+        ATLAS_TEST_MODE: "pages",
+        ATLAS_PAGES_ARTIFACT: "dist-pages",
+        ATLAS_PAGES_BASE: mode.base,
+        ATLAS_PAGES_ORIGIN: mode.origin,
+      }),
+    });
+    process.stdout.write(
+      `${JSON.stringify({ ok: true, command, mode: "pages", routeCount: report.routes.length, fileCount: report.fileCount })}\n`,
     );
     return;
   }
