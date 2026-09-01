@@ -81,9 +81,10 @@ describe("public documentation contract", () => {
     for (const path of documents) {
       const document = read(path);
       documentedCommands(document).forEach((script) => {
-        expect(packageManifest.scripts, `${path} documents missing script ${script}`).toHaveProperty(
-          script,
-        );
+        expect(
+          packageManifest.scripts,
+          `${path} documents missing script ${script}`,
+        ).toHaveProperty(script);
       });
       markdownLinks(document).forEach((href) => {
         if (/^https?:\/\//u.test(href)) {
@@ -122,7 +123,9 @@ describe("public documentation contract", () => {
           location: Buffer.from("public-document"),
         }),
       ).toEqual([]);
-      expect(document).not.toMatch(/(?:generated|deployed|published) (?:successfully|at https?:)/iu);
+      expect(document).not.toMatch(
+        /(?:generated|deployed|published) (?:successfully|at https?:)/iu,
+      );
     }
   });
 });
