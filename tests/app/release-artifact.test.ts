@@ -52,6 +52,44 @@ describe("release artifact validator", () => {
     ).resolves.toMatchObject({ ok: true, modes: [{ htmlCount: 2 }] });
   });
 
+  it.each(["/", "/atlas-preview/"])(
+    "accepts only a typed local WOFF2 font preload under %s",
+    async (base) => {
+      const { output } = await fixture(base);
+      await writeFile(
+        join(output, "index.html"),
+        `<!doctype html><html><head><link rel="canonical" href="https://atlas.example${base}"><link rel="stylesheet" href="${base}assets/site.css"><link rel="preload" href="${base}assets/atlas.woff2" as="font" type="font/woff2" crossorigin></head><body><main id="main"></main></body></html>`,
+      );
+      await expect(
+        validateBuiltArtifacts({
+          modes: [{ name: "fixture", base, output }],
+          runPublicationScan: false,
+        }),
+      ).resolves.toMatchObject({ ok: true });
+    },
+  );
+
+  it.each([
+    '<link rel="stylesheet" href="/assets/atlas.woff2">',
+    '<link rel="preload" href="/assets/atlas.woff2" as="script" type="font/woff2">',
+    '<link rel="preload" href="/assets/atlas.woff2" as="font" type="font/woff">',
+    '<link rel="preload" href="/assets/site.css" as="font" type="font/woff2">',
+  ])("rejects a font file outside the controlled preload contract with %s", async (markup) => {
+    const { output } = await fixture();
+    await writeFile(
+      join(output, "index.html"),
+      `<!doctype html><html><head><link rel="canonical" href="https://atlas.example/">${markup}</head><body><main id="main"></main></body></html>`,
+    );
+    await expectCode(
+      () =>
+        validateBuiltArtifacts({
+          modes: [{ name: "fixture", base: "/", output }],
+          runPublicationScan: false,
+        }),
+      "ARTIFACT_EXTENSION_INVALID",
+    );
+  });
+
   it.each([
     ['<a href="/missing/">Missing</a>', "ARTIFACT_LOCAL_TARGET_MISSING"],
     ['<a href="/#missing">Missing</a>', "ARTIFACT_FRAGMENT_MISSING"],
