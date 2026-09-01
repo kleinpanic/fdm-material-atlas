@@ -5,6 +5,7 @@ import render from "preact-render-to-string";
 import { describe, expect, it } from "vitest";
 
 import { DecisionPaths } from "../../src/components/map/DecisionPaths.tsx";
+import { ThermalGuidance } from "../../src/components/map/ThermalGuidance.tsx";
 import type {
   MapDecisionLane,
   MapMaterialReference,
@@ -201,6 +202,169 @@ describe("decision path renderer", () => {
     expect(source).not.toMatch(/fetch\s*\(|XMLHttpRequest|localStorage|sessionStorage|Atlas|querySelector|focus\s*\(|dangerouslySetInnerHTML/iu);
     expect(source).not.toMatch(/#[0-9a-f]{3,8}\b/iu);
     expect(source).not.toMatch(/href\s*=\s*\{?\s*[`'"]\//u);
+    expect(source).not.toContain('role="status"');
+  });
+});
+
+const THERMAL_CAUTION = "Practical service guidance, Tg, HDT, Vicat softening, melting point, and other named tests answer different questions. Compare only matching metric and method groups.";
+
+function renderThermal(actions: MapSelectionAction[] = [], source: MapProjection = projection): string {
+  const state = actions.reduce(createMapReducer(source), createInitialMapState(source));
+  return render(h(ThermalGuidance, {
+    view: buildMapView(source, state),
+    dispatch: () => undefined,
+    methodHref: source.methodHref,
+  }));
+}
+
+describe("thermal guidance renderer", () => {
+  it("places the exact caution before complete practical-service controls and rows", () => {
+    const html = renderThermal();
+
+    expect(html).toContain(THERMAL_CAUTION);
+    expect(html.indexOf(THERMAL_CAUTION)).toBeLessThan(html.indexOf("Thermal view"));
+    expect(html).toContain("Practical service guidance");
+    expect(html).toContain("Named thermal observations");
+    expect(html).toContain("Find a material in this thermal view");
+    expect(html).toContain("Service guidance order");
+    expect(html).toContain("Canonical material order");
+    expect(html).toContain("Low endpoint");
+    expect(html).toContain("High endpoint");
+    expect(html).toContain("Clear thermal filters");
+    expect(html).not.toContain("Named metric and method group");
+    expect(count(html, "data-service-row=\"true\"")).toBe(23);
+    expect(count(html, "data-service-control=\"true\"")).toBe(23);
+    expect(count(html, "data-service-mark=\"true\"")).toBe(23);
+    for (const heading of [
+      "Material", "State", "Value", "Unit", "Metric or guidance", "Method and conditions",
+      "Qualification", "Evidence scope", "Material reference",
+    ]) expect(html).toContain(heading);
+    for (const record of projection.serviceGuidance.records) expect(html).toContain(record.material.href);
+  });
+
+  it("uses identical material actions for the service diagram and ordered HTML controls", () => {
+    const view = buildMapView(projection, createInitialMapState(projection));
+    const record = view.thermal.serviceRecords[0]!;
+    const controlActions: MapSelectionAction[] = [];
+    const controlTree = ThermalGuidance({
+      view,
+      dispatch: (action) => controlActions.push(action),
+      methodHref: projection.methodHref,
+    });
+    const control = findNode(controlTree, (node) =>
+      node.props["data-service-control"] === true && node.props["data-material-id"] === record.material.id)!;
+    (control.props.onClick as () => void)();
+
+    const markActions: MapSelectionAction[] = [];
+    const markTree = ThermalGuidance({
+      view,
+      dispatch: (action) => markActions.push(action),
+      methodHref: projection.methodHref,
+    });
+    const mark = findNode(markTree, (node) =>
+      node.props["data-service-mark"] === true && node.props["data-material-id"] === record.material.id)!;
+    (mark.props.onClick as () => void)();
+
+    expect(markActions).toEqual(controlActions);
+    expect(markActions).toEqual([{
+      type: "select-material", mode: "thermal-ranges", materialId: record.material.id,
+    }]);
+    expect(mark.props.tabIndex).toBeUndefined();
+  });
+
+  it("renders one exact named group with its complete table and explicit absences", () => {
+    const group = projection.thermalGroups[0]!;
+    const html = renderThermal([
+      { type: "set-thermal-view", mode: "thermal-ranges", view: "named-observations" },
+      { type: "select-thermal-group", mode: "thermal-ranges", groupId: group.id },
+    ]);
+
+    expect(html).toContain("Named metric and method group");
+    expect(html).not.toContain("Service guidance order");
+    expect(count(html, "data-named-row=\"true\"")).toBe(23);
+    expect(count(html, "data-named-mark=\"true\"")).toBe(group.members.length);
+    expect(html).toContain(group.metricLabel);
+    expect(html).toContain(group.methodLabel);
+    expect(html).toContain("No observation in this metric and method group");
+    expect(html).toContain("Not plotted in this named metric and method group");
+    for (const member of group.members) {
+      expect(html).toContain(member.material.href);
+      expect(html).toContain(member.metricLabel);
+      expect(html).toContain(member.methodLabel);
+      for (const scope of member.evidence.scopeLabels) expect(html).toContain(scope);
+    }
+  });
+
+  it("shows a bounded recovery state when named mode has no current group", () => {
+    const html = renderThermal([
+      { type: "set-thermal-view", mode: "thermal-ranges", view: "named-observations" },
+    ]);
+    expect(html).toContain("Choose a named metric and method group to inspect its records.");
+    expect(count(html, "data-named-row=\"true\"")).toBe(0);
+    expect(count(html, "data-named-mark=\"true\"")).toBe(0);
+  });
+
+  it("dispatches closed view, group, search, sort, and reset actions from native controls", () => {
+    const view = buildMapView(projection, createInitialMapState(projection));
+    const actions: MapSelectionAction[] = [];
+    const tree = ThermalGuidance({
+      view,
+      dispatch: (action) => actions.push(action),
+      methodHref: projection.methodHref,
+    });
+    const namedRadio = findNode(tree, (node) => node.props["data-thermal-view"] === "named-observations")!;
+    const search = findNode(tree, (node) => node.props["aria-label"] === "Find a material in this thermal view")!;
+    const sort = findNode(tree, (node) => node.props["aria-label"] === "Service guidance order")!;
+    const reset = findNode(tree, (node) => node.props["data-thermal-reset"] === true)!;
+    (namedRadio.props.onChange as (event: { currentTarget: { checked: boolean } }) => void)({ currentTarget: { checked: true } });
+    (search.props.onInput as (event: { currentTarget: { value: string } }) => void)({ currentTarget: { value: "PLA" } });
+    (sort.props.onChange as (event: { currentTarget: { value: string } }) => void)({ currentTarget: { value: "low-endpoint" } });
+    (reset.props.onClick as () => void)();
+    expect(actions).toEqual([
+      { type: "set-thermal-view", mode: "thermal-ranges", view: "named-observations" },
+      { type: "set-search", target: "thermal", query: "PLA" },
+      { type: "set-service-sort", sort: "low-endpoint" },
+      { type: "reset-view", mode: "thermal-ranges" },
+    ]);
+
+    const groupActions: MapSelectionAction[] = [];
+    const namedState = [
+      { type: "set-thermal-view", mode: "thermal-ranges", view: "named-observations" },
+    ] satisfies MapSelectionAction[];
+    const state = namedState.reduce(createMapReducer(projection), createInitialMapState(projection));
+    const namedTree = ThermalGuidance({
+      view: buildMapView(projection, state),
+      dispatch: (action) => groupActions.push(action),
+      methodHref: projection.methodHref,
+    });
+    const groupSelect = findNode(namedTree, (node) => node.props["aria-label"] === "Named metric and method group")!;
+    (groupSelect.props.onChange as (event: { currentTarget: { value: string } }) => void)({
+      currentTarget: { value: projection.thermalGroups[0]!.id },
+    });
+    expect(groupActions).toEqual([{
+      type: "select-thermal-group", mode: "thermal-ranges", groupId: projection.thermalGroups[0]!.id,
+    }]);
+  });
+
+  it("keeps the two thermal concepts in separate accessible trees and stays source-only", () => {
+    const service = renderThermal();
+    const named = renderThermal([
+      { type: "set-thermal-view", mode: "thermal-ranges", view: "named-observations" },
+      { type: "select-thermal-group", mode: "thermal-ranges", groupId: projection.thermalGroups[0]!.id },
+    ]);
+    expect(service).toContain("data-service-diagram=\"true\"");
+    expect(service).not.toContain("data-named-diagram=\"true\"");
+    expect(named).toContain("data-named-diagram=\"true\"");
+    expect(named).not.toContain("data-service-diagram=\"true\"");
+    expect(service).toContain("aria-hidden=\"true\"");
+    expect(named).toContain("aria-hidden=\"true\"");
+
+    const source = readFileSync("src/components/map/ThermalGuidance.tsx", "utf8");
+    expect(source).not.toMatch(/fetch\s*\(|XMLHttpRequest|localStorage|sessionStorage|Atlas|querySelector|focus\s*\(|dangerouslySetInnerHTML/iu);
+    expect(source).not.toMatch(/#[0-9a-f]{3,8}\b/iu);
+    expect(source).not.toMatch(/href\s*=\s*\{?\s*[`'"]\//u);
+    expect(source).not.toMatch(/generic heat|heat resistance|heat score|numeric sort|average|combined (?:axis|scale)/iu);
+    expect(source).not.toMatch(/transition(?:Property|Duration)?\s*[:=]|animate|keyframes/iu);
     expect(source).not.toContain('role="status"');
   });
 });
