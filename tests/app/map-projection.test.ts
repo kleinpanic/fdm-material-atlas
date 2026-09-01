@@ -45,10 +45,27 @@ describe("compact map projection", () => {
     expect(new Set(projection.lanes.flatMap(({ candidates }) => candidates.map(({ id }) => id))).size)
       .toBeGreaterThan(0);
     expect(projection.serviceGuidance.records).toHaveLength(23);
+    expect(projection.serviceGuidance.ticks.length).toBeGreaterThan(1);
     expect(projection.thermalGroups).toHaveLength(8);
+    expect(projection.thermalGroups.every(({ records }) => records.length === 23)).toBe(true);
+    expect(projection.thermalGroups.flatMap(({ members }) => members)).toHaveLength(23);
+    expect(projection.thermalGroups.flatMap(({ members }) => members).every(({ measurement }) =>
+      measurement !== undefined && measurement.unit === "degC"))
+      .toBe(true);
+    expect(projection.thermalGroups.flatMap(({ records }) => records)
+      .filter(({ disposition }) => disposition.disposition === "omitted")
+      .every(({ disposition }) => disposition.disposition === "omitted"
+        && disposition.code === "no-observation-in-group"))
+      .toBe(true);
     expect(projection.processGates.gates).toHaveLength(8);
     expect(projection.processGates.relationships).toHaveLength(64);
-    expect(projection.impactFlex).toHaveLength(23);
+    expect(projection.impactFlex.impactAxis).toHaveLength(5);
+    expect(projection.impactFlex.flexibilityAxis).toHaveLength(4);
+    expect(projection.impactFlex.difficultyTerms).toHaveLength(4);
+    expect(projection.impactFlex.records).toHaveLength(23);
+    expect(projection.impactFlex.records.every(({ printDifficultyFact }) =>
+      Array.isArray(printDifficultyFact.display)))
+      .toBe(true);
     expect(Object.keys(projection.modeFragments).sort()).toEqual([...MAP_MODES].sort());
 
     const hrefs = JSON.stringify(projection).match(/\/fdm-material-atlas\/[^"\\]*/gu) ?? [];
