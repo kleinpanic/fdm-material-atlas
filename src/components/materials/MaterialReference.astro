@@ -103,7 +103,70 @@ const sections = [
       </section>
 
       <section id="limitations" tabindex="-1"><h2>Limitations</h2><ul class="material-limitations">{model.limitations.map((limitation) => <li>{limitation}</li>)}</ul></section>
-      <section id="relationships" tabindex="-1"><h2>Relationships</h2>{model.relationships.length === 0 ? <p>No decision-lane relationship is currently reported.</p> : <ul>{model.relationships.map((relationship) => <li><strong>{relationship.label}</strong> — {relationship.state === "candidate" ? "Candidate" : "Needs verification"}</li>)}</ul>}</section>
+      <section id="relationships" tabindex="-1">
+        <h2>Relationships</h2>
+        <p>These connections come from the reported decision lanes. They are not a universal material ranking.</p>
+
+        {model.continuity.compare.kind === "link" && model.continuity.relatedMaterials.length > 0 ? (
+          <form class="material-compare-form" method="get" action={model.continuity.compare.href}>
+            <input type="hidden" name="material" value={model.continuity.currentMaterialId} />
+            <label for="related-material">Compare {model.name} with</label>
+            <select id="related-material" name="material" required>
+              <option value="" selected disabled>Select a related material</option>
+              {model.continuity.relatedMaterials.map((related) => (
+                <option value={related.id}>{related.name}</option>
+              ))}
+            </select>
+            <button type="submit">Add to comparison</button>
+          </form>
+        ) : (
+          <p class="material-continuity-status">
+            {model.continuity.relatedMaterials.length === 0
+              ? "No shared decision-lane relationship is currently reported, so no comparison pair is suggested."
+              : model.continuity.compare.label}
+          </p>
+        )}
+
+        {model.continuity.relatedMaterials.length > 0 && (
+          <div class="material-related">
+            <h3>Related through decision lanes</h3>
+            <ul>
+              {model.continuity.relatedMaterials.map((related) => (
+                <li>
+                  <p>
+                    {related.details.kind === "link"
+                      ? <a href={related.details.href}>{related.name}</a>
+                      : <strong>{related.name}</strong>}
+                    {" — "}{related.state === "candidate" ? "Candidate" : "Needs verification"}
+                  </p>
+                  <p class="material-related__context">
+                    Shared {related.sharedLanes.length === 1 ? "lane" : "lanes"}: {related.sharedLanes.map(({ label }) => label).join(", ")}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <h3>Reported lane membership</h3>
+        {model.relationships.length === 0 ? (
+          <p>No decision-lane relationship is currently reported.</p>
+        ) : (
+          <ul class="material-relationships">
+            {model.relationships.map((relationship) => (
+              <li>
+                {relationship.action.kind === "link"
+                  ? <a href={relationship.action.href}>{relationship.label}</a>
+                  : <strong>{relationship.label}</strong>}
+                {" — "}{relationship.state === "candidate" ? "Candidate" : "Needs verification"}
+                {relationship.action.kind === "unavailable" && (
+                  <span class="material-continuity-status"> — {relationship.action.label}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   </div>
 </article>

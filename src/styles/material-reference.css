@@ -20,8 +20,20 @@
 .evidence-records { padding: 0; list-style: none; }
 .evidence-records > li { padding-block: var(--spacing-4); border-block-start: var(--size-rule) solid var(--color-rule); overflow-wrap: anywhere; }
 .material-limitations { padding: var(--spacing-6); border: var(--size-rule-strong) solid var(--color-caution-verify); background: var(--color-surface); }
+.material-compare-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--spacing-3); align-items: end; margin-block: var(--spacing-6); padding: var(--spacing-5); border: var(--size-rule-strong) solid var(--color-ink-strong); background: var(--color-surface); }
+.material-compare-form label { grid-column: 1 / -1; color: var(--color-ink-strong); font-weight: 700; overflow-wrap: anywhere; }
+.material-compare-form select, .material-compare-form button { min-block-size: var(--size-target-min); border: var(--size-rule-strong) solid var(--color-ink-strong); border-radius: 0; font: inherit; }
+.material-compare-form select { min-inline-size: 0; inline-size: 100%; padding-inline: var(--spacing-3); color: var(--color-ink); background: var(--color-surface); }
+.material-compare-form button { padding-inline: var(--spacing-5); color: var(--color-surface); background: var(--color-ink-strong); font-weight: 700; cursor: pointer; }
+.material-compare-form select:focus-visible, .material-compare-form button:focus-visible, .material-related a:focus-visible, .material-relationships a:focus-visible { outline: var(--size-rule-strong) solid var(--color-focus); outline-offset: var(--spacing-1); }
+.material-related, .material-relationships { overflow-wrap: anywhere; }
+.material-related > ul, .material-relationships { padding-inline-start: var(--spacing-6); }
+.material-related li { padding-block: var(--spacing-2); }
+.material-related li + li { border-block-start: var(--size-rule) solid var(--color-rule); }
+.material-related li p { margin-block: var(--spacing-1); }
+.material-related__context, .material-continuity-status { color: var(--color-ink-muted); }
 .material-return { padding-block: var(--spacing-8); border-block-start: var(--size-rule-strong) solid var(--color-ink-strong); }
 @media (max-width: 63.999rem) { .material-reference__layout { grid-template-columns: minmax(0, 1fr); gap: var(--spacing-8); } }
-@media (max-width: 39.999rem) { .material-fact { padding-inline: var(--spacing-2); } .thermal-method div { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 39.999rem) { .material-fact { padding-inline: var(--spacing-2); } .thermal-method div, .material-compare-form { grid-template-columns: minmax(0, 1fr); } .material-compare-form label { grid-column: auto; } .material-compare-form button { inline-size: 100%; } }
 @media (prefers-reduced-motion: reduce) { .material-reference * { transition: none !important; } }
-@media (forced-colors: active) { .material-reference__rail, .material-fact, .material-caution, .material-limitations { border-color: CanvasText; } }
+@media (forced-colors: active) { .material-reference__rail, .material-fact, .material-caution, .material-limitations, .material-compare-form, .material-compare-form select, .material-compare-form button { border-color: CanvasText; } .material-compare-form button { color: ButtonText; background: ButtonFace; } }
