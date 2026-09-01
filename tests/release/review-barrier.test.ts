@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { validateReviewBarrier } from "../../tools/lib/release-evidence.mjs";
-import { DIGEST, reviewBarrierFixture, ROOT_DIGEST, SHA } from "./fixtures";
+import { DIGEST, reviewBarrierFixture, ROOT_DIGEST, SHA } from "./fixtures.js";
 
 describe("primary-orchestrator review barrier", () => {
   it("accepts one complete fresh exact-SHA review set", () => {

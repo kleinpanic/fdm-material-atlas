@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { renderReleaseReport } from "../../tools/render-release-report.mjs";
-import { DIGEST, REPO_DIGEST, reviewBarrierFixture, ROOT_DIGEST, SHA } from "./fixtures";
+import { DIGEST, REPO_DIGEST, reviewBarrierFixture, ROOT_DIGEST, SHA } from "./fixtures.js";
 
 export function verifiedEvidence() {
   return {
@@ -100,7 +100,7 @@ describe("fact-only completion report", () => {
     expect(markdown).toContain("23 materials");
     expect(markdown).toContain("22 source records");
     expect(markdown).toContain("No license decision has been recorded.");
-    const json = JSON.parse(renderReleaseReport(verifiedEvidence(), { format: "json" }));
+    const json = JSON.parse(renderReleaseReport(verifiedEvidence(), { format: "json" }) ?? "");
     expect(json.observed.commitSha).toBe(SHA);
     expect(json.observed.routes).toHaveLength(6);
   });

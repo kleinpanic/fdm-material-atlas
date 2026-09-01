@@ -11,7 +11,7 @@ import {
   writeReleaseEvidence,
 } from "../../tools/lib/release-evidence.mjs";
 import { readProtectedPolicyFromFd } from "../../tools/lib/protected-policy-input.mjs";
-import { DIGEST, SHA } from "./fixtures";
+import { DIGEST, SHA } from "./fixtures.js";
 
 export function draft() {
   return startFreshReleaseCycle({
@@ -91,7 +91,9 @@ describe("release evidence boundary", () => {
     const handle = await open(file, "r");
     try {
       const before = await handle.read(Buffer.alloc(1), 0, 1, 0);
-      const result = await readProtectedPolicyFromFd({ fd: handle.fd, synthetic: true });
+      const result = (await readProtectedPolicyFromFd({ fd: handle.fd, synthetic: true })) as {
+        exactPatterns: readonly Buffer[];
+      };
       const after = await handle.read(Buffer.alloc(1), 0, 1, 0);
       expect(result.exactPatterns.map((item) => item.toString("utf8"))).toEqual([
         "private-locator",
