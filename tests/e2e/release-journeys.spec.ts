@@ -16,6 +16,7 @@ import {
 type Page = PlaywrightTestArgs["page"];
 type NoCompatibleMountPayload = ReturnType<typeof discoverSelectorModules> &
   Readonly<{ pageModel: ReturnType<typeof buildNoCompatibleReleaseModel> }>;
+const CONTROLLED_SELECTOR_READY_TIMEOUT_MS = 20_000;
 
 const test = playwrightTest as unknown as TestType<
   PlaywrightTestArgs & PlaywrightTestOptions,
@@ -43,6 +44,7 @@ async function mountNoCompatibleState(page: Page): Promise<void> {
       const island = document.querySelector("astro-island");
       if (island === null) throw new Error("RELEASE_SELECTOR_ISLAND_MISSING");
       const host = document.createElement("div");
+      host.dataset.releaseControlledSelector = "mounted";
       island.replaceWith(host);
       const component = (await import(componentUrl)) as {
         SelectorIsland: (props: unknown) => unknown;
@@ -55,7 +57,25 @@ async function mountNoCompatibleState(page: Page): Promise<void> {
     },
     { ...modules, pageModel },
   );
+
+  // Rendering the replacement root is synchronous, but its recovery runtime imports and
+  // listener installation are not. Prove that the controlled runtime is ready before sending
+  // the synthetic production action; otherwise aggregate CPU load can make the change race the
+  // listener and leave the server-rendered default result in place.
+  await page
+    .locator(
+      '[data-release-controlled-selector="mounted"] > .selector-controls-runtime:not([aria-busy])',
+    )
+    .waitFor({ state: "attached", timeout: CONTROLLED_SELECTOR_READY_TIMEOUT_MS });
   await page.locator("input[type=radio]:checked").dispatchEvent("change");
+  await expect(page.locator("#selector-results-mount")).toHaveAttribute(
+    "data-selector-results-owner",
+    "client",
+    { timeout: CONTROLLED_SELECTOR_READY_TIMEOUT_MS },
+  );
+  await expect(page.locator("#selector-results-mount")).toHaveAttribute("aria-busy", "false", {
+    timeout: CONTROLLED_SELECTOR_READY_TIMEOUT_MS,
+  });
   await expect(
     page.getByRole("heading", { name: "No materials match every selected constraint" }),
   ).toBeVisible();
