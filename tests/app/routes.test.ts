@@ -15,6 +15,8 @@ const MATERIAL = {
 } as const satisfies RouteTarget;
 const MATERIALS = { id: "materials" } as const satisfies RouteTarget;
 const METHOD = { id: "method" } as const satisfies RouteTarget;
+const COMPARE = { id: "compare" } as const satisfies RouteTarget;
+const DATA = { id: "data" } as const satisfies RouteTarget;
 
 describe("routePath", () => {
   it("returns directory-form paths for every closed route target", () => {
@@ -22,6 +24,8 @@ describe("routePath", () => {
     expect(routePath(MATERIALS)).toBe("/materials/");
     expect(routePath(MATERIAL)).toBe("/materials/synthetic-alpha/");
     expect(routePath(METHOD)).toBe("/method/");
+    expect(routePath(COMPARE)).toBe("/compare/");
+    expect(routePath(DATA)).toBe("/data/");
   });
 
   it.each([
@@ -56,6 +60,8 @@ describe("internalHref", () => {
     expect(internalHref(base, MATERIALS)).toBe("/materials/");
     expect(internalHref(base, MATERIAL)).toBe("/materials/synthetic-alpha/");
     expect(internalHref(base, METHOD)).toBe("/method/");
+    expect(internalHref(base, COMPARE)).toBe("/compare/");
+    expect(internalHref(base, DATA)).toBe("/data/");
   });
 
   it.each([
@@ -68,6 +74,8 @@ describe("internalHref", () => {
     expect(internalHref(base, MATERIAL)).toBe(
       "/atlas-preview/materials/synthetic-alpha/",
     );
+    expect(internalHref(base, COMPARE)).toBe("/atlas-preview/compare/");
+    expect(internalHref(base, DATA)).toBe("/atlas-preview/data/");
   });
 
   it("never doubles a base prefix when a slug contains the base name", () => {
