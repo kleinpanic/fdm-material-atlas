@@ -109,6 +109,25 @@ const scalarCases = [
 }[];
 
 describe("predicate scalar operators", () => {
+  it.each([
+    ["serviceTemperature.minimum", { op: "at-least", value: 1 }],
+    ["properties.impactResistance.order", { op: "at-least", value: 1 }],
+    ["process.hardenedNozzle", { op: "equals", value: "reviewed" }],
+    ["guidance.tradeoffs", { op: "contains-any", values: ["reviewed"] }],
+  ] as const)("accepts the reviewed selector field %s without schema coercion", (field, rule) => {
+    expect(compilePredicate({ ...rule, field })).toMatchObject({ field });
+  });
+
+  it.each(["", "process.hardened-nozzle", "constructor.prototype", "guidance.tradeoffs.extra"])(
+    "rejects the non-field value %s",
+    (field) => {
+      expectConfigurationCode(
+        () => compilePredicate({ op: "equals", field, value: "reviewed" }),
+        "PREDICATE_FIELD_INVALID",
+      );
+    },
+  );
+
   it.each(scalarCases)("$name", ({ rule, record, expected }) => {
     expect(evaluatePredicate(rule, resolverFor(record))).toBe(expected);
   });

@@ -98,6 +98,16 @@ describe("reduceShortlist", () => {
     expect(malformed.announcement).toBe("That material cannot be shortlisted.");
   });
 
+  it.each([
+    "material-",
+    "material-UPPER",
+    "material-two--segments",
+    `material-${"a".repeat(152)}`,
+    { toString: () => "material-alpha" },
+  ])("rejects the bounded material ID edge case", (materialId) => {
+    expect(reduceShortlist(empty, { type: "add", materialId }).ids).toEqual([]);
+  });
+
   it("treats removal of an absent valid ID as a deterministic no-op", () => {
     const result = reduceShortlist([A], {
       type: "remove",
