@@ -24,7 +24,10 @@ function textContent(value: unknown): string {
   if (typeof value === "string" || typeof value === "number") return String(value);
   if (Array.isArray(value)) return value.map(textContent).join(" ");
   if (typeof value !== "object" || value === null) return "";
-  const record = value as { props?: { children?: unknown } };
+  const record = value as { type?: unknown; props?: { children?: unknown } };
+  if (typeof record.type === "function") {
+    return textContent(record.type(record.props));
+  }
   return textContent(record.props?.children);
 }
 
@@ -50,7 +53,17 @@ describe("comparison island boundary", () => {
 
   it("renders semantic property-first groups with differences before equal disclosure", () => {
     const model = buildComparisonModel(loadPublicAtlas(), "/");
-    const selected = model.materials.slice(0, 2).map(({ id }) => id);
+    const selected = model.materials.flatMap((left) => model.materials.flatMap((right) => {
+      if (left.id === right.id) return [];
+      const leftThermal = left.cells.find(({ key }) => key === "thermal-value");
+      const rightThermal = right.cells.find(({ key }) => key === "thermal-value");
+      if (leftThermal?.kind !== "thermal" || rightThermal?.kind !== "thermal") return [];
+      const leftGroups = new Set(leftThermal.members.map(({ groupId }) => groupId));
+      return rightThermal.members.some(({ groupId }) => !leftGroups.has(groupId))
+        ? [[left.id, right.id] as const]
+        : [];
+    }))[0];
+    expect(selected).toBeDefined();
     const result = compareSelection(model, selected);
     expect(result.kind).toBe("comparison");
     if (result.kind !== "comparison") return;
