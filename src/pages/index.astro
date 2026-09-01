@@ -1,5 +1,7 @@
 ---
 import { SelectorIsland } from "../components/selector/SelectorIsland.tsx";
+import { SelectorControls } from "../components/selector/SelectorControls.tsx";
+import { createRef } from "preact";
 import { SelectorStaticResults } from "../components/selector/SelectorStaticResults.tsx";
 import { buildSelectorBootstrap } from "../features/selector/bootstrap.ts";
 import { decodeSelectorClientModel } from "../features/selector/client-model.ts";
@@ -21,6 +23,10 @@ const defaultPresentation = prepareSelectorPresentationEvaluator(runtimeModel)(
 );
 const selectorBootstrap = buildSelectorBootstrap(runtimeModel, defaultPresentation);
 const selectorPayload = serializeSelectorDeferredPayload(pageModel);
+const primaryFirstServerRef = createRef<HTMLInputElement>();
+const secondaryDetailsServerRef = createRef<HTMLDetailsElement>();
+const secondarySummaryServerRef = createRef<HTMLElement>();
+const inertChange = () => undefined;
 const homeHref = internalHref(base, { id: "home" });
 const materialsHref = internalHref(base, { id: "materials" });
 const compareHref = internalHref(base, { id: "compare" });
@@ -82,6 +88,17 @@ const footerLinks = [
       </p>
     </noscript>
     <div class="selector-island">
+      <SelectorControls
+        pageModel={selectorBootstrap.controls}
+        selection={selectorBootstrap.defaults}
+        primaryFirstRef={primaryFirstServerRef}
+        secondaryDetailsRef={secondaryDetailsServerRef}
+        secondarySummaryRef={secondarySummaryServerRef}
+        onChange={inertChange}
+        onInvalid={inertChange}
+        onView={inertChange}
+        onReset={inertChange}
+      />
       <SelectorIsland bootstrap={selectorBootstrap} client:load />
       <script
         id="selector-client-model"

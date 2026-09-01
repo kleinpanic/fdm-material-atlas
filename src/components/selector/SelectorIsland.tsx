@@ -22,7 +22,6 @@ import {
   type ShortlistFocusIntent,
   type ShortlistState,
 } from "../../features/selector/shortlist.ts";
-import { SelectorControls } from "./SelectorControls.tsx";
 import type { SelectorResultsProps } from "./SelectorResults.tsx";
 
 type Props = Readonly<{ pageModel?: SelectorClientModel; bootstrap?: SelectorBootstrap }>;
@@ -52,8 +51,7 @@ function SelectorStatus({ message, immediate }: Readonly<{ message: string; imme
 }
 
 export function SelectorIsland({ pageModel, bootstrap }: Props) {
-  if (!bootstrap)
-    return <SelectorRecoveryIsland {...(pageModel ? { pageModel } : {})} />;
+  if (!bootstrap) return <SelectorRecoveryIsland {...(pageModel ? { pageModel } : {})} />;
   return <SelectorRuntimeIsland {...(pageModel ? { pageModel } : {})} bootstrap={bootstrap} />;
 }
 
@@ -70,11 +68,11 @@ function SelectorRecoveryIsland({ pageModel }: Readonly<{ pageModel?: SelectorCl
     void import("../../features/selector/action-runtime.ts")
       .then(({ prepareSelectorActionRuntime }) => {
         const runtime = prepareSelectorActionRuntime(document, pageModel);
-        const next = buildSelectorBootstrap(
+        const bootstrap = buildSelectorBootstrap(
           runtime.pageModel,
           runtime.evaluate(runtime.pageModel.defaults),
         );
-        if (!disposed) setRecovered(next);
+        if (!disposed) setRecovered(bootstrap);
       })
       .catch(() => {
         if (!disposed) setFailed(true);
@@ -85,9 +83,7 @@ function SelectorRecoveryIsland({ pageModel }: Readonly<{ pageModel?: SelectorCl
   }, [pageModel]);
 
   if (recovered)
-    return (
-      <SelectorRuntimeIsland {...(pageModel ? { pageModel } : {})} bootstrap={recovered} />
-    );
+    return <SelectorRuntimeIsland {...(pageModel ? { pageModel } : {})} bootstrap={recovered} />;
   if (!failed) return <div class="selector-controls-runtime" aria-busy="true" />;
   return (
     <div class="selector-controls-runtime">
@@ -108,7 +104,10 @@ type EvaluatedState = Readonly<{
 function SelectorRuntimeIsland({
   pageModel,
   bootstrap,
-}: Readonly<{ pageModel?: SelectorClientModel; bootstrap: SelectorBootstrap }>) {
+}: Readonly<{
+  pageModel?: SelectorClientModel;
+  bootstrap: SelectorBootstrap;
+}>) {
   const [selection, setSelection] = useState<Readonly<Record<string, string>>>(
     () => bootstrap.defaults,
   );
@@ -139,6 +138,12 @@ function SelectorRuntimeIsland({
   const runtimeRef = useRef<PreparedSelectorActionRuntime | null>(null);
   const runtimePromiseRef = useRef<Promise<PreparedSelectorActionRuntime> | null>(null);
   const latestEvaluationRef = useRef(0);
+  const productionActionRef = useRef<Readonly<{
+    change: (criterionId: string, optionId: string) => void;
+    invalid: (criterionId: string) => void;
+    reset: () => void;
+    view: () => void;
+  }> | null>(null);
 
   const prepareRuntime = async (): Promise<PreparedSelectorActionRuntime | null> => {
     if (runtimeRef.current) return runtimeRef.current;
@@ -225,6 +230,103 @@ function SelectorRuntimeIsland({
     if (transition.announcement) setAnnouncementOverride(transition.announcement);
     void evaluateForResults(selection);
   };
+
+  const applyCriterionChange = (criterionId: string, optionId: string) => {
+    const next = { ...selection, [criterionId]: optionId };
+    setAnnouncementOverride(null);
+    setSelection(next);
+    void evaluateForResults(next);
+    setShortlistIds(reduceShortlist(shortlistIds, { type: "criteria-changed" }).ids);
+  };
+
+  productionActionRef.current = {
+    change: applyCriterionChange,
+    invalid: (criterionId) => {
+      setAnnouncementOverride(null);
+      void evaluateForResults({ ...selection, [criterionId]: null });
+    },
+    reset,
+    view: focusResultsHeading,
+  };
+
+  useLayoutEffect(() => {
+    const form = document.querySelector<HTMLFormElement>(".selector-island > .selector-controls");
+    if (!form) {
+      setAnnouncementOverride(SELECTOR_COPY.errorState);
+      return;
+    }
+    primaryFirstRef.current = form.querySelector<HTMLInputElement>('input[type="radio"]');
+    secondaryDetailsRef.current = form.querySelector<HTMLDetailsElement>(
+      "details.selector-secondary",
+    );
+    secondarySummaryRef.current = form.querySelector<HTMLElement>(
+      "details.selector-secondary > summary",
+    );
+    form.querySelectorAll<HTMLFieldSetElement>("fieldset:disabled").forEach((field) => {
+      field.disabled = false;
+    });
+    form.querySelectorAll<HTMLButtonElement>("button:disabled").forEach((button) => {
+      button.disabled = false;
+    });
+
+    const onChange = (event: Event) => {
+      if (!(event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement))
+        return;
+      const target = event.target;
+      const criterion = bootstrap.controls.projection.criteria.find(({ id }) => id === target.name);
+      if (!criterion) return;
+      if (criterion.options.some(({ id }) => id === target.value)) {
+        productionActionRef.current?.change(criterion.id, target.value);
+      } else {
+        productionActionRef.current?.invalid(criterion.id);
+      }
+    };
+    const onSubmit = (event: SubmitEvent) => {
+      event.preventDefault();
+      productionActionRef.current?.view();
+    };
+    const onClick = (event: MouseEvent) => {
+      if (!(event.target instanceof Element)) return;
+      const button = event.target.closest<HTMLButtonElement>('button[type="button"]');
+      if (!button || !form.contains(button)) return;
+      event.preventDefault();
+      productionActionRef.current?.reset();
+    };
+    form.addEventListener("change", onChange);
+    form.addEventListener("submit", onSubmit);
+    form.addEventListener("click", onClick);
+    return () => {
+      form.removeEventListener("change", onChange);
+      form.removeEventListener("submit", onSubmit);
+      form.removeEventListener("click", onClick);
+    };
+  }, [bootstrap]);
+
+  useLayoutEffect(() => {
+    const form = document.querySelector<HTMLFormElement>(".selector-island > .selector-controls");
+    if (!form) return;
+    for (const criterion of bootstrap.controls.projection.criteria) {
+      const option = criterion.options.find(({ id }) => id === selection[criterion.id]);
+      if (!option) continue;
+      form.querySelectorAll<HTMLInputElement>(`input[name="${criterion.id}"]`).forEach((input) => {
+        input.checked = input.value === option.id;
+      });
+      const select = form.querySelector<HTMLSelectElement>(`select[name="${criterion.id}"]`);
+      if (select) select.value = option.id;
+      const output = form.querySelector<HTMLElement>(
+        `[data-selector-criterion-id="${criterion.id}"]`,
+      );
+      if (output) output.textContent = option.label;
+    }
+    const secondaryLabels = bootstrap.controls.projection.criteria
+      .filter(({ role }) => role === "secondary")
+      .map(
+        (criterion) =>
+          criterion.options.find(({ id }) => id === selection[criterion.id])?.label ?? "",
+      );
+    const summary = form.querySelector<HTMLElement>("[data-selector-secondary-values]");
+    if (summary) summary.textContent = secondaryLabels.join(" · ");
+  }, [bootstrap, selection]);
 
   const resultsProps: SelectorResultsProps | null = evaluated
     ? {
@@ -391,26 +493,6 @@ function SelectorRuntimeIsland({
 
   return (
     <div class="selector-controls-runtime">
-      <SelectorControls
-        pageModel={bootstrap.controls}
-        selection={selection}
-        primaryFirstRef={primaryFirstRef}
-        secondaryDetailsRef={secondaryDetailsRef}
-        secondarySummaryRef={secondarySummaryRef}
-        onChange={(criterionId, optionId) => {
-          const next = { ...selection, [criterionId]: optionId };
-          setAnnouncementOverride(null);
-          setSelection(next);
-          void evaluateForResults(next);
-          setShortlistIds(reduceShortlist(shortlistIds, { type: "criteria-changed" }).ids);
-        }}
-        onInvalid={(criterionId) => {
-          setAnnouncementOverride(null);
-          void evaluateForResults({ ...selection, [criterionId]: null });
-        }}
-        onView={focusResultsHeading}
-        onReset={reset}
-      />
       <SelectorStatus message={announcement} immediate={announcementOverride !== null} />
     </div>
   );

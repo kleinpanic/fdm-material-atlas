@@ -157,9 +157,14 @@ describe("selector component boundary", () => {
 
   it("hydrates only the controller and status over complete static controls", () => {
     expect(island).not.toContain('import { SelectorControls } from "./SelectorControls.tsx"');
-    expect(island).toContain('import("./SelectorControls.tsx")');
+    expect(island).not.toContain('import("./SelectorControls.tsx")');
     expect(island).toContain("document.querySelector<HTMLFormElement>");
     expect(controls).toContain("data-selector-criterion-id");
+    expect(island).toContain("criterion.options.some");
+    expect(island).toContain("productionActionRef.current?.invalid");
+    expect(island).toContain("productionActionRef.current?.reset");
+    expect(island).toContain("productionActionRef.current?.view");
+    expect(island).toContain("runtimePromiseRef.current ??=");
   });
 
   it("uses native form and disclosure semantics for all seven criteria", () => {

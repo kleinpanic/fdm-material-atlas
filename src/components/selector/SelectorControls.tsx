@@ -93,7 +93,9 @@ export function SelectorControls({
       <details ref={secondaryDetailsRef} class="selector-secondary" open>
         <summary ref={secondarySummaryRef}>
           <span>{SELECTOR_COPY.secondaryDisclosure}</span>
-          <span class="selector-secondary-values">{secondary.map(selectedLabel).join(" · ")}</span>
+          <span class="selector-secondary-values" data-selector-secondary-values>
+            {secondary.map(selectedLabel).join(" · ")}
+          </span>
         </summary>
         <fieldset disabled ref={secondaryFieldsetRef}>
           <legend class="visually-hidden">{SELECTOR_COPY.secondaryDisclosure}</legend>
@@ -124,7 +126,7 @@ export function SelectorControls({
           {pageModel.projection.criteria.map((criterion) => (
             <div key={criterion.id}>
               <dt>{criterion.label}</dt>
-              <dd>{selectedLabel(criterion)}</dd>
+              <dd data-selector-criterion-id={criterion.id}>{selectedLabel(criterion)}</dd>
             </div>
           ))}
         </dl>
