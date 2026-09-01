@@ -45,6 +45,7 @@ async function openMap(page: Page): Promise<void> {
   await page.goto(mapPath());
   await page.locator(".map-explorer").scrollIntoViewIfNeeded();
   await expect(page.getByText("Interactive map controls are ready.", { exact: true })).toBeVisible();
+  await expect(page.getByText(/controls are preparing/u)).toHaveCount(0);
   await page.evaluate(() => scrollTo(0, 0));
 }
 
@@ -168,10 +169,11 @@ test("no-script and failed hydration retain complete static meaning", async ({ b
   await expect(noScript.page.locator("[data-service-row]")).toHaveCount(23);
   await expect(noScript.page.locator("[data-gate-cell]")).toHaveCount(64);
   await expect(noScript.page.locator("[data-impact-row]")).toHaveCount(23);
+  await expect(noScript.page.getByText(/controls are preparing/u)).toHaveCount(1);
   await noScript.context.close();
 
   const aborted = await openWithMapChunkAborted(browser);
-  await expect(aborted.page.getByText("Interactive map controls are preparing.", { exact: false }).first()).toBeVisible();
+  await expect(aborted.page.getByText(/controls are preparing/u)).toHaveCount(1);
   await expect(aborted.page.locator("[data-decision-lane]")).toHaveCount(8);
   await expect(aborted.page.locator("[data-service-row]")).toHaveCount(23);
   await expect(aborted.page.locator("[data-gate-cell]")).toHaveCount(64);

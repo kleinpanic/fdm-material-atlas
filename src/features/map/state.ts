@@ -106,7 +106,7 @@ function baseState(): MapState {
     thermal: { view: "service-guidance", query: "", serviceSort: "canonical" },
     processGates: {},
     impactFlex: { query: "", difficultyShapes: false },
-    announcement: "Map controls are preparing.",
+    announcement: "Interactive map controls are preparing. Every path and structured table is already available.",
   });
 }
 

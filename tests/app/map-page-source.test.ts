@@ -39,12 +39,12 @@ describe("static-first map page source", () => {
       "Read paths and plots as guidance",
       "Candidate status means that a material satisfies the published lane rule. It is not a universal recommendation, safety approval, or engineering certification.",
       "Explore visualization modes",
-      "Interactive map controls are preparing",
       "Interactive highlighting is unavailable. All decision paths and structured visualization data remain readable below.",
     ]) expect(page).toContain(copy);
 
     expect(page.indexOf("Explore visualization modes")).toBeLessThan(page.indexOf("<MapExplorerIsland"));
-    expect(page.indexOf("Interactive map controls are preparing")).toBeLessThan(page.indexOf("<MapExplorerIsland"));
+    expect(page).not.toContain("map-preparation");
+    expect(renderedIsland).toContain("Interactive map controls are preparing. Every path and structured table is already available.");
     expect(page).toContain('breadcrumbs={[{ label: "Home", href: homeHref }, { label: "Decision maps", current: true }]}');
     expect(page).toContain('title="Decision maps | FDM Material Atlas"');
   });
