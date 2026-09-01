@@ -38,7 +38,8 @@ jobs:
       - name: Check public evidence links without credentials
         id: links
         continue-on-error: true
-        run: "$RUNNER_TEMP/lychee" --config .github/lychee.toml src/data/public/atlas.v1.json
+        run: >-
+          "$RUNNER_TEMP/lychee" --config .github/lychee.toml src/data/public/atlas.v1.json
 
       - name: Prepare bounded diagnostic and job summary
         env:
