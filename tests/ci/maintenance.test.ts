@@ -8,7 +8,7 @@ import {
   LYCHEE_URL,
   safeDependencyReviewWorkflow,
   safeLinkHealthWorkflow,
-} from "./workflow-fixtures";
+} from "./workflow-fixtures.js";
 
 function expectCode(label: string, source: string, code: string) {
   const result = verifyWorkflowContracts({ [label]: source });

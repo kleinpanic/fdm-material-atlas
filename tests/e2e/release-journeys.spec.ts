@@ -14,6 +14,8 @@ import {
 } from "./release-route-fixtures.ts";
 
 type Page = PlaywrightTestArgs["page"];
+type NoCompatibleMountPayload = ReturnType<typeof discoverSelectorModules> &
+  Readonly<{ pageModel: ReturnType<typeof buildNoCompatibleReleaseModel> }>;
 
 const test = playwrightTest as unknown as TestType<
   PlaywrightTestArgs & PlaywrightTestOptions,
@@ -36,7 +38,7 @@ async function mountNoCompatibleState(page: Page): Promise<void> {
   const modules = discoverSelectorModules(routes);
   const pageModel = buildNoCompatibleReleaseModel(routes.basePath);
   await page.evaluate(
-    async ({ componentUrl, preactUrl, pageModel: controlledModel }) => {
+    async ({ componentUrl, preactUrl, pageModel: controlledModel }: NoCompatibleMountPayload) => {
       const island = document.querySelector("astro-island");
       if (island === null) throw new Error("RELEASE_SELECTOR_ISLAND_MISSING");
       const host = document.createElement("div");

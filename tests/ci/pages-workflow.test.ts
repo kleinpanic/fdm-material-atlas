@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { verifyWorkflowContracts } from "../../tools/verify-workflow-contracts.mjs";
-import { safePagesWorkflow } from "./workflow-fixtures";
+import { safePagesWorkflow } from "./workflow-fixtures.js";
 
 function verify(source: string) {
   return verifyWorkflowContracts({ "pages.yml": source });

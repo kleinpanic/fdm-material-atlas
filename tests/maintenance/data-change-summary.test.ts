@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { parseAtlas } from "../../src/data/schema/parse-atlas.ts";
 import { serializeAtlas } from "../../src/data/serialization/stable-json.ts";
 import { createMinimalAtlas } from "../fixtures/atlas-minimal.valid.ts";
 import {
@@ -17,7 +18,13 @@ function fixtureDirectory(): string {
   return mkdtempSync(join(tmpdir(), "atlas-public-summary-"));
 }
 
-function fixturePath(name: string, atlas = createMinimalAtlas()): string {
+function validatedMinimalAtlas(value: unknown = createMinimalAtlas()) {
+  const result = parseAtlas(value);
+  if (!result.success) throw new Error("SUMMARY_FIXTURE_INVALID");
+  return result.data;
+}
+
+function fixturePath(name: string, atlas = validatedMinimalAtlas()): string {
   const path = join(fixtureDirectory(), name);
   writeFileSync(path, serializeAtlas(atlas), { encoding: "utf8", mode: 0o600 });
   return path;
@@ -34,12 +41,12 @@ function renamedAtlas() {
   reference.related = reference.related.map((target) =>
     target.kind === "material-route" ? { kind: "material-route", slug: material.slug } : target,
   );
-  return atlas;
+  return validatedMinimalAtlas(atlas);
 }
 
 describe("bounded public canonical-data change summary", () => {
   it("reports equal canonical artifacts as unchanged", () => {
-    const atlas = createMinimalAtlas();
+    const atlas = validatedMinimalAtlas();
     const summary = summarizePublicDataChange(atlas, structuredClone(atlas));
 
     expect(summary).toEqual({
@@ -63,16 +70,18 @@ describe("bounded public canonical-data change summary", () => {
   });
 
   it("reports bounded IDs, aggregate groups, and evidence-reference counts deterministically", () => {
-    const before = createMinimalAtlas();
-    const after = createMinimalAtlas();
-    after.materials[0]!.properties.impactResistance.value.value = "high-impact";
-    after.materials[0]!.guidance.tradeoffs.value.value = ["Use a reviewed product profile"];
-    after.materials[0]!.familyOrFill.basis.push({
-      kind: "method",
-      methodId: "method-synthetic-review",
-      scope: "family-guidance",
-      note: "Second public evidence reference.",
-    });
+    const before = validatedMinimalAtlas();
+    const after = validatedMinimalAtlas();
+    const impact = after.materials[0]!.properties.impactResistance.value;
+    const tradeoffs = after.materials[0]!.guidance.tradeoffs.value;
+    if (impact.state !== "known" || tradeoffs.state !== "known") {
+      throw new Error("SUMMARY_FIXTURE_STATE_INVALID");
+    }
+    impact.value = "high-impact";
+    tradeoffs.value = ["Use a reviewed product profile"];
+    after.materials[0]!.familyOrFill.basis.push(
+      structuredClone(after.materials[0]!.familyOrFill.basis[0]!),
+    );
 
     const first = summarizePublicDataChange(before, after, { identifierLimit: 1 });
     const second = summarizePublicDataChange(structuredClone(before), structuredClone(after), {
@@ -80,33 +89,42 @@ describe("bounded public canonical-data change summary", () => {
     });
 
     expect(second).toEqual(first);
-    expect(first.status).toBe("changed");
-    expect(first.counts.evidenceReferences).toEqual({ before: 30, after: 31, delta: 1 });
-    expect(first.changedPropertyGroups).toEqual({
-      evidence: { changed: 1, identifiers: ["material-synthetic-alpha"], omitted: 0 },
-      guidance: { changed: 1, identifiers: ["material-synthetic-alpha"], omitted: 0 },
-      properties: { changed: 1, identifiers: ["material-synthetic-alpha"], omitted: 0 },
+    expect(first).toMatchObject({
+      status: "changed",
+      counts: { evidenceReferences: { before: 30, after: 31, delta: 1 } },
+      changedPropertyGroups: {
+        evidence: { changed: 1, identifiers: ["material-synthetic-alpha"], omitted: 0 },
+        guidance: { changed: 1, identifiers: ["material-synthetic-alpha"], omitted: 0 },
+        properties: { changed: 1, identifiers: ["material-synthetic-alpha"], omitted: 0 },
+      },
     });
 
     const renamed = summarizePublicDataChange(before, renamedAtlas(), { identifierLimit: 1 });
-    expect(renamed.identifiers.materials).toEqual({
-      added: ["material-synthetic-beta"],
-      addedOmitted: 0,
-      removed: ["material-synthetic-alpha"],
-      removedOmitted: 0,
+    expect(renamed).toMatchObject({
+      identifiers: {
+        materials: {
+          added: ["material-synthetic-beta"],
+          addedOmitted: 0,
+          removed: ["material-synthetic-alpha"],
+          removedOmitted: 0,
+        },
+      },
     });
   });
 
   it("formats controlled JSON and Markdown without raw public records or source text", () => {
-    const before = createMinimalAtlas();
-    const after = createMinimalAtlas();
-    after.materials[0]!.guidance.tradeoffs.value.value = [
+    const before = validatedMinimalAtlas();
+    const after = validatedMinimalAtlas();
+    const tradeoffs = after.materials[0]!.guidance.tradeoffs.value;
+    if (tradeoffs.state !== "known") throw new Error("SUMMARY_FIXTURE_STATE_INVALID");
+    tradeoffs.value = [
       "Do not expose this complete source sentence or https://private.invalid/source",
     ];
     const summary = summarizePublicDataChange(before, after);
 
     for (const format of ["json", "markdown"] as const) {
       const output = formatPublicDataSummary(summary, format);
+      if (output === undefined) throw new Error("SUMMARY_FORMAT_FAILED");
       expect(output).not.toContain("private.invalid");
       expect(output).not.toContain("Do not expose");
       expect(output).not.toContain("Synthetic Materials Institute");
@@ -116,7 +134,9 @@ describe("bounded public canonical-data change summary", () => {
 
   it("accepts only canonical regular files in the operating-system temporary directory", () => {
     const canonical = fixturePath("before.json");
-    expect(readCanonicalAtlasFile(canonical).materials).toHaveLength(1);
+    const atlas = readCanonicalAtlasFile(canonical);
+    if (atlas === undefined) throw new Error("SUMMARY_READ_FAILED");
+    expect(atlas.materials).toHaveLength(1);
 
     const symlink = join(fixtureDirectory(), "atlas-link.json");
     symlinkSync(canonical, symlink);

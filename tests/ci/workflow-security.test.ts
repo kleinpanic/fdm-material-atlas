@@ -8,7 +8,7 @@ import {
   verifyWorkflowContracts,
   workflowIssueCodes,
 } from "../../tools/verify-workflow-contracts.mjs";
-import { safeCiWorkflow, validWorkflowSet } from "./workflow-fixtures";
+import { safeCiWorkflow, validWorkflowSet } from "./workflow-fixtures.js";
 
 function codes(workflows: Record<string, string>) {
   return verifyWorkflowContracts(workflows).issues.map((issue) => issue.code);

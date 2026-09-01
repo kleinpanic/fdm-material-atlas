@@ -226,7 +226,9 @@ test("forced colors and reduced motion retain visible focus and non-color decisi
   await waitForInteractiveSurface(page, routes.home.href);
   const add = page.getByRole("button", { name: /^Add .+ to shortlist$/u }).first();
   await add.focus();
-  expect(await add.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe("none");
+  expect(
+    await add.evaluate((element: HTMLElement) => getComputedStyle(element).outlineStyle),
+  ).not.toBe("none");
   await add.click();
   await expect(page.getByRole("heading", { name: "Shortlist" })).toBeVisible();
   await expect(
@@ -271,7 +273,7 @@ test("320 CSS pixels and 200 percent zoom keep representative controls reachable
     await page.setViewportSize({ width: state.width, height: 900 });
     for (const href of surfaces) {
       await waitForInteractiveSurface(page, href);
-      await page.evaluate((zoom) => {
+      await page.evaluate((zoom: string) => {
         document.documentElement.style.zoom = zoom;
         document.documentElement.style.scrollbarGutter = "stable";
       }, state.zoom);

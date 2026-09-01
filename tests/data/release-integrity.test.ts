@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AtlasV1 } from "../../src/data/schema/atlas.ts";
 import { decisionLaneIds } from "../../src/data/schema/decision-lane.ts";
+import type { MaterialId } from "../../src/data/schema/ids.ts";
 import { parseAtlas } from "../../src/data/schema/parse-atlas.ts";
 import {
   selectorCriterionIds,
@@ -269,7 +270,7 @@ describe("release integrity across the canonical public Atlas", () => {
   it("keeps every scientific visualization member inside the live canonical inventory", () => {
     const map = compileMapProjection(atlas, "/atlas-preview/");
     const materialIds = new Set(atlas.materials.map(({ id }) => id));
-    const assertCanonicalMembers = (ids: readonly string[]) => {
+    const assertCanonicalMembers = (ids: readonly MaterialId[]) => {
       expectUnique(ids);
       for (const id of ids) expect(materialIds.has(id), id).toBe(true);
     };
