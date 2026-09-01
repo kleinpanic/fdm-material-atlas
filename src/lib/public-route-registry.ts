@@ -2,6 +2,11 @@ import type { DecisionLaneId, MaterialId } from "../data/schema/ids.ts";
 import {
   fragmentHref,
   internalHref,
+  internalMapFragmentHref,
+  mapLaneFragments,
+  mapModeFragments,
+  type MapLaneFragment,
+  type MapFragment,
   type RouteTarget,
 } from "./routes.ts";
 
@@ -38,7 +43,6 @@ export type PublicRouteRegistry = Readonly<{
   startingProfiles: readonly MaterialFragmentRegistration[];
   allMaterialDetails?: boolean;
   allStartingProfiles?: boolean;
-  allDecisionMaps?: boolean;
   compare?: CompareRouteRegistration;
   decisionMaps: readonly LaneFragmentRegistration[];
   decisionMapOverview?: RouteTarget;
@@ -135,6 +139,11 @@ function assertMaterialTarget(
   }
 }
 
+const VERIFIED_MAP_FRAGMENTS = Object.freeze([
+  ...mapModeFragments,
+  ...mapLaneFragments,
+]);
+
 /**
  * Production starts closed. Later phases replace only verified entries after
  * their routes and fragments exist in both deployment builds.
@@ -142,7 +151,16 @@ function assertMaterialTarget(
 export const PUBLIC_ROUTE_REGISTRY: PublicRouteRegistry = Object.freeze({
   materialDetails: Object.freeze([]),
   startingProfiles: Object.freeze([]),
-  decisionMaps: Object.freeze([]),
+  decisionMaps: Object.freeze([
+    Object.freeze({ laneId: "lane-easy-prototypes" as DecisionLaneId, target: { id: "map" as const }, fragment: "lane-easy-prototypes" as const, verifiedFragments: VERIFIED_MAP_FRAGMENTS }),
+    Object.freeze({ laneId: "lane-outdoor" as DecisionLaneId, target: { id: "map" as const }, fragment: "lane-outdoor" as const, verifiedFragments: VERIFIED_MAP_FRAGMENTS }),
+    Object.freeze({ laneId: "lane-impact-flex" as DecisionLaneId, target: { id: "map" as const }, fragment: "lane-impact-flex" as const, verifiedFragments: VERIFIED_MAP_FRAGMENTS }),
+    Object.freeze({ laneId: "lane-chemical-exposure" as DecisionLaneId, target: { id: "map" as const }, fragment: "lane-chemical-exposure" as const, verifiedFragments: VERIFIED_MAP_FRAGMENTS }),
+    Object.freeze({ laneId: "lane-high-heat-sustained-load" as DecisionLaneId, target: { id: "map" as const }, fragment: "lane-high-heat-sustained-load" as const, verifiedFragments: VERIFIED_MAP_FRAGMENTS }),
+    Object.freeze({ laneId: "lane-industrial" as DecisionLaneId, target: { id: "map" as const }, fragment: "lane-industrial" as const, verifiedFragments: VERIFIED_MAP_FRAGMENTS }),
+    Object.freeze({ laneId: "lane-decorative-fills" as DecisionLaneId, target: { id: "map" as const }, fragment: "lane-decorative-fills" as const, verifiedFragments: VERIFIED_MAP_FRAGMENTS }),
+    Object.freeze({ laneId: "lane-support-materials" as DecisionLaneId, target: { id: "map" as const }, fragment: "lane-support-materials" as const, verifiedFragments: VERIFIED_MAP_FRAGMENTS }),
+  ]),
   allMaterialDetails: true,
   allStartingProfiles: true,
   compare: Object.freeze({ target: { id: "compare" as const }, fragment: "comparison-matrix", verifiedFragments: Object.freeze(["comparison-matrix"]) }),
@@ -186,20 +204,38 @@ export function buildSelectorRouteAvailability(
   if (registry.methodEvidence) assertVerifiedFragment(registry.methodEvidence);
   for (const registration of registry.decisionMaps) {
     if (!laneById.has(registration.laneId)) fail("ROUTE_REGISTRY_LANE_UNKNOWN");
-    assertVerifiedFragment(registration);
+    if (registration.target.id !== "map" || registration.fragment !== registration.laneId) {
+      fail("ROUTE_REGISTRY_TARGET_MISMATCH");
+    }
+    internalMapFragmentHref("/", registration.fragment as MapLaneFragment);
+    const verifiedFragments = new Set(registration.verifiedFragments);
+    const requiredFragments: readonly MapFragment[] = [...mapModeFragments, ...mapLaneFragments];
+    if (
+      verifiedFragments.size !== requiredFragments.length
+      || registration.verifiedFragments.length !== requiredFragments.length
+      || requiredFragments.some((fragment) => !verifiedFragments.has(fragment))
+    ) fail("ROUTE_REGISTRY_FRAGMENT_MISSING");
   }
   if (new Set(registry.decisionMaps.map(({ laneId }) => laneId)).size !== registry.decisionMaps.length) {
     fail("ROUTE_REGISTRY_TARGET_MISMATCH");
   }
+  if (
+    registry.decisionMaps.length > 0
+    && (
+      registry.decisionMaps.length !== catalog.lanes.length
+      || catalog.lanes.some(({ id }) => !registry.decisionMaps.some(({ laneId }) => laneId === id))
+    )
+  ) fail("ROUTE_REGISTRY_TARGET_MISMATCH");
 
-  const decisionMapRegistrations = registry.allDecisionMaps
-    ? catalog.lanes.map(({ id }) => ({ laneId: id, target: { id: "map" as const }, fragment: id, verifiedFragments: [id] }))
-    : [...registry.decisionMaps];
-  const decisionMaps = decisionMapRegistrations
+  const decisionMaps = [...registry.decisionMaps]
     .sort((left, right) => left.laneId < right.laneId ? -1 : left.laneId > right.laneId ? 1 : 0)
     .map((registration) => Object.freeze({
       laneId: registration.laneId,
-      action: link(base, registration, `View ${laneById.get(registration.laneId)!.label} decision map`),
+      action: Object.freeze({
+        kind: "link" as const,
+        href: internalMapFragmentHref(base, registration.fragment as MapLaneFragment),
+        label: `Open ${laneById.get(registration.laneId)!.label} decision path`,
+      }),
     }));
 
   const materials = [...catalog.materials]
