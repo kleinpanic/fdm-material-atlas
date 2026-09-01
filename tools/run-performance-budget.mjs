@@ -269,16 +269,48 @@ export async function mapTransfer(mode, policy) {
   return { totalGzipBytes, projectionBytes, largestModuleGzipBytes };
 }
 
+async function routeTransfer(mode, routeName) {
+  const htmlRecord = mode.files.get(`${routeName}/index.html`);
+  if (!htmlRecord) fail("PERFORMANCE_ROUTE_MISSING");
+  const html = await readFile(htmlRecord.path, "utf8");
+  const pending = [...html.matchAll(/(?:src|component-url|renderer-url)="([^"]+\.m?js)"/gu)].map(
+    (match) => match[1],
+  );
+  const visited = new Set();
+  let bytes = gzipSync(Buffer.from(html), { level: 9, mtime: 0 }).byteLength;
+  while (pending.length > 0) {
+    const raw = pending.pop();
+    const pathname = new URL(raw, `https://local.invalid${mode.base}`).pathname;
+    const name = decodeURIComponent(
+      mode.base === "/" ? pathname.slice(1) : pathname.slice(mode.base.length),
+    );
+    if (visited.has(name)) continue;
+    const record = mode.files.get(name);
+    if (!record || !/\.m?js$/u.test(name)) fail("PERFORMANCE_REPORT_INVALID");
+    visited.add(name);
+    const source = await readFile(record.path);
+    bytes += gzipSync(source, { level: 9, mtime: 0 }).byteLength;
+    for (const specifier of importedSpecifiers(source.toString("utf8"))) {
+      if (specifier.startsWith("."))
+        pending.push(posix.normalize(posix.join(posix.dirname(name), specifier)));
+    }
+  }
+  return bytes;
+}
+
 export async function exactTransfer(policy, modes) {
   const phase6 = await verifyPhase6Build({
     modes: modes.map((mode) => ({ name: mode.name, base: mode.base, output: mode.output })),
     runPublication: false,
   }).catch(() => fail("PERFORMANCE_BUDGET_EXCEEDED"));
-  const phase7 = await verifyPhase7Build({
-    rootOutput: modes[0].output,
-    repositoryOutput: (modes[1] ?? modes[0]).output,
-    runPublicationScan: false,
-  }).catch(() => fail("PERFORMANCE_BUDGET_EXCEEDED"));
+  const phase7 =
+    modes.length > 1
+      ? await verifyPhase7Build({
+          rootOutput: modes[0].output,
+          repositoryOutput: modes[1].output,
+          runPublicationScan: false,
+        }).catch(() => fail("PERFORMANCE_BUDGET_EXCEEDED"))
+      : undefined;
   const reports = [];
   for (const mode of modes) {
     const selector = await verifySelectorBuild({
@@ -287,20 +319,22 @@ export async function exactTransfer(policy, modes) {
       maxGzipBytes: policy.gzip.selectorBytes,
     }).catch(() => fail("PERFORMANCE_BUDGET_EXCEEDED"));
     const atlas = phase6.modes.find((item) => item.mode === mode.name);
-    const comparison = phase7.modes.find((item) => item.mode === mode.name);
-    if (!atlas || !comparison) fail("PERFORMANCE_REPORT_INVALID");
+    const comparison = phase7?.modes.find((item) => item.mode === mode.name);
+    const compareGzipBytes = comparison?.compareGzipBytes ?? (await routeTransfer(mode, "compare"));
+    const dataGzipBytes = comparison?.dataGzipBytes ?? (await routeTransfer(mode, "data"));
+    if (!atlas) fail("PERFORMANCE_REPORT_INVALID");
     if (
       atlas.atlasGzipBytes > policy.gzip.atlasBytes ||
-      comparison.compareGzipBytes > policy.gzip.compareBytes ||
-      comparison.dataGzipBytes > policy.gzip.dataBytes
+      compareGzipBytes > policy.gzip.compareBytes ||
+      dataGzipBytes > policy.gzip.dataBytes
     )
       fail("PERFORMANCE_BUDGET_EXCEEDED");
     reports.push({
       mode: mode.name,
       selector: selector.totalGzipBytes,
       atlas: atlas.atlasGzipBytes,
-      compare: comparison.compareGzipBytes,
-      data: comparison.dataGzipBytes,
+      compare: compareGzipBytes,
+      data: dataGzipBytes,
       map: await mapTransfer(mode, policy),
     });
   }
