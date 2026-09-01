@@ -33,7 +33,8 @@ describe("closed map state", () => {
       impactFlex: { query: "", difficultyShapes: false },
       announcement: "Interactive map controls are preparing. Every path and structured table is already available.",
     });
-    expect(state.preview).toBeUndefined();
+    expect(state.focusPreview).toBeUndefined();
+    expect(state.hoverPreview).toBeUndefined();
     expect(buildMapView(projection, state).activeTarget).toBeUndefined();
   });
 
@@ -63,36 +64,51 @@ describe("closed map state", () => {
     expect(reset.hydrated).toBe(true);
   });
 
-  it("uses explicit preview context and restores the locked selection on matching leave", () => {
+  it("keeps locked selection separate and restores the remaining focus or hover preview", () => {
     const locked = run([
       { type: "select-lane", mode: "decision-paths", laneId: lane.id },
       { type: "select-material", mode: "decision-paths", laneId: lane.id, materialId: material.id },
     ]);
-    const previewTarget = {
-      kind: "gate" as const,
-      mode: "process-gates" as const,
-      id: gate.id,
+    const focusTarget = {
+      kind: "material" as const,
+      mode: "decision-paths" as const,
+      laneId: lane.id,
+      id: lane.candidates[1]!.id,
     };
-    const previewed = createMapReducer(projection)(locked, {
+    const hoverTarget = {
+      kind: "material" as const,
+      mode: "decision-paths" as const,
+      laneId: lane.id,
+      id: lane.candidates[2]!.id,
+    };
+    const focused = createMapReducer(projection)(locked, {
       type: "preview-selection",
-      mode: "process-gates",
+      mode: "decision-paths",
       source: "focus",
-      target: previewTarget,
+      target: focusTarget,
     });
-    expect(buildMapView(projection, previewed).processGates.activeTarget).toEqual(previewTarget);
-
-    const wrongLeave = createMapReducer(projection)(previewed, {
-      type: "clear-preview", mode: "process-gates", source: "hover",
-    });
-    expect(wrongLeave.preview).toEqual(previewed.preview);
-
-    const restored = createMapReducer(projection)(previewed, {
-      type: "clear-preview", mode: "process-gates", source: "focus",
-    });
-    expect(restored.preview).toBeUndefined();
-    expect(buildMapView(projection, restored).decisionPaths.activeTarget).toEqual({
+    const focusedView = buildMapView(projection, focused).decisionPaths;
+    expect(focusedView.lockedTarget).toEqual({
       kind: "material", mode: "decision-paths", laneId: lane.id, id: material.id,
     });
+    expect(focusedView.previewTarget).toEqual(focusTarget);
+    expect(focusedView.previewSource).toBe("focus");
+    expect(focusedView.activeTarget).toEqual(focusTarget);
+
+    const hovered = createMapReducer(projection)(focused, {
+      type: "preview-selection", mode: "decision-paths", source: "hover", target: hoverTarget,
+    });
+    expect(buildMapView(projection, hovered).decisionPaths.activeTarget).toEqual(hoverTarget);
+
+    const focusRestored = createMapReducer(projection)(hovered, {
+      type: "clear-preview", mode: "decision-paths", source: "hover",
+    });
+    expect(buildMapView(projection, focusRestored).decisionPaths.activeTarget).toEqual(focusTarget);
+
+    const hoverOnly = createMapReducer(projection)(hovered, {
+      type: "clear-preview", mode: "decision-paths", source: "focus",
+    });
+    expect(buildMapView(projection, hoverOnly).decisionPaths.activeTarget).toEqual(hoverTarget);
   });
 
   it("keeps process lane and gate selection mutually exclusive", () => {

@@ -54,9 +54,15 @@ export function ImpactFlexMatrix({ view, dispatch, evidenceHref }: Props) {
   const active = model.activeTarget?.mode === "impact-flex-space" && model.activeTarget.kind === "material"
     ? model.activeTarget
     : undefined;
-  const selected = active === undefined
+  const locked = model.lockedTarget?.mode === "impact-flex-space" && model.lockedTarget.kind === "material"
+    ? model.lockedTarget
+    : undefined;
+  const highlighted = active === undefined
     ? undefined
     : model.records.find(({ material }) => material.id === active.id);
+  const selected = locked === undefined
+    ? undefined
+    : model.records.find(({ material }) => material.id === locked.id);
   const impactOrder = new Map(model.impactAxis.map(({ value, order }) => [value, order]));
   const flexibilityOrder = new Map(model.flexibilityAxis.map(({ value, order }) => [value, order]));
   const plotted = model.records.filter(({ disposition }) => disposition.disposition === "plotted");
@@ -177,7 +183,7 @@ export function ImpactFlexMatrix({ view, dispatch, evidenceHref }: Props) {
               const offset = SLOT_OFFSETS[(record.slot ?? 0) % SLOT_OFFSETS.length]!;
               const x = PLOT.left + impact * PLOT.column + PLOT.column / 2 + offset[0];
               const y = PLOT.top + row * PLOT.row + PLOT.row / 2 + offset[1];
-              const isSelected = selected?.material.id === record.material.id;
+              const isSelected = highlighted?.material.id === record.material.id;
               const conditional = record.impactFact.state === "conditional" || record.flexibilityFact.state === "conditional";
               return (
                 <g
@@ -208,6 +214,8 @@ export function ImpactFlexMatrix({ view, dispatch, evidenceHref }: Props) {
                 data-material-control={true}
                 data-material-id={record.material.id}
                 aria-pressed={selected?.material.id === record.material.id}
+                data-previewed={highlighted?.material.id === record.material.id
+                  && selected?.material.id !== record.material.id}
                 onFocus={() => dispatch({
                   type: "preview-selection",
                   mode: "impact-flex-space",

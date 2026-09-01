@@ -128,10 +128,24 @@ test("decision controls preserve keyboard, pointer, hover, clear, and touch pari
   await expect(laneControl).toHaveAttribute("aria-pressed", "true");
   const candidate = lane.candidates[0]!;
   const candidateControl = page.getByRole("button", { name: new RegExp(`^Highlight ${candidate.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")} in`, "u") });
-  await candidateControl.hover();
-  await expect(page.getByText("Selected", { exact: true }).first()).toBeVisible();
-  await candidateControl.click();
+  const hoverCandidate = lane.candidates[1]!;
+  const hoverControl = page.getByRole("button", { name: new RegExp(`^Highlight ${hoverCandidate.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")} in`, "u") });
+  await candidateControl.focus();
+  await expect(candidateControl).toHaveAttribute("aria-pressed", "false");
+  await expect(candidateControl).toHaveAttribute("data-previewed", "true");
+  await hoverControl.hover();
+  await expect(hoverControl).toHaveAttribute("data-previewed", "true");
+  await page.locator(`[data-decision-lane="true"][data-lane-id="${lane.id}"]`)
+    .getByRole("heading", { name: lane.label, exact: true })
+    .hover();
+  await expect(candidateControl).toHaveAttribute("data-previewed", "true");
+  await candidateControl.press("Enter");
   await expect(candidateControl).toHaveAttribute("aria-pressed", "true");
+
+  await hoverControl.hover();
+  await candidateControl.focus();
+  await candidateControl.evaluate((element: HTMLButtonElement) => element.blur());
+  await expect(hoverControl).toHaveAttribute("data-previewed", "true");
   await page.getByRole("button", { name: "Clear lane highlight" }).click();
   await expect(laneControl).toHaveAttribute("aria-pressed", "false");
 

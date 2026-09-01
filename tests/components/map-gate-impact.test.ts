@@ -202,6 +202,18 @@ describe("impact and flexibility renderer", () => {
     expect(mark!.props.tabIndex).toBeUndefined();
   });
 
+  it("keeps a focused impact preview out of pressed state and persistent details", () => {
+    const record = projection.impactFlex.records[0]!;
+    const html = renderImpact([{
+      type: "preview-selection",
+      mode: "impact-flex-space",
+      source: "focus",
+      target: { kind: "material", mode: "impact-flex-space", id: record.material.id },
+    }]);
+    expect(html).toContain(`data-material-id="${record.material.id}" aria-pressed="false" data-previewed="true"`);
+    expect(html).not.toContain("Selected material record");
+  });
+
   it("keeps rendering categorical, non-color, source-independent, and route-safe", () => {
     const source = readFileSync("src/components/map/ImpactFlexMatrix.tsx", "utf8");
     const selectedSource = readFileSync("src/components/map/SelectedRecord.tsx", "utf8");

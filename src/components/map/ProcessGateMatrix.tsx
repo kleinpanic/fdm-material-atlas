@@ -22,7 +22,7 @@ export function ProcessGateMatrix({ view, dispatch }: Props) {
     relationshipKey(record.laneId, record.gateId),
     record,
   ]));
-  const active = model.activeTarget?.mode === "process-gates" ? model.activeTarget : undefined;
+  const active = model.lockedTarget?.mode === "process-gates" ? model.lockedTarget : undefined;
   const selectedLaneId = active?.kind === "lane" ? active.id : undefined;
   const selectedGateId = active?.kind === "gate" ? active.id : undefined;
 

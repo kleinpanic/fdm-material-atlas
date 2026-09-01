@@ -244,7 +244,8 @@ function ServiceSelected({ record, methodHref }: Readonly<{
 
 function ServiceView({ view, dispatch, methodHref }: Props) {
   const records = view.thermal.serviceRecords;
-  const selectedId = view.thermal.activeTarget?.kind === "material" ? view.thermal.activeTarget.id : undefined;
+  const activeId = view.thermal.activeTarget?.kind === "material" ? view.thermal.activeTarget.id : undefined;
+  const selectedId = view.thermal.lockedTarget?.kind === "material" ? view.thermal.lockedTarget.id : undefined;
   const selected = selectedId === undefined ? undefined : records.find(({ material }) => material.id === selectedId);
   const omitted = records.filter(({ disposition: state }) => state.disposition === "omitted");
   const plotted = records.filter(({ disposition: state }) => state.disposition === "plotted").length;
@@ -271,6 +272,7 @@ function ServiceView({ view, dispatch, methodHref }: Props) {
                 data-service-control={true}
                 data-material-id={record.material.id}
                 aria-pressed={selectedId === record.material.id}
+                data-previewed={activeId === record.material.id && selectedId !== record.material.id}
                 {...previewHandlers(dispatch, record.material.id)}
                 onClick={() => selectThermalMaterial(dispatch, record.material.id)}
               >Highlight {record.material.name}. {disposition(record)}</button>
@@ -386,7 +388,8 @@ function NamedView({ view, dispatch, methodHref }: Props) {
     );
   }
   const records = view.thermal.namedRecords;
-  const selectedId = view.thermal.activeTarget?.kind === "material" ? view.thermal.activeTarget.id : undefined;
+  const activeId = view.thermal.activeTarget?.kind === "material" ? view.thermal.activeTarget.id : undefined;
+  const selectedId = view.thermal.lockedTarget?.kind === "material" ? view.thermal.lockedTarget.id : undefined;
   const selected = selectedId === undefined ? undefined : records.find(({ material }) => material.id === selectedId);
   const plotted = records.filter(({ disposition: state }) => state.disposition === "plotted");
   const filtered = records.filter(({ disposition: state }) => state.disposition === "filtered");
@@ -414,6 +417,7 @@ function NamedView({ view, dispatch, methodHref }: Props) {
               data-named-control={true}
               data-material-id={record.material.id}
               aria-pressed={selectedId === record.material.id}
+              data-previewed={activeId === record.material.id && selectedId !== record.material.id}
               {...previewHandlers(dispatch, record.material.id)}
               onClick={() => selectThermalMaterial(dispatch, record.material.id)}
             >Highlight {record.material.name}. {record.member === undefined ? "No observation in this metric and method group" : factState(record.member.fact)}</button>

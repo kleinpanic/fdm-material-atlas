@@ -38,9 +38,12 @@ export type MapState = Readonly<{
     maximumDifficulty?: PrintDifficulty;
     difficultyShapes: boolean;
   }>;
-  preview?: Readonly<{
+  focusPreview?: Readonly<{
     mode: MapMode;
-    source: "focus" | "hover";
+    target: MapSelectionTarget;
+  }>;
+  hoverPreview?: Readonly<{
+    mode: MapMode;
     target: MapSelectionTarget;
   }>;
   announcement: string;
@@ -167,8 +170,21 @@ function lockedTarget(state: MapState, mode: MapMode): MapSelectionTarget | unde
   }
 }
 
+export function selectLockedMapTarget(state: MapState, mode: MapMode): MapSelectionTarget | undefined {
+  return lockedTarget(state, mode);
+}
+
+export function selectMapPreview(
+  state: MapState,
+  mode: MapMode,
+): Readonly<{ source: "focus" | "hover"; target: MapSelectionTarget }> | undefined {
+  if (state.hoverPreview?.mode === mode) return { source: "hover", target: state.hoverPreview.target };
+  if (state.focusPreview?.mode === mode) return { source: "focus", target: state.focusPreview.target };
+  return undefined;
+}
+
 export function selectEffectiveMapTarget(state: MapState, mode: MapMode): MapSelectionTarget | undefined {
-  return state.preview?.mode === mode ? state.preview.target : lockedTarget(state, mode);
+  return selectMapPreview(state, mode)?.target ?? lockedTarget(state, mode);
 }
 
 function validTarget(projection: MapProjection, target: unknown, mode: MapMode): target is MapSelectionTarget {
@@ -230,17 +246,20 @@ function resetView(state: MapState, mode: MapMode | "all"): MapState {
       announcement: "All map views reset.",
     });
   }
-  const clearPreview = state.preview?.mode === mode ? { preview: undefined } : {};
-  if (mode === "decision-paths") return update(state, { ...clearPreview, decisionPaths: {} }, "Map view reset.");
+  const clearPreviews = {
+    ...(state.focusPreview?.mode === mode ? { focusPreview: undefined } : {}),
+    ...(state.hoverPreview?.mode === mode ? { hoverPreview: undefined } : {}),
+  };
+  if (mode === "decision-paths") return update(state, { ...clearPreviews, decisionPaths: {} }, "Map view reset.");
   if (mode === "thermal-ranges") {
     return update(state, {
-      ...clearPreview,
+      ...clearPreviews,
       thermal: { view: "service-guidance", query: "", serviceSort: "canonical" },
     }, "Map view reset.");
   }
-  if (mode === "process-gates") return update(state, { ...clearPreview, processGates: {} }, "Map view reset.");
+  if (mode === "process-gates") return update(state, { ...clearPreviews, processGates: {} }, "Map view reset.");
   return update(state, {
-    ...clearPreview,
+    ...clearPreviews,
     impactFlex: { query: "", difficultyShapes: false },
   }, "Map view reset.");
 }
@@ -273,14 +292,16 @@ export function reduceMapState(
         return update(state, {
           mode: action.mode,
           decisionPaths: { laneId: action.laneId },
-          preview: undefined,
+          focusPreview: undefined,
+          hoverPreview: undefined,
         }, "Decision lane selected.");
       }
       if (action.mode === "process-gates") {
         return update(state, {
           mode: action.mode,
           processGates: { laneId: action.laneId },
-          preview: undefined,
+          focusPreview: undefined,
+          hoverPreview: undefined,
         }, "Process-gate lane selected.");
       }
       return recoverMapState(state);
@@ -292,7 +313,8 @@ export function reduceMapState(
         return update(state, {
           mode: action.mode,
           decisionPaths: { laneId: action.laneId, materialId: action.materialId },
-          preview: undefined,
+          focusPreview: undefined,
+          hoverPreview: undefined,
         }, "Decision-path material selected.");
       }
       if ((action.mode === "thermal-ranges" || action.mode === "impact-flex-space")
@@ -301,12 +323,14 @@ export function reduceMapState(
           ? update(state, {
               mode: action.mode,
               thermal: { ...state.thermal, materialId: action.materialId },
-              preview: undefined,
+              focusPreview: undefined,
+              hoverPreview: undefined,
             }, "Thermal material selected.")
           : update(state, {
               mode: action.mode,
               impactFlex: { ...state.impactFlex, materialId: action.materialId },
-              preview: undefined,
+              focusPreview: undefined,
+              hoverPreview: undefined,
             }, "Impact and flexibility material selected.");
       }
       return recoverMapState(state);
@@ -315,7 +339,8 @@ export function reduceMapState(
         ? update(state, {
             mode: action.mode,
             processGates: { gateId: action.gateId },
-            preview: undefined,
+            focusPreview: undefined,
+            hoverPreview: undefined,
           }, "Process gate selected.")
         : recoverMapState(state);
     case "select-thermal-group":
@@ -323,23 +348,29 @@ export function reduceMapState(
         ? update(state, {
             mode: action.mode,
             thermal: { ...state.thermal, view: "named-observations", groupId: action.groupId },
-            preview: undefined,
+            focusPreview: undefined,
+            hoverPreview: undefined,
           }, "Named thermal group selected.")
         : recoverMapState(state);
     case "preview-selection":
       return isMode(action.mode)
         && (action.source === "focus" || action.source === "hover")
         && validTarget(projection, action.target, action.mode)
-        ? update(state, {
-            preview: { mode: action.mode, source: action.source, target: action.target },
-          }, "Map record previewed.")
+        ? action.source === "focus"
+          ? update(state, { focusPreview: { mode: action.mode, target: action.target } }, state.announcement)
+          : update(state, { hoverPreview: { mode: action.mode, target: action.target } }, state.announcement)
         : recoverMapState(state);
     case "clear-preview":
       if (!isMode(action.mode) || (action.source !== "focus" && action.source !== "hover")) {
         return recoverMapState(state);
       }
-      return state.preview?.mode === action.mode && state.preview.source === action.source
-        ? update(state, { preview: undefined }, "Map preview cleared.")
+      if (action.source === "focus") {
+        return state.focusPreview?.mode === action.mode
+          ? update(state, { focusPreview: undefined }, state.announcement)
+          : state;
+      }
+      return state.hoverPreview?.mode === action.mode
+        ? update(state, { hoverPreview: undefined }, state.announcement)
         : state;
     case "set-search":
       if (typeof action.query !== "string" || action.query.length > MAX_QUERY_LENGTH) return recoverMapState(state);
@@ -522,6 +553,14 @@ function processContext(projection: MapProjection, target: MapSelectionTarget | 
 
 /** Present all four visible modes from one immutable projection and one state. */
 export function buildMapView(projection: MapProjection, state: MapState) {
+  const decisionLockedTarget = lockedTarget(state, "decision-paths");
+  const thermalLockedTarget = lockedTarget(state, "thermal-ranges");
+  const processLockedTarget = lockedTarget(state, "process-gates");
+  const impactLockedTarget = lockedTarget(state, "impact-flex-space");
+  const decisionPreview = selectMapPreview(state, "decision-paths");
+  const thermalPreview = selectMapPreview(state, "thermal-ranges");
+  const processPreview = selectMapPreview(state, "process-gates");
+  const impactPreview = selectMapPreview(state, "impact-flex-space");
   const decisionTarget = selectEffectiveMapTarget(state, "decision-paths");
   const thermalTarget = selectEffectiveMapTarget(state, "thermal-ranges");
   const processTarget = selectEffectiveMapTarget(state, "process-gates");
@@ -532,16 +571,22 @@ export function buildMapView(projection: MapProjection, state: MapState) {
     ? undefined
     : projection.thermalGroups.find(({ id }) => id === state.thermal.groupId);
   const currentNamedRecords = selectedGroup === undefined ? [] : namedRecords(selectedGroup.records, state.thermal.query);
-  const selectedImpactId = impactTarget?.kind === "material" ? impactTarget.id : undefined;
+  const selectedImpactId = impactLockedTarget?.kind === "material" ? impactLockedTarget.id : undefined;
   const selectedImpact = selectedImpactId === undefined
     ? undefined
     : currentImpactRecords.find(({ material }) => material.id === selectedImpactId);
 
   return deepFreeze({
     activeTarget: selectEffectiveMapTarget(state, state.mode),
+    lockedTarget: lockedTarget(state, state.mode),
+    previewTarget: selectMapPreview(state, state.mode)?.target,
+    previewSource: selectMapPreview(state, state.mode)?.source,
     decisionPaths: {
       lanes: projection.lanes,
       activeTarget: decisionTarget,
+      lockedTarget: decisionLockedTarget,
+      previewTarget: decisionPreview?.target,
+      previewSource: decisionPreview?.source,
     },
     thermal: {
       view: state.thermal.view,
@@ -554,10 +599,16 @@ export function buildMapView(projection: MapProjection, state: MapState) {
       selectedGroup,
       namedRecords: currentNamedRecords,
       activeTarget: thermalTarget,
+      lockedTarget: thermalLockedTarget,
+      previewTarget: thermalPreview?.target,
+      previewSource: thermalPreview?.source,
     },
     processGates: {
       ...projection.processGates,
       activeTarget: processTarget,
+      lockedTarget: processLockedTarget,
+      previewTarget: processPreview?.target,
+      previewSource: processPreview?.source,
       context: processContext(projection, processTarget),
     },
     impactFlex: {
@@ -567,6 +618,9 @@ export function buildMapView(projection: MapProjection, state: MapState) {
       maximumDifficulty: state.impactFlex.maximumDifficulty,
       shapesEnabled: state.impactFlex.difficultyShapes,
       activeTarget: impactTarget,
+      lockedTarget: impactLockedTarget,
+      previewTarget: impactPreview?.target,
+      previewSource: impactPreview?.source,
       selectedOutsideFilter: selectedImpact?.disposition.disposition === "filtered",
     },
     status: {

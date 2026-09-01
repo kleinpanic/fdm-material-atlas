@@ -204,6 +204,19 @@ describe("decision path renderer", () => {
     expect(source).not.toMatch(/href\s*=\s*\{?\s*[`'"]\//u);
     expect(source).not.toContain('role="status"');
   });
+
+  it("uses preview only for visual emphasis until a candidate is activated", () => {
+    const lane = projection.lanes[0]!;
+    const candidate = lane.candidates[0]!;
+    const html = renderDecision([{
+      type: "preview-selection",
+      mode: "decision-paths",
+      source: "focus",
+      target: { kind: "material", mode: "decision-paths", laneId: lane.id, id: candidate.id },
+    }]);
+    expect(html).toContain(`data-material-id="${candidate.id}" aria-pressed="false" data-previewed="true"`);
+    expect(html).not.toContain("map-selected-text");
+  });
 });
 
 const THERMAL_CAUTION = "Practical service guidance, Tg, HDT, Vicat softening, melting point, and other named tests answer different questions. Compare only matching metric and method groups.";
@@ -270,6 +283,18 @@ describe("thermal guidance renderer", () => {
       type: "select-material", mode: "thermal-ranges", materialId: record.material.id,
     }]);
     expect(mark.props.tabIndex).toBeUndefined();
+  });
+
+  it("does not expose a focused service preview as a locked thermal selection", () => {
+    const record = projection.serviceGuidance.records[0]!;
+    const html = renderThermal([{
+      type: "preview-selection",
+      mode: "thermal-ranges",
+      source: "focus",
+      target: { kind: "material", mode: "thermal-ranges", id: record.material.id },
+    }]);
+    expect(html).toContain(`data-material-id="${record.material.id}" aria-pressed="false" data-previewed="true"`);
+    expect(html).not.toContain("Selected practical service record");
   });
 
   it("renders one exact named group with its complete table and explicit absences", () => {
