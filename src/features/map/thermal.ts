@@ -70,7 +70,7 @@ function materialReference(material: Material, base: string | undefined): MapMat
   return {
     id: material.id,
     name: material.name,
-    href: internalHref(base, { id: "material", slug: material.slug }),
+    href: internalHref(base, { id: "material", slug: material.slug }) as MapMaterialReference["href"],
     displayOrder: material.displayOrder,
   };
 }
@@ -133,8 +133,14 @@ function displayTemperatureFact(fact: FactState<TemperatureMeasurement>): MapDis
 }
 
 function serviceMeasurement(fact: FactState<TemperatureMeasurement>): MapServiceMeasurement | undefined {
-  if (fact.state !== "known" && !(fact.state === "conditional" && fact.value !== undefined)) return undefined;
-  const measurement = fact.value;
+  let measurement: TemperatureMeasurement;
+  if (fact.state === "known") {
+    measurement = fact.value;
+  } else if (fact.state === "conditional" && fact.value !== undefined) {
+    measurement = fact.value;
+  } else {
+    return undefined;
+  }
   return measurement.shape === "exact"
     ? { shape: "point", value: measurement.value, unit: "degC" }
     : { shape: "interval", low: measurement.min, high: measurement.max, unit: "degC" };
