@@ -93,6 +93,11 @@ describe("static-first map page source", () => {
       "prefers-reduced-motion: no-preference",
       "forced-colors: active",
     ]) expect(styles).toContain(contract);
+    expect(styles).toContain("font-size: var(--text-display)");
+    expect(styles).toContain("font-size: var(--text-heading)");
+    expect(styles).toContain("font-size: var(--text-label)");
+    expect(styles).not.toContain("3.5rem");
+    expect(styles).not.toContain("font-size: 0.75rem");
     expect(styles).not.toMatch(/linear-gradient|radial-gradient|backdrop-filter|text-overflow:\s*ellipsis|overflow:\s*hidden/);
   });
 });

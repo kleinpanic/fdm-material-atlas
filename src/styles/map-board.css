@@ -48,9 +48,8 @@
   max-block-size: var(--map-title-max);
   max-inline-size: 25ch;
   margin-block: 0 var(--spacing-4);
-  font-size: clamp(2rem, 4vw, 3.5rem);
-  line-height: 1.04;
-  letter-spacing: -0.025em;
+  font-size: var(--text-display);
+  line-height: var(--text-display--line-height);
 }
 
 .map-hero__lede {
@@ -254,7 +253,8 @@
 
 .map-mode__header h2 {
   margin-block: var(--spacing-2) var(--spacing-2);
-  font-size: clamp(1.5rem, 2.8vw, 2rem);
+  font-size: var(--text-heading);
+  line-height: var(--text-heading--line-height);
 }
 
 .map-mode__header p:last-child {
@@ -652,7 +652,7 @@
 .thermal-named-diagram text {
   fill: var(--color-ink);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--text-label);
 }
 
 .gate-matrix,
@@ -769,10 +769,6 @@
   .map-hero {
     min-block-size: auto;
     padding: var(--spacing-4);
-  }
-
-  .map-hero h1 {
-    font-size: 2rem;
   }
 
   .map-mode-index ol,
