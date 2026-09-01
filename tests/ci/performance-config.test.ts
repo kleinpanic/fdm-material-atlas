@@ -47,6 +47,59 @@ describe("performance release policy", () => {
 });
 
 describe("bounded performance runner", () => {
+  it("excludes only an internally invalid cold capture from the three recorded runs", async () => {
+    const { collectValidReports } = await import("../../tools/run-performance-budget.mjs");
+    const captures = [
+      { id: "cold-skew", timeToFirstByte: 15_001 },
+      { id: "recorded-1", timeToFirstByte: 550 },
+      { id: "recorded-2", timeToFirstByte: 600 },
+      { id: "recorded-3", timeToFirstByte: 650 },
+    ];
+    let calls = 0;
+
+    const reports = await collectValidReports({
+      runs: 3,
+      navigationTimeoutMs: 15_000,
+      collect: async () => {
+        const capture = captures[calls++];
+        return {
+          id: capture.id,
+          lhr: {
+            audits: { metrics: { details: { items: [{ timeToFirstByte: capture.timeToFirstByte }] } } },
+          },
+        };
+      },
+    });
+
+    expect(calls).toBe(4);
+    expect(reports.map((report) => report.id)).toEqual([
+      "recorded-1",
+      "recorded-2",
+      "recorded-3",
+    ]);
+  });
+
+  it("fails closed after two internally invalid captures", async () => {
+    const { collectValidReports } = await import("../../tools/run-performance-budget.mjs");
+    let calls = 0;
+
+    await expect(
+      collectValidReports({
+        runs: 3,
+        navigationTimeoutMs: 15_000,
+        collect: async () => {
+          calls += 1;
+          return {
+            lhr: {
+              audits: { metrics: { details: { items: [{ timeToFirstByte: 15_001 }] } } },
+            },
+          };
+        },
+      }),
+    ).rejects.toMatchObject({ code: "PERFORMANCE_REPORT_INVALID" });
+    expect(calls).toBe(2);
+  });
+
   it("rejects a missing production artifact with a stable code", async () => {
     const temporaryRoot = await mkdtemp(join(tmpdir(), "atlas-performance-"));
     try {
