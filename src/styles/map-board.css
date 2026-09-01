@@ -13,6 +13,21 @@
   overflow-wrap: anywhere;
 }
 
+.map-page :where(
+  .map-mode-index li,
+  .map-lane-directory li,
+  .decision-lane-index li,
+  .decision-path__stages > li,
+  .map-controls label
+) {
+  min-inline-size: 0;
+}
+
+.map-page :where(.map-mode-index a, .map-lane-directory a, .decision-lane-index a) {
+  max-inline-size: 100%;
+  white-space: normal;
+}
+
 .map-hero {
   display: grid;
   align-content: center;
