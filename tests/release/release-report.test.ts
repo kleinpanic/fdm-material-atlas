@@ -175,6 +175,11 @@ describe("fact-only completion report", () => {
         }),
     ],
     [
+      "repository URL drift",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        (value.candidate.targetBaseline.repositoryUrl = "https://github.com/kleinpanic/other"),
+    ],
+    [
       "unsorted refs",
       (value: ReturnType<typeof verifiedEvidence>) =>
         value.candidate.targetBaseline.advertisedRefs.refs.reverse(),
@@ -195,6 +200,29 @@ describe("fact-only completion report", () => {
         (value.candidate.targetBaseline.advertisedRefs.digest = DIGEST),
     ],
     [
+      "duplicate ref",
+      (value: ReturnType<typeof verifiedEvidence>) => {
+        value.candidate.targetBaseline.advertisedRefs.refs[1] = {
+          ...value.candidate.targetBaseline.advertisedRefs.refs[0]!,
+        };
+      },
+    ],
+    [
+      "unexpected identity",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        (value.candidate.targetBaseline.identityClasses.unexpected = 1),
+    ],
+    [
+      "history finding",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        (value.candidate.targetBaseline.history.findingCount = 1),
+    ],
+    [
+      "failed policy",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        (value.candidate.targetBaseline.policy.status = "failed"),
+    ],
+    [
       "missing prepush",
       (value: ReturnType<typeof verifiedEvidence>) =>
         delete (value.candidate as { prepushEvidence?: unknown }).prepushEvidence,
@@ -210,6 +238,11 @@ describe("fact-only completion report", () => {
         (value.candidate.prepushEvidence.proofDigest = DIGEST),
     ],
     [
+      "raw prepush key",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        Object.assign(value.candidate.prepushEvidence, { stdout: "rejected" }),
+    ],
+    [
       "publication baseline drift",
       (value: ReturnType<typeof verifiedEvidence>) =>
         (value.publication.targetBaseline.repositoryName = "other-atlas"),
@@ -218,6 +251,11 @@ describe("fact-only completion report", () => {
       "publication proof drift",
       (value: ReturnType<typeof verifiedEvidence>) =>
         (value.publication.prepushEvidence.settingsDigest = REPO_DIGEST),
+    ],
+    [
+      "missing publication operation",
+      (value: ReturnType<typeof verifiedEvidence>) =>
+        delete (value.publication as { operation?: unknown }).operation,
     ],
     [
       "publication operation drift",
