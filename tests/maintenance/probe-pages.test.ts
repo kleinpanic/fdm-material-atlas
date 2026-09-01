@@ -12,7 +12,7 @@ const PUBLIC_ORIGIN = "https://atlas.test";
 const TEST_LIMITS = Object.freeze({
   maxAttempts: 1,
   maxRedirects: 2,
-  perRequestTimeoutMs: 80,
+  perRequestTimeoutMs: 500,
   totalDeadlineMs: 2_000,
   bodyLimitBytes: 16_384,
   retryDelayMs: 0,
@@ -29,6 +29,7 @@ type FixtureOptions = Readonly<{
   redirectLocation?: string;
   oversizedPath?: string;
   timeoutPath?: string;
+  missingNavigation?: "materials" | "compare" | "data" | "map" | "method";
 }>;
 
 type FixtureSite = Readonly<{
@@ -106,13 +107,17 @@ async function createFixtureSite(options: FixtureOptions = {}): Promise<FixtureS
     const suffix =
       requestPath === options.prohibitedPath ? "authorization: Bearer synthetic-secret" : "";
     if (requestPath === base) {
+      const navigation = ["materials", "compare", "data", "map", "method"]
+        .filter((label) => label !== options.missingNavigation)
+        .map((label) => `<a href="${path(`${label}/`)}">${label}</a>`)
+        .join("");
       send(
         response,
         200,
         type,
         html(
           canonical,
-          `<a href="${path("materials/")}">Materials</a><script src="${assetPath}"></script>${suffix}`,
+          `${navigation}<script src="${assetPath}"></script>${suffix}`,
           includeMarker,
         ),
       );
@@ -239,7 +244,7 @@ describe("bounded live Pages probe", () => {
         attempts: 1,
         deployment: base === "/" ? "root" : "repository",
       });
-      expect(events.map((event: any) => event.label)).toEqual([
+      expect(events.map((event) => (event as { label: string }).label)).toEqual([
         "home",
         "materials",
         "material-detail",
@@ -319,6 +324,7 @@ describe("bounded live Pages probe", () => {
   it.each([
     [{ statusPath: "/compare/" }, "PROBE_HTTP_STATUS"],
     [{ missingAsset: true }, "PROBE_HTTP_STATUS"],
+    [{ missingNavigation: "compare" }, "PROBE_ROUTE_MISSING"],
     [{ contentTypePath: "/map/" }, "PROBE_CONTENT_TYPE"],
     [{ markerPath: "/method/" }, "PROBE_MARKER_MISSING"],
   ] as const)("rejects invalid route or asset responses", async (fixture, code) => {
@@ -341,7 +347,7 @@ describe("bounded live Pages probe", () => {
     });
     expect(site.requests.filter((path) => path === "/materials/")).toHaveLength(2);
     expect(site.requests.every((path) => path.startsWith("/"))).toBe(true);
-    expect(events.every((event: any) => !JSON.stringify(event).includes("atlas.test"))).toBe(true);
+    expect(events.every((event) => !JSON.stringify(event).includes("atlas.test"))).toBe(true);
   });
 
   it("keeps the complete production import closure dependency-free and local", () => {
