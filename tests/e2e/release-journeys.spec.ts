@@ -43,9 +43,6 @@ async function mountNoCompatibleState(page: Page): Promise<void> {
     async ({ componentUrl, preactUrl, pageModel: controlledModel }: NoCompatibleMountPayload) => {
       const island = document.querySelector("astro-island");
       if (island === null) throw new Error("RELEASE_SELECTOR_ISLAND_MISSING");
-      const host = document.createElement("div");
-      host.dataset.releaseControlledSelector = "mounted";
-      island.replaceWith(host);
       const component = (await import(componentUrl)) as {
         SelectorIsland: (props: unknown) => unknown;
       };
@@ -53,6 +50,16 @@ async function mountNoCompatibleState(page: Page): Promise<void> {
         a: (componentType: unknown, props: unknown) => unknown;
         n: (node: unknown, parent: Element) => void;
       };
+
+      // The production island and this controlled fixture both attach listeners to the same
+      // server-rendered form and render into the same results mount. Removing the custom element
+      // without unmounting its Preact tree leaves the production listener alive, so two models
+      // race to render the synthetic change. Unmount first to run its effect cleanups, then give
+      // the controlled root exclusive ownership of those shared DOM seams.
+      preact.n(null, island);
+      const host = document.createElement("div");
+      host.dataset.releaseControlledSelector = "mounted";
+      island.replaceWith(host);
       preact.n(preact.a(component.SelectorIsland, { pageModel: controlledModel }), host);
     },
     { ...modules, pageModel },
