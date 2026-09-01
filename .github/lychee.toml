@@ -1,0 +1,24 @@
+# Public evidence-link policy. The workflow supplies only the canonical public atlas.
+verbose = "info"
+format = "detailed"
+no_progress = true
+output = "link-health.raw.md"
+
+threads = 2
+max_concurrency = 4
+host_concurrency = 2
+host_request_interval = "250ms"
+timeout = 15
+max_retries = 2
+retry_wait_time = 2
+max_redirects = 5
+
+scheme = ["https"]
+require_https = true
+include = ['^https://']
+exclude_all_private = true
+exclude_private = true
+exclude_link_local = true
+exclude_loopback = true
+include_mail = false
+offline = false

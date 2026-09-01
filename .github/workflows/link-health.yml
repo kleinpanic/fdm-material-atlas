@@ -1,0 +1,63 @@
+name: Public link health
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  link-health:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download checked Lychee archive
+        run: >-
+          curl --proto '=https' --tlsv1.2 --fail --show-error --location
+          --max-redirs 5 --connect-timeout 15 --max-time 60
+          --retry 2 --retry-delay 2 --retry-max-time 120 --retry-all-errors
+          --output "$RUNNER_TEMP/lychee.tar.gz"
+          'https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-x86_64-unknown-linux-gnu.tar.gz'
+
+      - name: Verify Lychee archive
+        run: >-
+          printf '%s  %s\n'
+          '1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a'
+          "$RUNNER_TEMP/lychee.tar.gz" | sha256sum --check --strict
+
+      - name: Extract Lychee archive
+        run: tar -xzf "$RUNNER_TEMP/lychee.tar.gz" -C "$RUNNER_TEMP" lychee
+
+      - name: Check public evidence links without credentials
+        id: links
+        continue-on-error: true
+        run: "$RUNNER_TEMP/lychee" --config .github/lychee.toml src/data/public/atlas.v1.json
+
+      - name: Prepare bounded diagnostic and job summary
+        env:
+          LINK_CHECK_OUTCOME: ${{ steps.links.outcome }}
+        run: |
+          if [ -f link-health.raw.md ]; then
+            head -c 262144 link-health.raw.md > link-health.md
+          else
+            printf 'Lychee did not create a diagnostic report.\n' > link-health.md
+          fi
+          {
+            printf '### Public evidence-link health\n\n'
+            printf 'Checker outcome: `%s`.\n\n' "$LINK_CHECK_OUTCOME"
+            printf 'The bounded diagnostic artifact contains details for review.\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload bounded diagnostic
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: link-health-report
+          path: link-health.md
+          retention-days: 14

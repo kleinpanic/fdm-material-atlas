@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+
 import { describe, expect, it } from "vitest";
 
 import { verifyWorkflowContracts } from "../../tools/verify-workflow-contracts.mjs";
@@ -13,7 +15,31 @@ function expectCode(label: string, source: string, code: string) {
   expect(result.issues.map((issue) => issue.code)).toContain(code);
 }
 
+async function readProjectFile(relativePath: string) {
+  return readFile(new URL(`../../${relativePath}`, import.meta.url), "utf8");
+}
+
 describe("maintenance workflow contracts", () => {
+  it("enforces the production dependency-maintenance policy", async () => {
+    const [dependabot, workflow] = await Promise.all([
+      readProjectFile(".github/dependabot.yml"),
+      readProjectFile(".github/workflows/dependency-review.yml"),
+    ]);
+
+    expect(verifyWorkflowContracts({ "dependency-review.yml": workflow })).toEqual({
+      ok: true,
+      issues: [],
+    });
+    expect(dependabot.match(/package-ecosystem:/gu)).toHaveLength(2);
+    expect(dependabot).toMatch(/package-ecosystem: npm[\s\S]*open-pull-requests-limit: 5/u);
+    expect(dependabot).toMatch(
+      /package-ecosystem: github-actions[\s\S]*open-pull-requests-limit: 3/u,
+    );
+    expect(dependabot.match(/cooldown:/gu)).toHaveLength(2);
+    expect(dependabot.match(/update-types:/gu)).toHaveLength(2);
+    expect(dependabot).not.toMatch(/auto-?merge|git push|canonical|src\/data/iu);
+  });
+
   it("accepts review-only dependency checks", () => {
     expect(
       verifyWorkflowContracts({ "dependency-review.yml": safeDependencyReviewWorkflow() }),
@@ -41,6 +67,34 @@ describe("maintenance workflow contracts", () => {
       ok: true,
       issues: [],
     });
+  });
+
+  it("enforces the production public-link policy and bounded diagnostics", async () => {
+    const [workflow, config] = await Promise.all([
+      readProjectFile(".github/workflows/link-health.yml"),
+      readProjectFile(".github/lychee.toml"),
+    ]);
+
+    expect(verifyWorkflowContracts({ "link-health.yml": workflow })).toEqual({
+      ok: true,
+      issues: [],
+    });
+    expect(workflow).toContain(
+      '"$RUNNER_TEMP/lychee" --config .github/lychee.toml src/data/public/atlas.v1.json',
+    );
+    expect(workflow).toContain("head -c 262144 link-health.raw.md > link-health.md");
+    expect(workflow).not.toMatch(/\$\{\{\s*secrets\.|GITHUB_TOKEN|GH_TOKEN|AUTHORIZATION:/iu);
+    expect(config).toMatch(/^scheme = \["https"\]$/mu);
+    expect(config).toMatch(/^require_https = true$/mu);
+    expect(config).toMatch(/^timeout = 15$/mu);
+    expect(config).toMatch(/^max_retries = 2$/mu);
+    expect(config).toMatch(/^max_redirects = 5$/mu);
+    expect(config).toMatch(/^max_concurrency = 4$/mu);
+    expect(config).toMatch(/^exclude_all_private = true$/mu);
+    expect(config).toMatch(/^exclude_private = true$/mu);
+    expect(config).toMatch(/^exclude_link_local = true$/mu);
+    expect(config).toMatch(/^exclude_loopback = true$/mu);
+    expect(config).not.toMatch(/token|secret|credential/iu);
   });
 
   it.each([
