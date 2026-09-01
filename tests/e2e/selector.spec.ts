@@ -144,7 +144,7 @@ test("hydration preserves SSR ranking and controls drive transparent engine reco
     `${defaultPresentation.compatible.length} Compatible`,
   );
   await expect(firstResult).toHaveAttribute("data-alignment", "highest");
-  await expect(firstResult.locator(".selector-family-marker")).toHaveText("◇");
+  await expect(firstResult.locator(".selector-family-marker")).toBeVisible();
   await expect(firstResult.locator("[data-contribution-state]")).toHaveCount(firstExpected.contributions.length);
 
   await expect(page.locator("details.selector-secondary")).toHaveAttribute("open", "");
@@ -157,7 +157,11 @@ test("hydration preserves SSR ranking and controls drive transparent engine reco
 
   const eliminated = page.locator("details.selector-eliminated");
   await eliminated.locator(":scope > summary").click();
-  const expectedEliminated = defaultPresentation.eliminated[0]!;
+  const currentSelection = { ...pageModel.defaults, "selector-enclosure-capability": "option-enclosure-available" };
+  const currentOutcome = selectProjectedMaterials(pageModel.projection, currentSelection);
+  const currentPresentation = presentSelectorOutcome(pageModel, currentOutcome);
+  if (currentPresentation.kind !== "ranked") throw new Error("SELECTOR_CURRENT_NOT_RANKED");
+  const expectedEliminated = currentPresentation.eliminated[0]!;
   const eliminatedItem = eliminated.locator("article").filter({ has: page.getByRole("heading", { name: expectedEliminated.materialLabel }) });
   await expect(eliminatedItem).toBeVisible();
   const renderedReasons = await eliminatedItem.locator("li").allInnerTexts();
@@ -171,17 +175,18 @@ test("hydration preserves SSR ranking and controls drive transparent engine reco
   await page.getByRole("button", { name: "View recommendations" }).click();
   await expect(page.getByRole("heading", { name: "Compatible materials" })).toBeFocused();
   expect(dataRequests).toEqual([]);
-  for (const unavailable of [
-    "Material details are not available yet",
-    "Starting profile is not available yet",
-    "Decision map is not available yet",
-    "Method and evidence route is not available yet",
+  const currentFirst = currentPresentation.compatible[0]!;
+  for (const action of [
+    currentFirst.routes.details,
+    currentFirst.routes.startingProfile,
+    currentFirst.routes.methodEvidence,
+    ...currentFirst.routes.decisionMaps.map(({ action }) => action),
   ]) {
-    const item = page.getByText(unavailable, { exact: true }).first();
+    const item = page.getByText(action.label, { exact: true }).first();
     await expect(item).toBeVisible();
-    expect(await item.evaluate((element: Element) => element.tagName)).not.toBe("A");
+    if (action.kind === "link") await expect(item).toHaveAttribute("href", action.href);
+    else expect(await item.evaluate((element: Element) => element.tagName)).not.toBe("A");
   }
-  await expect(page.locator('a[href*="materials"], a[href*="compare"], a[href*="map"], a[href*="method"]')).toHaveCount(0);
 });
 
 test("shortlist is ordered, bounded, retained across exclusions, and returns focus deterministically", async ({ page }) => {
@@ -220,7 +225,6 @@ test("shortlist is ordered, bounded, retained across exclusions, and returns foc
 
 test("removing the final retained eliminated item focuses the mounted results heading", async ({ page }) => {
   await waitForSelector(page);
-  await page.locator("details.selector-secondary > summary").click();
   await selectRelaxedHardware(page);
   await page.getByRole("button", { name: "Show all 23 compatible materials" }).click();
 

@@ -14,7 +14,7 @@ import type {
 type Page = PlaywrightTestArgs["page"];
 
 import { buildSelectorPageModel } from "../../src/features/selector/page-model.ts";
-import { decodeSelectorClientModel } from "../../src/features/selector/client-model.ts";
+import { decodeSelectorClientModel, encodeSelectorClientModel } from "../../src/features/selector/client-model.ts";
 import { selectProjectedMaterials } from "../../src/domain/selector/index.ts";
 import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
 import { PUBLIC_ROUTE_REGISTRY } from "../../src/lib/public-route-registry.ts";
@@ -46,7 +46,7 @@ function noCompatiblePageModel() {
   }
   const outcome = selectProjectedMaterials(model.projection, model.defaults);
   if (outcome.kind !== "no-compatible") throw new Error("SYNTHETIC_NO_COMPATIBLE_INVALID");
-  return model;
+  return encodeSelectorClientModel(model);
 }
 
 function emittedModuleUrls(): { componentUrl: string; preactUrl: string } {
@@ -239,13 +239,13 @@ test("reduced motion and forced colors retain text, borders, shapes, and focus m
   await page.getByRole("button", { name: "View recommendations" }).focus();
   await page.keyboard.press("Enter");
   expect(await page.getByRole("heading", { name: "Compatible materials" }).evaluate((element: Element) => getComputedStyle(element).outlineStyle)).not.toBe("none");
-  const unavailableContrast = await page.getByText("Material details are not available yet", { exact: true }).first()
+  const routeContrast = await page.getByRole("link", { name: "View material details" }).first()
     .evaluate((element: Element) => {
       const style = getComputedStyle(element);
       const background = getComputedStyle(document.body).backgroundColor;
       return { foreground: style.color, background };
     });
-  expect(contrast(unavailableContrast.foreground, unavailableContrast.background)).toBeGreaterThanOrEqual(4.5);
+  expect(contrast(routeContrast.foreground, routeContrast.background)).toBeGreaterThanOrEqual(4.5);
 });
 
 test("axe passes default, changed, elimination, shortlist, and no-compatible states", async ({ page }) => {
