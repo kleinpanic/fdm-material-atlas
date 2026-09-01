@@ -143,6 +143,10 @@ describe("selector component boundary", () => {
     expect(results).toContain('data-selector-command="expand-calculation"');
     expect(island).toContain('action === "expand-calculation"');
     expect(island).toContain("pendingCalculationOpenRef");
+    expect(results).toContain("<noscript>");
+    expect(results).toContain('data-selector-command="expand-eliminations"');
+    expect(island).toContain('action === "expand-eliminations"');
+    expect(island).toContain("pendingEliminationsOpenRef");
   });
 
   it("loads the model decoder and prepared evaluator only after a real selector action", () => {

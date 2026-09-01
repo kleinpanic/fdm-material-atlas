@@ -206,6 +206,12 @@ test("selector keeps complete default meaning without JavaScript and when only i
   await expect(aborted.page.locator(".selector-controls fieldset:disabled")).toHaveCount(2);
   await expect(aborted.page.locator(".selector-actions button:disabled")).toHaveCount(2);
   await expect(aborted.page.getByRole("button", { name: "View recommendations" })).toBeDisabled();
+  const abortedEliminations = aborted.page.locator("details.selector-eliminated");
+  await abortedEliminations.locator(":scope > summary").click();
+  await expect(abortedEliminations.locator(".selector-static-elimination")).toHaveCount(0);
+  await expect(
+    abortedEliminations.getByRole("button", { name: "Review all eliminated materials" }),
+  ).toBeVisible();
   expect(await displayedRanking(aborted.page)).toEqual(
     defaultPresentation.compatible.map(
       (material) => `Rank ${material.rank}|${material.materialLabel}|${material.scoreLabel}`,
@@ -320,6 +326,17 @@ test("eager controls leave SSR results unowned until the first real selector cha
     defaultPresentation.compatible.length,
   );
   await expect(page.locator("astro-island .selector-results")).toHaveCount(0);
+
+  const eliminations = mount.locator("details.selector-eliminated");
+  await eliminations.locator(":scope > summary").press("Enter");
+  const expand = eliminations.getByRole("button", { name: "Review all eliminated materials" });
+  await page.keyboard.press("Tab");
+  await expect(expand).toBeFocused();
+  await expand.press("Enter");
+  await expect(mount).toHaveAttribute("data-selector-results-owner", "client");
+  await expect(eliminations).toHaveAttribute("open", "");
+  await expect(eliminations.locator("article")).toHaveCount(defaultPresentation.eliminated.length);
+  await expect(eliminations.locator(":scope > summary")).toBeFocused();
 
   await page.getByLabel("Enclosure capability").selectOption("option-enclosure-available");
   await expect(mount).toHaveAttribute("data-selector-results-owner", "client");
