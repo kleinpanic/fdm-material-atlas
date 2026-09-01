@@ -36,6 +36,7 @@ describe("map explorer island boundary", () => {
     ];
 
     expect(html).toContain("Interactive map controls are preparing. Every path and structured table is already available.");
+    expect(count(html, 'role="status"')).toBe(1);
     expect(html).not.toContain("Selected record");
     expect(count(islandSource, /role=\{/g)).toBe(1);
     const positions = sections.map((section) => html.indexOf(section));

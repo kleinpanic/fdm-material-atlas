@@ -122,7 +122,7 @@ export function ImpactFlexMatrix({ view, dispatch, evidenceHref }: Props) {
         </button>
       </form>
 
-      <p class="map-current-state" role="status">
+      <p class="map-current-state">
         {plotted.length} plotted; {filtered.length} filtered from the diagram; {omitted.length} not plotted. All {model.records.length} records remain in the table.
       </p>
 

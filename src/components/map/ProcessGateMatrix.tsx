@@ -97,7 +97,7 @@ export function ProcessGateMatrix({ view, dispatch }: Props) {
         })}>Clear gate highlight</button>
       </form>
 
-      <p class="map-current-state" role="status">
+      <p class="map-current-state">
         8 decision lanes × 8 process gates = 64 direct checks. {appliesCount} apply; {64 - appliesCount} are not listed.
       </p>
       <div class="map-legend" aria-label="Process-gate relationship legend">

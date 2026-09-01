@@ -95,6 +95,14 @@ test("built map exposes landmarks, structured alternatives, labels, and logical 
   await expect(page.getByRole("table", { name: "Complete direct-reference matrix" })).toBeVisible();
   await expect(page.getByRole("table", { name: /All materials in categorical order/u })).toBeVisible();
   await expect(page.locator("svg [tabindex], svg a, svg button")).toHaveCount(0);
+  const liveStatus = page.locator('[role="status"]');
+  await expect(liveStatus).toHaveCount(1);
+  await expect(liveStatus).toHaveText("Interactive map controls are ready.");
+
+  await page.getByRole("button", { name: `Highlight ${projection.lanes[0]!.label}` }).click();
+  await expect(liveStatus).toHaveText("Decision lane selected.");
+  await page.getByLabel("Find a material in the impact-flex view").fill("PLA");
+  await expect(liveStatus).toHaveText("Impact and flexibility filter updated.");
 
   const targets = page.locator(".map-page button:visible, .map-page select:visible, .map-page input:visible, .map-mode-index a:visible, .map-lane-directory a:visible");
   const undersized = await targets.evaluateAll((elements: Element[]) => elements.flatMap((element) => {
