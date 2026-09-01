@@ -57,8 +57,8 @@ const mainFragment = fragmentHref("main-content");
     <meta name="viewport" content="width=device-width" />
     <meta name="description" content={description} />
     <link rel="canonical" href={canonicalUrl} />
-    <Font cssVariable="--font-plex-sans" />
-    <Font cssVariable="--font-plex-mono" />
+    <Font cssVariable="--font-plex-sans" preload={[{ subset: "latin" }]} />
+    <Font cssVariable="--font-plex-mono" preload={[{ subset: "latin" }]} />
     <title>{title}</title>
   </head>
   <body>

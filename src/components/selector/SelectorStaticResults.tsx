@@ -35,6 +35,7 @@ export function SelectorStaticResults({ pageModel }: Readonly<{ pageModel: Selec
       onClearShortlist={NOOP}
       onReview={NOOP}
       onReset={NOOP}
+      renderMode="static-compact"
     />
   );
 }

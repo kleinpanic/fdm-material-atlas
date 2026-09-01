@@ -29,6 +29,7 @@ export type SelectorResultsProps = Readonly<{
   onClearShortlist: () => void;
   onReview: (target: "secondary-summary" | "primary-goal") => void;
   onReset: () => void;
+  renderMode?: "interactive" | "static-compact";
 }>;
 
 function RouteLink({ action }: Readonly<{ action: RouteAction; key?: unknown }>) {
@@ -99,6 +100,7 @@ export function SelectorResults({
   onClearShortlist,
   onReview,
   onReset,
+  renderMode = "interactive",
 }: SelectorResultsProps) {
   const labelFor = (materialId: MaterialId) =>
     pageModel.display.materials.find((material) => material.id === materialId)?.label ?? "Material";
@@ -235,7 +237,9 @@ export function SelectorResults({
                       </p>
                       <h3>{material.materialLabel}</h3>
                       <p class="selector-family">
-                        <span class="selector-family-marker" aria-hidden="true"></span>
+                        {renderMode === "interactive" && (
+                          <span class="selector-family-marker" aria-hidden="true"></span>
+                        )}
                         {familyLabel(material.familyOrFill)}
                       </p>
                       <p>{material.compatibilityLabel}</p>
@@ -246,30 +250,42 @@ export function SelectorResults({
                         {material.scoreLabel}
                       </p>
                       <p>{material.summaryExplanation}</p>
-                      <details class="selector-calculation">
-                        <summary>{SELECTOR_COPY.resultDisclosure}</summary>
-                        <ul>
-                          {material.contributions.map((contribution) => (
-                            <li
-                              key={`${contribution.record.criterionId}-${contribution.record.optionId}`}
-                              data-contribution-state={contribution.visualState}
-                            >
-                              <span class="selector-contribution-points" data-numeric>
-                                {contribution.visualState === "zero" && (
-                                  <span class="selector-state-marker" aria-hidden="true">
-                                    0
-                                  </span>
-                                )}
-                                {contribution.pointsLabel}
-                              </span>
-                              <strong>
-                                {contribution.criterionLabel}: {contribution.optionLabel}
-                              </strong>
-                              <span>{contribution.explanation}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
+                      {renderMode === "static-compact" ? (
+                        <p class="selector-static-contributions">
+                          <strong>{SELECTOR_COPY.resultDisclosure}.</strong>{" "}
+                          {material.contributions
+                            .map(
+                              (contribution) =>
+                                `${contribution.pointsLabel}. ${contribution.criterionLabel}: ${contribution.optionLabel}. ${contribution.explanation}`,
+                            )
+                            .join(" ")}
+                        </p>
+                      ) : (
+                        <details class="selector-calculation">
+                          <summary>{SELECTOR_COPY.resultDisclosure}</summary>
+                          <ul>
+                            {material.contributions.map((contribution) => (
+                              <li
+                                key={`${contribution.record.criterionId}-${contribution.record.optionId}`}
+                                data-contribution-state={contribution.visualState}
+                              >
+                                <span class="selector-contribution-points" data-numeric>
+                                  {contribution.visualState === "zero" && (
+                                    <span class="selector-state-marker" aria-hidden="true">
+                                      0
+                                    </span>
+                                  )}
+                                  {contribution.pointsLabel}
+                                </span>
+                                <strong>
+                                  {contribution.criterionLabel}: {contribution.optionLabel}
+                                </strong>
+                                <span>{contribution.explanation}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
                       <button
                         ref={(element: HTMLButtonElement | null) =>
                           registerResultControl(material.materialId, element)
@@ -325,37 +341,58 @@ export function SelectorResults({
               <span>{eliminatedDisclosure(presentation.eliminated.length)}</span>
               <span class="selector-eliminated-help">{SELECTOR_COPY.eliminatedHelp}</span>
             </summary>
-            {(presentation.eliminationsOpen || eliminationsOpen) && (
+            {(renderMode === "static-compact" ||
+              presentation.eliminationsOpen ||
+              eliminationsOpen) && (
               <ol>
                 {presentation.eliminated.map((material) => (
-                  <li key={material.materialId}>
-                    <article>
-                      <h3 id={`eliminated-${material.materialId}`} tabIndex={-1}>
-                        {material.materialLabel}
-                      </h3>
-                      <p class="selector-family">
-                        <span class="selector-family-marker" aria-hidden="true"></span>
-                        {familyLabel(material.familyOrFill)}
+                  <li
+                    key={material.materialId}
+                    class={renderMode === "static-compact" ? "selector-static-elimination" : null}
+                  >
+                    {renderMode === "static-compact" ? (
+                      <p>
+                        <strong id={`eliminated-${material.materialId}`}>
+                          {material.materialLabel}.
+                        </strong>{" "}
+                        {familyLabel(material.familyOrFill)}.{" "}
+                        {material.reasons
+                          .map(
+                            (reason) =>
+                              `${reason.stateLabel}. ${reason.criterionLabel}: ${reason.optionLabel}. ${reason.explanation}`,
+                          )
+                          .join(" ")}{" "}
+                        <RouteLink action={material.routes.details} />
                       </p>
-                      <ul>
-                        {material.reasons.map((reason) => (
-                          <li
-                            key={`${reason.record.criterionId}-${reason.record.reasonId}`}
-                            data-exclusion-state={reason.visualState}
-                          >
-                            <span class="selector-exclusion-marker" aria-hidden="true">
-                              {reason.visualState === "blocked" ? "X" : "!"}
-                            </span>
-                            <strong>{reason.stateLabel}</strong>
-                            <span>
-                              {reason.criterionLabel}: {reason.optionLabel}
-                            </span>
-                            <span>{reason.explanation}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      <RouteLink action={material.routes.details} />
-                    </article>
+                    ) : (
+                      <article>
+                        <h3 id={`eliminated-${material.materialId}`} tabIndex={-1}>
+                          {material.materialLabel}
+                        </h3>
+                        <p class="selector-family">
+                          <span class="selector-family-marker" aria-hidden="true"></span>
+                          {familyLabel(material.familyOrFill)}
+                        </p>
+                        <ul>
+                          {material.reasons.map((reason) => (
+                            <li
+                              key={`${reason.record.criterionId}-${reason.record.reasonId}`}
+                              data-exclusion-state={reason.visualState}
+                            >
+                              <span class="selector-exclusion-marker" aria-hidden="true">
+                                {reason.visualState === "blocked" ? "X" : "!"}
+                              </span>
+                              <strong>{reason.stateLabel}</strong>
+                              <span>
+                                {reason.criterionLabel}: {reason.optionLabel}
+                              </span>
+                              <span>{reason.explanation}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <RouteLink action={material.routes.details} />
+                      </article>
+                    )}
                   </li>
                 ))}
               </ol>

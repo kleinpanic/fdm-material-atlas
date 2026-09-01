@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import type { JSX, RefObject } from "preact";
-import { useEffect, useState } from "preact/hooks";
+import { useLayoutEffect, useRef } from "preact/hooks";
 
 import type { SelectorRuntimePageModel } from "../../features/selector/client-model.ts";
 import { SELECTOR_COPY } from "../../features/selector/copy.ts";
@@ -28,8 +28,17 @@ export function SelectorControls({
   onView,
   onReset,
 }: Props) {
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => setHydrated(true), []);
+  const primaryFieldsetRef = useRef<HTMLFieldSetElement>(null);
+  const secondaryFieldsetRef = useRef<HTMLFieldSetElement>(null);
+  const submitButtonRef = useRef<HTMLButtonElement>(null);
+  const resetButtonRef = useRef<HTMLButtonElement>(null);
+
+  useLayoutEffect(() => {
+    if (primaryFieldsetRef.current) primaryFieldsetRef.current.disabled = false;
+    if (secondaryFieldsetRef.current) secondaryFieldsetRef.current.disabled = false;
+    if (submitButtonRef.current) submitButtonRef.current.disabled = false;
+    if (resetButtonRef.current) resetButtonRef.current.disabled = false;
+  }, []);
 
   const primary = pageModel.projection.criteria.find((criterion) => criterion.role === "primary");
   const secondary = pageModel.projection.criteria.filter(
@@ -60,7 +69,7 @@ export function SelectorControls({
       }}
     >
       <p id="selector-default-note">{SELECTOR_COPY.defaultStateNote}</p>
-      <fieldset disabled={!hydrated}>
+      <fieldset disabled ref={primaryFieldsetRef}>
         <legend>{SELECTOR_COPY.primaryGoalLegend}</legend>
         <div class="selector-goals">
           {primary.options.map((option, index) => (
@@ -86,7 +95,7 @@ export function SelectorControls({
           <span>{SELECTOR_COPY.secondaryDisclosure}</span>
           <span class="selector-secondary-values">{secondary.map(selectedLabel).join(" · ")}</span>
         </summary>
-        <fieldset disabled={!hydrated}>
+        <fieldset disabled ref={secondaryFieldsetRef}>
           <legend class="visually-hidden">{SELECTOR_COPY.secondaryDisclosure}</legend>
           {secondary.map((criterion) => (
             <label key={criterion.id} class="selector-select">
@@ -122,10 +131,10 @@ export function SelectorControls({
       </section>
 
       <div class="selector-actions">
-        <button type="submit" disabled={!hydrated}>
+        <button type="submit" disabled ref={submitButtonRef}>
           {SELECTOR_COPY.primaryAction}
         </button>
-        <button type="button" disabled={!hydrated} onClick={onReset}>
+        <button type="button" disabled ref={resetButtonRef} onClick={onReset}>
           {SELECTOR_COPY.resetAction}
         </button>
       </div>
