@@ -2,6 +2,35 @@ const MATERIAL_SLUG_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 const BASE_SEGMENT_PATTERN = /^[A-Za-z0-9._~-]+$/u;
 const FRAGMENT_ID_PATTERN = /^[A-Za-z][A-Za-z0-9_-]*$/u;
 
+/** Closed, presentation-owned mode anchors on the material map route. */
+export const mapModeFragments = Object.freeze([
+  "decision-paths",
+  "thermal-ranges",
+  "process-gates",
+  "impact-flex-space",
+] as const);
+
+/** Closed lane anchors. Tests keep this route inventory aligned with the schema registry. */
+export const mapLaneFragments = Object.freeze([
+  "lane-easy-prototypes",
+  "lane-outdoor",
+  "lane-impact-flex",
+  "lane-chemical-exposure",
+  "lane-high-heat-sustained-load",
+  "lane-industrial",
+  "lane-decorative-fills",
+  "lane-support-materials",
+] as const);
+
+export type MapModeFragment = (typeof mapModeFragments)[number];
+export type MapLaneFragment = (typeof mapLaneFragments)[number];
+export type MapFragment = MapModeFragment | MapLaneFragment;
+
+const MAP_FRAGMENTS = new Set<string>([
+  ...mapModeFragments,
+  ...mapLaneFragments,
+]);
+
 export type RouteTarget =
   | { readonly id: "home" }
   | { readonly id: "materials" }
@@ -127,4 +156,23 @@ export function internalFragmentHref(
   fragment: string,
 ): string {
   return `${internalHref(base, target)}${fragmentHref(fragment)}`;
+}
+
+/** Return a document-local anchor only for a closed map mode or lane. */
+export function mapFragmentHref(fragment: MapFragment): string {
+  if (typeof fragment !== "string" || !MAP_FRAGMENTS.has(fragment)) {
+    return fail("MAP_FRAGMENT_INVALID");
+  }
+  return fragmentHref(fragment);
+}
+
+/** Compose the closed map target and one closed map fragment exactly once. */
+export function internalMapFragmentHref(
+  base: string | undefined,
+  fragment: MapFragment,
+): string {
+  if (typeof fragment !== "string" || !MAP_FRAGMENTS.has(fragment)) {
+    return fail("MAP_FRAGMENT_INVALID");
+  }
+  return internalFragmentHref(base, { id: "map" }, fragment);
 }

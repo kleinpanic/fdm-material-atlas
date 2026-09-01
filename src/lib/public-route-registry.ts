@@ -145,9 +145,7 @@ export const PUBLIC_ROUTE_REGISTRY: PublicRouteRegistry = Object.freeze({
   decisionMaps: Object.freeze([]),
   allMaterialDetails: true,
   allStartingProfiles: true,
-  allDecisionMaps: true,
   compare: Object.freeze({ target: { id: "compare" as const }, fragment: "comparison-matrix", verifiedFragments: Object.freeze(["comparison-matrix"]) }),
-  decisionMapOverview: Object.freeze({ id: "map" as const }),
   methodEvidence: Object.freeze({ target: { id: "method" as const }, fragment: "selector-scoring", verifiedFragments: Object.freeze(["selector-scoring"]) }),
 });
 
