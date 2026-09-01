@@ -41,9 +41,8 @@ describe("material detail route source", () => {
 
   it("defers only offscreen material sections on screens and preserves print layout", () => {
     expect(css).toMatch(
-      /@media screen\s*\{[\s\S]*?body:not\(:has\(\.material-reference__sections > section:is\(:target, :focus-within\)\)\)[\s\S]*?section:not\(:first-child\)\s*\{[\s\S]*?content-visibility:\s*auto;[\s\S]*?contain-intrinsic-block-size:\s*auto 100rem;/u,
+      /@media screen\s*\{[\s\S]*?section:not\(:first-child\):not\(:target\):not\(:has\(~ section:target\)\)[\s\S]*?:not\(:has\(~ section:focus-within\)\)\s*\{[\s\S]*?content-visibility:\s*auto;[\s\S]*?contain-intrinsic-block-size:\s*auto 100rem;/u,
     );
-    expect(css).not.toContain(":has(~ section:");
     const printRules = css.match(/@media print\s*\{[\s\S]*?\n\}/gu)?.join("\n") ?? "";
     expect(printRules).not.toContain("content-visibility: auto");
     expect(printRules).not.toContain("contain-intrinsic-block-size");
