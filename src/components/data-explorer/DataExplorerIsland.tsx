@@ -5,6 +5,8 @@ import { defaultExplorerState, type ExplorerState, type ExplorerSortableField } 
 import type { DataExplorerModel } from "../../features/data-explorer/model.ts";
 import { safeExplore } from "../../features/data-explorer/safe-explore.ts";
 import { DataControls } from "./DataControls.tsx";
+import { DataRecords } from "./DataRecords.tsx";
+import { DataTable } from "./DataTable.tsx";
 
 type Props = Readonly<{ model: DataExplorerModel }>;
 
@@ -40,7 +42,19 @@ export function DataExplorerIsland({ model }: Props) {
       <p role="status" aria-live="polite" aria-atomic="true">{announcement}</p>
       {result.kind === "failure" ? (
         <section role="alert"><h2>Data view reset</h2><p>The requested explorer state was not valid. No previous rows are shown.</p><button type="button" onClick={() => setRawState(defaultExplorerState(model))}>Reset explorer</button></section>
-      ) : <p>{result.resultCount} materials match the current filters.</p>}
+      ) : result.resultCount === 0 ? (
+        <section class="data-no-results"><h2>No materials match</h2><p>Clear one or more filters to restore results.</p></section>
+      ) : current.view === "table" ? (
+        <DataTable result={result} onSort={(field) => setRawState({
+          ...current,
+          sort: {
+            field,
+            direction: current.sort.field === field && current.sort.direction === "asc" ? "desc" : "asc",
+          },
+        })} />
+      ) : (
+        <DataRecords result={result} />
+      )}
     </div>
   );
 }

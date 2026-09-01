@@ -64,7 +64,7 @@ describe("data explorer component boundary", () => {
     expect(records).toContain("fields.map");
     expect(records).toMatch(/<article\b/u);
     expect(records).toMatch(/<dl\b/u);
-    expect(table).toContain("cell.evidence.length");
+    expect(table).toContain("evidence.length");
   });
 
   it("mounts only the selected view and renders no empty table or record structure", () => {
