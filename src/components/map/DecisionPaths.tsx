@@ -208,7 +208,7 @@ export function DecisionPaths({ view, dispatch }: Props) {
           const candidateSelectedId = selected ? selectedMaterialId : undefined;
           return (
             <li
-              id={lane.href.split("#")[1]}
+              id={lane.id}
               data-decision-lane={true}
               data-lane-id={lane.id}
               class={`decision-path${selected ? " is-selected" : ""}`}
