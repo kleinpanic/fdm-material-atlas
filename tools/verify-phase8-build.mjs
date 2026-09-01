@@ -486,7 +486,7 @@ export async function verifyPhase8Build({
   };
   if (priorReceipt !== undefined) assertPreactivationReceipt(priorReceipt, receipt);
   if (runPublicationScan) await scanBoundedPublication(modes[0].output, modes[1].output, sensitiveFile);
-  if (receiptPath !== undefined) await writeReceipt(receiptPath, receipt);
+  if (stage === "pre-activation" && receiptPath !== undefined) await writeReceipt(receiptPath, receipt);
   return Object.freeze({ ok: true, stage, routeCount: 1, modes: Object.freeze(publicReports.map(({ artifactDigest: _digest, ...report }) => Object.freeze(report))) });
 }
 

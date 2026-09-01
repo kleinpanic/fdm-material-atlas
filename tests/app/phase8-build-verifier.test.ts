@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -11,6 +11,7 @@ import {
 } from "../../tools/verify-phase8-build.mjs";
 
 const temporaryRoots: string[] = [];
+const temporaryReceiptFiles: string[] = [];
 const modes = ["decision-paths", "thermal-ranges", "process-gates", "impact-flex-space"];
 const lanes = [
   "lane-easy-prototypes",
@@ -22,6 +23,22 @@ const lanes = [
   "lane-decorative-fills",
   "lane-support-materials",
 ];
+const laneLabels = [
+  "Easy prototypes",
+  "Outdoor",
+  "Impact and flex",
+  "Chemical exposure",
+  "High heat and sustained load",
+  "Industrial",
+  "Decorative fills",
+  "Support materials",
+];
+
+function finalRegistrySource(): string {
+  return `decisionMaps: Object.freeze([${lanes.map((lane) =>
+    `{ laneId: "${lane}", target: { id: "map" }, fragment: "${lane}" }`,
+  ).join(",")}])`;
+}
 
 function projection(base: string) {
   const prefix = base === "/" ? "" : base.slice(0, -1);
@@ -118,6 +135,28 @@ async function writeMode(root: string, base: string): Promise<void> {
   await writeFile(join(root, "_astro/selector.js"), "export const SelectorIsland = true;");
 }
 
+async function activateSelector(root: string, base: string): Promise<void> {
+  const prefix = base === "/" ? "" : base.slice(0, -1);
+  const decisionMaps = lanes.map((laneId, index) => ({
+    laneId,
+    action: {
+      label: `Open ${laneLabels[index]} decision path`,
+      targetHref: `${prefix}/map/#${laneId}`,
+    },
+  }));
+  const selectorProjection = {
+    routes: {
+      decisionMaps,
+      decisionMapFallback: { kind: "unavailable", label: "Decision map is not available yet" },
+      materials: [],
+    },
+  };
+  await writeFile(
+    join(root, "index.html"),
+    `<!doctype html><link rel="canonical" href="https://atlas.example${base}"><astro-island component-url="${prefix}/_astro/selector.js" component-export="SelectorIsland" renderer-url="${prefix}/_astro/client.js" props='${JSON.stringify({ model: selectorProjection })}' ssr client="load"></astro-island>`,
+  );
+}
+
 async function fixture() {
   const parent = await mkdtemp(join(tmpdir(), "phase8-build-"));
   temporaryRoots.push(parent);
@@ -131,14 +170,15 @@ async function fixture() {
 }
 
 afterEach(async () => {
-  await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+  await Promise.all([
+    ...temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
+    ...temporaryReceiptFiles.splice(0).map((file) => unlink(file).catch(() => undefined)),
+  ]);
 });
 
 describe("Phase 8 emitted build verifier", () => {
   it("accepts only the exact explicit eight-lane final registry", () => {
-    const registrySource = `decisionMaps: Object.freeze([${lanes.map((lane) =>
-      `{ laneId: "${lane}", target: { id: "map" }, fragment: "${lane}" }`,
-    ).join(",")}])`;
+    const registrySource = finalRegistrySource();
 
     expect(() => assertRegistryStage(registrySource, "final")).not.toThrow();
     expect(() => assertRegistryStage(registrySource.replace(`laneId: "${lanes[0]}"`, `laneId: "${lanes[1]}"`), "final"))
@@ -175,6 +215,38 @@ describe("Phase 8 emitted build verifier", () => {
       ...prior,
       artifacts: [artifact("root", "f".repeat(64)), artifact("repository", "e".repeat(64))],
     }, current)).toThrow("PREACTIVATION_RECEIPT_INVALID");
+  });
+
+  it("preserves the pre-activation receipt after final verification", async () => {
+    const outputs = await fixture();
+    const receiptPath = `.planning/.tmp/phase8-preserve-${process.pid}-${Date.now()}.json`;
+    const receiptFile = join(process.cwd(), receiptPath);
+    temporaryReceiptFiles.push(receiptFile);
+
+    await verifyPhase8Build({
+      rootOutput: outputs.root,
+      repositoryOutput: outputs.repository,
+      stage: "pre-activation",
+      receiptPath,
+      registrySource: "decisionMaps: Object.freeze([])",
+      prohibitedExactPatterns: ["private-fixture-sentinel"],
+      runPublicationScan: false,
+    });
+    const before = await readFile(receiptFile, "utf8");
+
+    await activateSelector(outputs.root, "/");
+    await activateSelector(outputs.repository, "/atlas-preview/");
+    await verifyPhase8Build({
+      rootOutput: outputs.root,
+      repositoryOutput: outputs.repository,
+      stage: "final",
+      receiptPath,
+      registrySource: finalRegistrySource(),
+      prohibitedExactPatterns: ["private-fixture-sentinel"],
+      runPublicationScan: false,
+    });
+
+    expect(await readFile(receiptFile, "utf8")).toBe(before);
   });
 
   it("accepts complete, scoped, pre-activation artifacts in both deployment bases", async () => {
