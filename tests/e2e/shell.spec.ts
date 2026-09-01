@@ -160,6 +160,36 @@ test("the decision map and repository action reflow without document overflow", 
   expect(overflow).toBeLessThanOrEqual(1);
 });
 
+test("the header remains bounded and keyboard-operable across the full responsive range", async ({ page }) => {
+  for (const width of [390, 640, 768, 1023, 1024, 1280, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("./");
+    const header = page.locator(".site-header");
+    const repository = page.getByRole("link", { name: "View source on GitHub (opens in a new tab)" });
+    await expect(header).toBeVisible();
+    await expect(repository).toBeVisible();
+    const measurements = await page.evaluate(() => {
+      const header = document.querySelector<HTMLElement>(".site-header")!;
+      const targets = [...header.querySelectorAll<HTMLElement>("nav a")];
+      return {
+        headerHeight: header.getBoundingClientRect().height,
+        overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        minimumTarget: Math.min(...targets.map((target) => target.getBoundingClientRect().height)),
+      };
+    });
+    expect(measurements.overflow).toBeLessThanOrEqual(1);
+    expect(measurements.minimumTarget).toBeGreaterThanOrEqual(44);
+    if (width === 768 || width === 1023) expect(measurements.headerHeight).toBeLessThan(240);
+  }
+
+  await page.setViewportSize({ width: 768, height: 900 });
+  await page.goto("./");
+  const repository = page.getByRole("link", { name: "View source on GitHub (opens in a new tab)" });
+  await repository.focus();
+  await expect(repository).toBeFocused();
+  await expectFocusedAndVisible(page);
+});
+
 test("home and a generated tracer load only successful inventoried same-origin resources", async ({ page }) => {
   const assertNetwork = attachNetworkGate(page);
   await page.goto("./");

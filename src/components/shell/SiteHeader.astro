@@ -39,7 +39,8 @@ const { homeHref, navigation } = Astro.props;
             rel="noopener noreferrer"
             aria-label="View source on GitHub (opens in a new tab)"
           >
-            <span>View on GitHub</span>
+            <span class="repository-link__compact">GitHub</span>
+            <span class="repository-link__wide">View on GitHub</span>
             <span aria-hidden="true">↗</span>
           </a>
         </li>
@@ -87,6 +88,10 @@ const { homeHref, navigation } = Astro.props;
   }
 
   .site-navigation {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-1) var(--spacing-2);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -116,10 +121,12 @@ const { homeHref, navigation } = Astro.props;
     background: var(--color-ink-strong);
   }
 
+  .repository-link__wide {
+    display: none;
+  }
+
   @media (max-width: 39.999rem) {
-    .site-navigation {
-      overflow: visible;
-    }
+    .site-navigation { overflow: visible; }
   }
 
   @media (min-width: 64rem) {
@@ -129,10 +136,11 @@ const { homeHref, navigation } = Astro.props;
     }
 
     .site-navigation {
-      display: flex;
-      flex-wrap: wrap;
       justify-content: flex-end;
       gap: var(--spacing-2);
     }
+
+    .repository-link__compact { display: none; }
+    .repository-link__wide { display: inline; }
   }
 </style>
