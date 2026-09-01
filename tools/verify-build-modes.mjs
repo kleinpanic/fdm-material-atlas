@@ -7,7 +7,8 @@ import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 
-import { loadExactPatterns } from "./lib/publication-policy.mjs";
+import { loadExactPatterns, loadPublicationPolicy } from "./lib/publication-policy.mjs";
+import { scanPublication } from "./scan-publication.mjs";
 import { parsePhase8Arguments, verifyPhase8Build } from "./verify-phase8-build.mjs";
 import { verifyPhase7Build } from "./verify-phase7-build.mjs";
 import { SelectorBuildError, verifySelectorBuild } from "./verify-selector-build.mjs";
@@ -344,31 +345,21 @@ async function inspectMode(mode, { runPublication = true } = {}) {
 
 async function runPublicationScan(mode) {
   const sensitiveFile = process.env.FDM_PUBLICATION_SENSITIVE_FILE;
-  const sensitiveArguments =
-    typeof sensitiveFile === "string" && sensitiveFile !== ""
-      ? ["--sensitive-file", sensitiveFile]
-      : [];
-  const output = await run(
-    process.execPath,
-    [
-      "tools/check-publication.mjs",
-      "--root",
-      PROJECT_ROOT,
-      "--remote-policy",
-      "any",
-      ...sensitiveArguments,
-      "--artifact",
-      mode.output,
-    ],
-    { code: `PUBLICATION_SCAN_FAILED_${mode.name.toUpperCase()}`, env: safeEnvironment() },
-  );
-  let report;
   try {
-    report = JSON.parse(output.trim());
+    const policy = await loadPublicationPolicy({
+      root: PROJECT_ROOT,
+      ...(typeof sensitiveFile === "string" && sensitiveFile !== "" ? { sensitiveFile } : {}),
+    });
+    const report = await scanPublication({
+      root: PROJECT_ROOT,
+      mode: "artifact",
+      artifactPath: mode.output,
+      policy,
+    });
+    if (report.findingCount !== 0) fail(`PUBLICATION_SCAN_FAILED_${mode.name.toUpperCase()}`);
   } catch {
-    fail(`PUBLICATION_SCAN_INVALID_${mode.name.toUpperCase()}`);
+    fail(`PUBLICATION_SCAN_FAILED_${mode.name.toUpperCase()}`);
   }
-  if (report?.ok !== true) fail(`PUBLICATION_SCAN_FAILED_${mode.name.toUpperCase()}`);
 }
 
 async function buildAndInspect() {
@@ -524,15 +515,28 @@ async function main() {
     if (process.argv.length !== 3) fail("ARGUMENTS_INVALID");
     const mode = pagesMode();
     const report = await inspectMode(mode, { runPublication: true });
-    await run("npm", ["exec", "--no", "--", "playwright", "test"], {
-      code: "BROWSER_TEST_FAILED",
-      env: safeEnvironment({
-        ATLAS_TEST_MODE: "pages",
-        ATLAS_PAGES_ARTIFACT: "dist-pages",
-        ATLAS_PAGES_BASE: mode.base,
-        ATLAS_PAGES_ORIGIN: mode.origin,
-      }),
-    });
+    await run(
+      "npm",
+      [
+        "exec",
+        "--no",
+        "--",
+        "playwright",
+        "test",
+        "tests/e2e/release-journeys.spec.ts",
+        "tests/e2e/release-accessibility.spec.ts",
+      ],
+      {
+        code: "BROWSER_TEST_FAILED",
+        env: safeEnvironment({
+          CI: "true",
+          ATLAS_TEST_MODE: "pages",
+          ATLAS_PAGES_ARTIFACT: "dist-pages",
+          ATLAS_PAGES_BASE: mode.base,
+          ATLAS_PAGES_ORIGIN: mode.origin,
+        }),
+      },
+    );
     process.stdout.write(
       `${JSON.stringify({ ok: true, command, mode: "pages", routeCount: report.routes.length, fileCount: report.fileCount })}\n`,
     );

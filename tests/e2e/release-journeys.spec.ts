@@ -25,7 +25,8 @@ const test = playwrightTest as unknown as TestType<
 const expect = (playwrightTest as unknown as { expect: (...args: any[]) => any }).expect;
 
 const mode = process.env.ATLAS_TEST_MODE;
-if (mode !== "root" && mode !== "repository") throw new Error("ATLAS_TEST_MODE_INVALID");
+if (mode !== "root" && mode !== "repository" && mode !== "pages")
+  throw new Error("ATLAS_TEST_MODE_INVALID");
 const routes = discoverReleaseRoutes(mode);
 
 async function openSelector(page: Page): Promise<void> {
