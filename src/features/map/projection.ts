@@ -61,8 +61,10 @@ function compactImpactRecord(record: ReturnType<typeof buildImpactFlexModel>["re
     ...(record.printDifficulty === undefined ? {} : { printDifficulty: record.printDifficulty }),
     impactFact: record.impactFact,
     flexibilityFact: record.flexibilityFact,
+    printDifficultyFact: record.printDifficultyFact,
     disposition: record.disposition,
     ...(record.slot === undefined ? {} : { slot: record.slot }),
+    ...(record.shape === undefined ? {} : { shape: record.shape }),
   };
 }
 
@@ -79,7 +81,7 @@ function compile(atlas: AtlasV1, base: string | undefined): MapProjection {
   const service = buildServiceGuidanceModel(atlas.materials, base, { query: "", sort: "canonical" });
   const thermal = buildNamedThermalModel(atlas.materials, base);
   const processGates = buildProcessGateMap(atlas, base);
-  const impact = buildImpactFlexModel(atlas, base);
+  const impact = buildImpactFlexModel(atlas, base, { encodeDifficultyShapes: true });
 
   if (
     lanes.length !== EXPECTED_COUNTS.lanes
@@ -96,11 +98,22 @@ function compile(atlas: AtlasV1, base: string | undefined): MapProjection {
     lanes,
     serviceGuidance: {
       domain: service.domain,
+      ticks: service.ticks,
       records: service.records.all,
     },
-    thermalGroups: thermal.groups,
+    thermalGroups: thermal.groups.map((group) => {
+      const selected = buildNamedThermalModel(atlas.materials, base, group.id).selectedRecords;
+      if (selected === undefined || selected.all.length !== EXPECTED_COUNTS.materials) return fail();
+      return { ...group, records: selected.all };
+    }),
     processGates,
-    impactFlex: impact.records.all.map(compactImpactRecord),
+    impactFlex: {
+      limitation: impact.limitation,
+      impactAxis: impact.impactAxis,
+      flexibilityAxis: impact.flexibilityAxis,
+      difficultyTerms: impact.shapeLegend,
+      records: impact.records.all.map(compactImpactRecord),
+    },
     modeFragments: modeFragments(base),
     methodHref: mapHref(internalHref(base, { id: "method" })),
   };
@@ -121,4 +134,3 @@ export function compileMapProjection(
     return fail();
   }
 }
-

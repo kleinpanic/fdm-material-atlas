@@ -113,6 +113,7 @@ export type MapThermalMember = {
   readonly method?: Readonly<ThermalMethod>;
   readonly methodLabel: string;
   readonly fact: MapDisplayFact;
+  readonly measurement?: MapServiceMeasurement;
   readonly evidence: MapEvidenceContext;
   readonly disposition: MapDisposition;
 };
@@ -124,6 +125,16 @@ export type MapThermalGroup = {
   readonly method?: Readonly<ThermalMethod>;
   readonly methodLabel: string;
   readonly members: readonly MapThermalMember[];
+};
+
+export type MapNamedThermalRecord = {
+  readonly material: MapMaterialReference;
+  readonly member?: MapThermalMember;
+  readonly disposition: MapDisposition;
+};
+
+export type MapProjectedThermalGroup = MapThermalGroup & {
+  readonly records: readonly MapNamedThermalRecord[];
 };
 
 export type MapGateRelationship = {
@@ -151,8 +162,26 @@ export type MapImpactFlexRecord = {
   readonly printDifficulty?: PrintDifficulty;
   readonly impactFact: MapDisplayFact;
   readonly flexibilityFact: MapDisplayFact;
+  readonly printDifficultyFact: MapDisplayFact;
   readonly disposition: MapDisposition;
   readonly slot?: number;
+  readonly shape?: "circle" | "square" | "diamond" | "triangle";
+};
+
+export type MapImpactAxisTerm<T extends string> = {
+  readonly value: T;
+  readonly label: string;
+  readonly order: number;
+};
+
+export type MapImpactFlexProjection = {
+  readonly limitation: string;
+  readonly impactAxis: readonly MapImpactAxisTerm<ImpactResistanceRating>[];
+  readonly flexibilityAxis: readonly MapImpactAxisTerm<FlexibilityRating>[];
+  readonly difficultyTerms: readonly (MapImpactAxisTerm<PrintDifficulty> & {
+    readonly shape: "circle" | "square" | "diamond" | "triangle";
+  })[];
+  readonly records: readonly MapImpactFlexRecord[];
 };
 
 export type MapTransformResult<T> = {
@@ -166,11 +195,12 @@ export type MapProjection = {
   readonly lanes: readonly MapDecisionLane[];
   readonly serviceGuidance: {
     readonly domain: { readonly low: number; readonly high: number; readonly unit: "degC" };
+    readonly ticks: readonly number[];
     readonly records: readonly MapServiceGuidanceRecord[];
   };
-  readonly thermalGroups: readonly MapThermalGroup[];
+  readonly thermalGroups: readonly MapProjectedThermalGroup[];
   readonly processGates: MapProcessGateModel;
-  readonly impactFlex: readonly MapImpactFlexRecord[];
+  readonly impactFlex: MapImpactFlexProjection;
   readonly modeFragments: Readonly<Record<MapMode, MapInternalHref>>;
   readonly methodHref: MapInternalHref;
 };
@@ -198,4 +228,3 @@ export type MapSelectionAction =
       readonly type: "clear-selection";
       readonly target: "all" | "lane" | "material" | "gate" | "thermal-group";
     };
-

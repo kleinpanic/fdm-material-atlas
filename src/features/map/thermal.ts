@@ -291,6 +291,9 @@ export function buildNamedThermalModel(
         ...(observation.method === undefined ? {} : { method: { ...observation.method } }),
         methodLabel: methodLabel(observation.method),
         fact: displayTemperatureFact(observation.measurement),
+        ...(serviceMeasurement(observation.measurement) === undefined
+          ? {}
+          : { measurement: serviceMeasurement(observation.measurement) }),
         evidence: evidenceContextFromScopes(observation.basisScopes, observation.qualification),
         disposition: { disposition: "plotted" },
       };
