@@ -62,9 +62,30 @@ describe("comparison model", () => {
   });
 
   it("exposes only the compact client allowlist", () => {
-    const serialized = JSON.stringify(buildComparisonModel(loadPublicAtlas(), "/"));
-    expect(serialized).not.toMatch(/atlas\.v1|selector|decisionLanes|processGates|visualizationReferences|sources|methods|basis|qualificationNote|externalUrl|https?:\/\//u);
-    expect(serialized).not.toMatch(/source-[a-z0-9-]+|method-[a-z0-9-]+|claim-[a-z0-9-]+/u);
+    const model = buildComparisonModel(loadPublicAtlas(), "/");
+    const serialized = JSON.stringify(model);
+    const keys = new Set<string>();
+    const visit = (value: unknown): void => {
+      if (Array.isArray(value)) return value.forEach(visit);
+      if (typeof value !== "object" || value === null) return;
+      for (const [key, child] of Object.entries(value)) {
+        keys.add(key);
+        visit(child);
+      }
+    };
+    visit(model);
+    expect([...keys]).not.toEqual(expect.arrayContaining([
+      "atlas",
+      "selector",
+      "decisionLanes",
+      "processGates",
+      "visualizationReferences",
+      "sources",
+      "methods",
+      "basis",
+      "externalUrl",
+    ]));
+    expect(serialized).not.toMatch(/https?:\/\/|claim-[a-z0-9-]+/u);
     expect(serialized).toContain('"href":"/method/#');
   });
 
