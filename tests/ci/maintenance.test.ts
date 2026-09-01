@@ -28,7 +28,10 @@ describe("maintenance workflow contracts", () => {
     );
     expectCode(
       "dependency-review.yml",
-      safeDependencyReviewWorkflow().replace("comment-summary-in-pr: never", "comment-summary-in-pr: always"),
+      safeDependencyReviewWorkflow().replace(
+        "comment-summary-in-pr: never",
+        "comment-summary-in-pr: always",
+      ),
       "DEPENDENCY_REVIEW_INVALID",
     );
   });
@@ -41,14 +44,49 @@ describe("maintenance workflow contracts", () => {
   });
 
   it.each([
-    ["moving URL", LYCHEE_URL, "https://github.com/lycheeverse/lychee/releases/latest/download/lychee.tar.gz", "LYCHEE_URL_INVALID"],
+    [
+      "moving URL",
+      LYCHEE_URL,
+      "https://github.com/lycheeverse/lychee/releases/latest/download/lychee.tar.gz",
+      "LYCHEE_URL_INVALID",
+    ],
     ["wrong checksum", LYCHEE_SHA256, "0".repeat(64), "LYCHEE_CHECKSUM_INVALID"],
-    ["missing checksum", /.+sha256sum --check --strict/u, "echo unchecked", "LYCHEE_CHECKSUM_INVALID"],
-    ["execution before verification", "run: echo", "run: \"$RUNNER_TEMP/lychee\" --version\n+      - run: echo", "LYCHEE_ORDER_INVALID"],
-    ["action indirection", "curl --proto", "lycheeverse/lychee-action@0123456789012345678901234567890123456789 # curl --proto", "ACTION_NOT_ALLOWED"],
-    ["token expression", "continue-on-error: true", "env:\n+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n+        continue-on-error: true", "SECRET_REFERENCE_FORBIDDEN"],
-    ["blocking external outage", "continue-on-error: true", "continue-on-error: false", "LINK_HEALTH_INVALID"],
-    ["repository mutation", "link-health.md", "link-health.md\n+      - run: git commit -am update && git push", "MUTATION_FORBIDDEN"],
+    [
+      "missing checksum",
+      /.+sha256sum --check --strict/u,
+      "echo unchecked",
+      "LYCHEE_CHECKSUM_INVALID",
+    ],
+    [
+      "execution before verification",
+      "run: echo",
+      'run: "$RUNNER_TEMP/lychee" --version\n      - run: echo',
+      "LYCHEE_ORDER_INVALID",
+    ],
+    [
+      "action indirection",
+      "- name: Download checked Lychee archive",
+      "- uses: lycheeverse/lychee-action@0123456789012345678901234567890123456789 # v1\n      - name: Download checked Lychee archive",
+      "ACTION_NOT_ALLOWED",
+    ],
+    [
+      "token expression",
+      "continue-on-error: true",
+      "env:\n          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n        continue-on-error: true",
+      "SECRET_REFERENCE_FORBIDDEN",
+    ],
+    [
+      "blocking external outage",
+      "continue-on-error: true",
+      "continue-on-error: false",
+      "LINK_HEALTH_INVALID",
+    ],
+    [
+      "repository mutation",
+      "          path: link-health.md",
+      "          path: link-health.md\n      - run: git commit -am update && git push",
+      "MUTATION_FORBIDDEN",
+    ],
   ])("rejects %s", (_name, search, replacement, code) => {
     expectCode("link-health.yml", safeLinkHealthWorkflow().replace(search, replacement), code);
   });

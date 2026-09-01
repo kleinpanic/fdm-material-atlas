@@ -16,15 +16,45 @@ describe("workflow trust boundary", () => {
   });
 
   it.each([
-    ["mutable action", /actions\/checkout@[0-9a-f]{40}/u, "actions/checkout@v7", "ACTION_REF_INVALID"],
+    [
+      "mutable action",
+      /actions\/checkout@[0-9a-f]{40}/u,
+      "actions/checkout@v7",
+      "ACTION_REF_INVALID",
+    ],
     ["privileged PR event", "pull_request:", "pull_request_target:", "EVENT_FORBIDDEN"],
-    ["persisted credentials", "persist-credentials: false", "persist-credentials: true", "CHECKOUT_CREDENTIALS"],
+    [
+      "persisted credentials",
+      "persist-credentials: false",
+      "persist-credentials: true",
+      "CHECKOUT_CREDENTIALS",
+    ],
     ["workflow token write", "contents: read", "contents: write", "PERMISSION_FORBIDDEN"],
-    ["direct expression in shell", "node tools/verify-ci-environment.mjs", "echo ${{ github.head_ref }}", "SHELL_EXPRESSION_FORBIDDEN"],
-    ["PR secret", "npm run ci:quality", "TOKEN=${{ secrets.RELEASE_TOKEN }} npm run ci:quality", "SECRET_REFERENCE_FORBIDDEN"],
+    [
+      "direct expression in shell",
+      "node tools/verify-ci-environment.mjs",
+      "echo ${{ github.head_ref }}",
+      "SHELL_EXPRESSION_FORBIDDEN",
+    ],
+    [
+      "PR secret",
+      "npm run ci:quality",
+      "TOKEN=${{ secrets.RELEASE_TOKEN }} npm run ci:quality",
+      "SECRET_REFERENCE_FORBIDDEN",
+    ],
     ["cross-workflow promotion", "workflow_dispatch:", "workflow_run:", "EVENT_FORBIDDEN"],
-    ["artifact promotion", "npm run ci:quality", "gh run download && npm run ci:quality", "PROMOTION_FORBIDDEN"],
-    ["cache promotion", "npm run ci:quality", "actions/cache@0123456789012345678901234567890123456789", "ACTION_NOT_ALLOWED"],
+    [
+      "artifact promotion",
+      "npm run ci:quality",
+      "gh run download && npm run ci:quality",
+      "PROMOTION_FORBIDDEN",
+    ],
+    [
+      "cache promotion",
+      "- run: npm run ci:quality",
+      "- uses: actions/cache@0123456789012345678901234567890123456789",
+      "ACTION_NOT_ALLOWED",
+    ],
     ["repository mutation", "npm run ci:quality", "git push origin main", "MUTATION_FORBIDDEN"],
   ])("rejects %s with a stable code", (_name, search, replacement, code) => {
     const source = safeCiWorkflow().replace(search, replacement);

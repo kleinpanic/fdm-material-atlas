@@ -10,8 +10,7 @@ export const SHAS = Object.freeze({
 
 export const LYCHEE_URL =
   "https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-x86_64-unknown-linux-gnu.tar.gz";
-export const LYCHEE_SHA256 =
-  "1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a";
+export const LYCHEE_SHA256 = "1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a";
 
 export function safeCiWorkflow() {
   return `name: CI
