@@ -50,10 +50,10 @@ describe("bounded performance runner", () => {
   it("excludes only an internally invalid cold capture from the three recorded runs", async () => {
     const { collectValidReports } = await import("../../tools/run-performance-budget.mjs");
     const captures = [
-      { id: "cold-skew", timeToFirstByte: 15_001 },
-      { id: "recorded-1", timeToFirstByte: 550 },
-      { id: "recorded-2", timeToFirstByte: 600 },
-      { id: "recorded-3", timeToFirstByte: 650 },
+      { id: "cold-skew", timeToFirstByte: 15_001, serverResponseTime: 50 },
+      { id: "recorded-1", timeToFirstByte: 15_001, serverResponseTime: 15_001 },
+      { id: "recorded-2", timeToFirstByte: 600, serverResponseTime: 50 },
+      { id: "recorded-3", timeToFirstByte: 650, serverResponseTime: 50 },
     ];
     let calls = 0;
 
@@ -62,10 +62,14 @@ describe("bounded performance runner", () => {
       navigationTimeoutMs: 15_000,
       collect: async () => {
         const capture = captures[calls++];
+        if (!capture) throw new Error("unexpected extra performance capture");
         return {
           id: capture.id,
           lhr: {
-            audits: { metrics: { details: { items: [{ timeToFirstByte: capture.timeToFirstByte }] } } },
+            audits: {
+              metrics: { details: { items: [{ timeToFirstByte: capture.timeToFirstByte }] } },
+              "server-response-time": { numericValue: capture.serverResponseTime },
+            },
           },
         };
       },
@@ -77,7 +81,7 @@ describe("bounded performance runner", () => {
       "recorded-2",
       "recorded-3",
     ]);
-  });
+  }, 15_000);
 
   it("fails closed after two internally invalid captures", async () => {
     const { collectValidReports } = await import("../../tools/run-performance-budget.mjs");
@@ -91,14 +95,17 @@ describe("bounded performance runner", () => {
           calls += 1;
           return {
             lhr: {
-              audits: { metrics: { details: { items: [{ timeToFirstByte: 15_001 }] } } },
+              audits: {
+                metrics: { details: { items: [{ timeToFirstByte: 15_001 }] } },
+                "server-response-time": { numericValue: 50 },
+              },
             },
           };
         },
       }),
     ).rejects.toMatchObject({ code: "PERFORMANCE_REPORT_INVALID" });
     expect(calls).toBe(2);
-  });
+  }, 15_000);
 
   it("rejects a missing production artifact with a stable code", async () => {
     const temporaryRoot = await mkdtemp(join(tmpdir(), "atlas-performance-"));

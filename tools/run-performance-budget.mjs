@@ -371,6 +371,48 @@ async function withCollectionTimeout(operation, timeoutMs) {
   }
 }
 
+const MAX_CAPTURE_ATTEMPTS = 2;
+
+function hasInvalidColdCaptureTiming(result, navigationTimeoutMs) {
+  const timing = result?.lhr?.audits?.metrics?.details?.items?.[0];
+  const observedTimeToFirstByte = timing?.timeToFirstByte;
+  const serverResponseTime = result?.lhr?.audits?.["server-response-time"]?.numericValue;
+  return (
+    typeof observedTimeToFirstByte === "number" &&
+    Number.isFinite(observedTimeToFirstByte) &&
+    typeof serverResponseTime === "number" &&
+    Number.isFinite(serverResponseTime) &&
+    observedTimeToFirstByte > navigationTimeoutMs &&
+    serverResponseTime <= navigationTimeoutMs
+  );
+}
+
+export async function collectValidReports({ runs, navigationTimeoutMs, collect }) {
+  if (
+    !Number.isSafeInteger(runs) ||
+    runs < 1 ||
+    !Number.isFinite(navigationTimeoutMs) ||
+    navigationTimeoutMs <= 0 ||
+    typeof collect !== "function"
+  )
+    fail("PERFORMANCE_ARGUMENTS_INVALID");
+  const reports = [];
+  for (let run = 0; run < runs; run += 1) {
+    let accepted;
+    for (let attempt = 0; attempt < MAX_CAPTURE_ATTEMPTS; attempt += 1) {
+      const result = await collect();
+      if (!result?.lhr) fail("PERFORMANCE_REPORT_INVALID");
+      if (!hasInvalidColdCaptureTiming(result, navigationTimeoutMs)) {
+        accepted = result;
+        break;
+      }
+    }
+    if (!accepted) fail("PERFORMANCE_REPORT_INVALID");
+    reports.push(accepted);
+  }
+  return Object.freeze(reports);
+}
+
 async function collectMode(origin, mode, routes, policy) {
   const chrome = await launchChrome({
     chromePath: process.env.CHROME_PATH || "/usr/bin/chromium",
@@ -380,24 +422,31 @@ async function collectMode(origin, mode, routes, policy) {
   try {
     for (const route of routes) {
       const runs = [];
-      for (let run = 1; run <= policy.lighthouse.runs; run += 1) {
-        const result = await withCollectionTimeout(
-          lighthouse(new URL(publicPath(mode, route.pathname), origin).href, {
-            port: chrome.port,
-            output: "json",
-            logLevel: "silent",
-            onlyCategories: ["performance"],
+      const results = await collectValidReports({
+        runs: policy.lighthouse.runs,
+        navigationTimeoutMs: policy.limits.navigationTimeoutMs,
+        collect: () =>
+          withCollectionTimeout(
+            lighthouse(new URL(publicPath(mode, route.pathname), origin).href, {
+              port: chrome.port,
+              output: "json",
+              logLevel: "silent",
+              onlyCategories: ["performance"],
+            }),
+            policy.limits.collectionTimeoutMs,
+          ).catch((error) => {
+            if (error instanceof PerformanceBudgetError) throw error;
+            fail("PERFORMANCE_COLLECTION_FAILED");
           }),
-          policy.limits.collectionTimeoutMs,
-        ).catch((error) => {
-          if (error instanceof PerformanceBudgetError) throw error;
-          fail("PERFORMANCE_COLLECTION_FAILED");
-        });
-        if (!result?.lhr) fail("PERFORMANCE_REPORT_INVALID");
+      });
+      for (const [index, result] of results.entries()) {
         const metrics = measuredMetrics(result.lhr);
         const directory = resolve(PROJECT_ROOT, policy.reports.directory, mode.name);
         await mkdir(directory, { recursive: true });
-        await writeFile(join(directory, `${route.label}-${run}.json`), JSON.stringify(result.lhr));
+        await writeFile(
+          join(directory, `${route.label}-${index + 1}.json`),
+          JSON.stringify(result.lhr),
+        );
         assertMetrics(metrics, policy.lighthouse);
         runs.push(metrics);
       }
