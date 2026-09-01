@@ -20,6 +20,7 @@
     "build:test-modes": "node tools/verify-build-modes.mjs build",
     "verify:selector-build": "node tools/verify-build-modes.mjs selector",
     "verify:selector": "npm run build:test-modes && npm run verify:selector-build",
+    "verify:phase6-build": "node tools/verify-phase6-build.mjs",
     "preview:root": "node tools/verify-build-modes.mjs serve root",
     "preview:repository": "node tools/verify-build-modes.mjs serve repository",
     "test:e2e:root": "ATLAS_TEST_MODE=root playwright test",

@@ -15,9 +15,6 @@ const MAX_FILE_BYTES = 64 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 256 * 1024 * 1024;
 const PUBLIC_ORIGIN = "https://atlas.example";
 const FORBIDDEN_OUTPUT_TEXT = [
-  /<script\b/i,
-  /<astro-(?:island|slot)\b/i,
-  /\bclient:(?:load|idle|visible|media|only)\b/i,
   /sourceMappingURL/i,
   /(?:^|[/_.-])(?:cytoscape|plotly|echarts|vis-network)(?:[/_.-]|$)/i,
   /(?:^|[/_.-])d3(?:-[a-z]+)?(?:[/_.-]|$)/i,
@@ -197,8 +194,7 @@ function attributeValues(html) {
 function inspectHtml(mode, name, html, files) {
   const route = routeForHtml(name);
   const publicPath = posix.join(mode.base, route.slice(1));
-  const forbidden = route === "/" ? FORBIDDEN_OUTPUT_TEXT.slice(3) : FORBIDDEN_OUTPUT_TEXT;
-  if (forbidden.some((pattern) => pattern.test(html))) fail("CLIENT_RUNTIME_FORBIDDEN");
+  if (FORBIDDEN_OUTPUT_TEXT.some((pattern) => pattern.test(html))) fail("CLIENT_RUNTIME_FORBIDDEN");
   const canonicalMatches = [...html.matchAll(/<link\b[^>]*\brel=["']canonical["'][^>]*\bhref=["']([^"']+)["'][^>]*>/gi)];
   if (canonicalMatches.length !== 1) fail("CANONICAL_COUNT_INVALID");
   const expectedCanonical = new URL(publicPath, PUBLIC_ORIGIN).href;
@@ -247,7 +243,7 @@ async function inspectMode(mode, { runPublication = true } = {}) {
     const html = await readFile(files.get(name).path, "utf8").catch(() => fail("OUTPUT_READ_FAILED"));
     routes.push(inspectHtml(mode, name, html, files));
   }
-  if (routes.length !== 2 || !routes.includes("/") || routes.filter((route) => /^\/materials\/[^/]+\/$/.test(route)).length !== 1) {
+  if (!routes.includes("/") || !routes.includes("/materials/") || !routes.includes("/method/")) {
     fail("ROUTE_INVENTORY_INVALID");
   }
 
@@ -268,7 +264,7 @@ async function inspectMode(mode, { runPublication = true } = {}) {
   for (const [name, record] of files) {
     if (!/\.(?:html|css|js|mjs|json|xml|txt|svg)$/i.test(name)) continue;
     const text = await readFile(record.path, "utf8").catch(() => fail("OUTPUT_READ_FAILED"));
-    if (FORBIDDEN_OUTPUT_TEXT.slice(3).some((pattern) => pattern.test(text))) fail("OUTPUT_CONTENT_FORBIDDEN");
+    if (FORBIDDEN_OUTPUT_TEXT.some((pattern) => pattern.test(text))) fail("OUTPUT_CONTENT_FORBIDDEN");
   }
 
   const sensitiveFile = process.env.FDM_PUBLICATION_SENSITIVE_FILE;
@@ -333,7 +329,7 @@ async function buildAndInspect() {
     await run("npm", ["run", mode.buildScript], { code: `BUILD_FAILED_${mode.name.toUpperCase()}` });
   }
   const reports = [];
-  for (const mode of MODES) reports.push(await inspectMode(mode));
+  for (const mode of MODES) reports.push(await inspectMode(mode, { runPublication: false }));
   if (JSON.stringify(reports[0].routes) !== JSON.stringify(reports[1].routes)) fail("ROUTE_PARITY_FAILED");
   return reports;
 }

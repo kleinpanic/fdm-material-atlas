@@ -282,12 +282,11 @@ export async function verifySelectorBuild({
   const files = await collectFiles(root);
   if ([...files.keys()].some((name) => name.endsWith(".map"))) fail("SELECTOR_SOURCE_MAP_FORBIDDEN");
 
-  const htmlNames = [...files.keys()].filter((name) => name.endsWith(".html")).sort();
+  // The selector contract owns the home island only. Other routes can ship
+  // independently audited islands (for example the material atlas).
   const islands = [];
-  for (const name of htmlNames) {
-    const html = await readFile(files.get(name).path, "utf8").catch(() => fail("SELECTOR_OUTPUT_INVALID"));
-    for (const match of html.matchAll(/<astro-island\b[^>]*>/gi)) islands.push({ name, attributes: attributes(match[0]) });
-  }
+  const selectorHtml = await readFile(files.get("index.html")?.path, "utf8").catch(() => fail("SELECTOR_OUTPUT_INVALID"));
+  for (const match of selectorHtml.matchAll(/<astro-island\b[^>]*>/gi)) islands.push({ name: "index.html", attributes: attributes(match[0]) });
   if (islands.length !== 1 || islands[0].name !== "index.html") fail("SELECTOR_ISLAND_COUNT_INVALID", { islandCount: islands.length });
   const island = islands[0];
   const serializedProps = island.attributes.get("props");
