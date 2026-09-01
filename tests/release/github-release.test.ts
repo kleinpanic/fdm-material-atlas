@@ -2,8 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import {
   collectGitHubReleaseEvidence,
+  executeGitHubReleaseStage,
+  parseGitHubReleaseArguments,
   verifyGitHubRelease,
 } from "../../tools/verify-github-release.mjs";
+import {
+  candidateObservationFixture,
+  PRIOR_SHA,
+  SHA,
+  targetBaselineFixture,
+} from "./fixtures.js";
 
 const PRIOR = "1".repeat(40);
 const CANDIDATE = "2".repeat(40);
@@ -455,5 +463,204 @@ describe("fixed read-only process seam", () => {
           call.args.includes("edit"),
       ),
     ).toBe(false);
+  });
+});
+
+function candidateRelease({ includePrepush = false } = {}) {
+  return {
+    schemaVersion: 1,
+    cycleId: "release-20260901-a",
+    stage: "candidate",
+    commitSha: SHA,
+    startedAt: "2026-09-01T17:59:00.000Z",
+    reason: "candidate-updated",
+    priorVerifiedCycle: { commitSha: PRIOR_SHA, digest: `sha256:${"e".repeat(64)}` },
+    candidate: candidateObservationFixture({ includePrepush }),
+  };
+}
+
+function controlledPrepushProof() {
+  const baseline = targetBaselineFixture();
+  return {
+    ok: true,
+    code: "GITHUB_PREPUSH_VERIFIED",
+    stage: "existing-prepush",
+    candidateSha: SHA,
+    priorRemoteMainSha: PRIOR_SHA,
+    authenticatedOwner: baseline.authenticatedOwner,
+    repositoryName: baseline.repositoryName,
+    refDigest: baseline.advertisedRefs.digest,
+    settingsDigest: `sha256:${"c".repeat(64)}`,
+  };
+}
+
+describe("release evidence CLI contract", () => {
+  it("parses only the exact named Plan 10-09 and 10-10 arguments", () => {
+    expect(
+      parseGitHubReleaseArguments([
+        "--stage",
+        "existing-prepush",
+        "--repo-name",
+        "fdm-material-atlas",
+        "--evidence",
+        ".planning/10-RELEASE-EVIDENCE.json",
+      ]),
+    ).toEqual({
+      stage: "existing-prepush",
+      repositoryName: "fdm-material-atlas",
+      evidencePath: ".planning/10-RELEASE-EVIDENCE.json",
+    });
+    expect(() =>
+      parseGitHubReleaseArguments([
+        "existing-prepush",
+        "fdm-material-atlas",
+        ".planning/10-RELEASE-EVIDENCE.json",
+      ]),
+    ).toThrowError(expect.objectContaining({ code: "GITHUB_INPUT_INVALID" }));
+    expect(() =>
+      parseGitHubReleaseArguments([
+        "--stage",
+        "existing-prepush",
+        "--stage",
+        "existing-post-push",
+        "--repo-name",
+        "fdm-material-atlas",
+        "--evidence",
+        ".planning/10-RELEASE-EVIDENCE.json",
+      ]),
+    ).toThrowError(expect.objectContaining({ code: "GITHUB_INPUT_INVALID" }));
+  });
+
+  it("attaches one exact authenticated pre-push proof to candidate evidence", async () => {
+    const current = candidateRelease();
+    let written: unknown;
+    const result = await executeGitHubReleaseStage({
+      args: {
+        stage: "existing-prepush",
+        repositoryName: "fdm-material-atlas",
+        evidencePath: ".planning/10-RELEASE-EVIDENCE.json",
+      },
+      readEvidence: async () => current,
+      writeEvidence: async (_path, value) => {
+        written = value;
+      },
+      collect: async () => controlledPrepushProof(),
+      now: () => "2026-09-01T18:12:00.000Z",
+    });
+    expect(result).toMatchObject({ ok: true, code: "GITHUB_PREPUSH_RECORDED", stage: "candidate" });
+    expect(written).toMatchObject({
+      stage: "candidate",
+      candidate: {
+        prepushEvidence: {
+          candidateSha: SHA,
+          priorRemoteMainSha: PRIOR_SHA,
+          authenticatedOwner: "kleinpanic",
+          repositoryName: "fdm-material-atlas",
+          status: "passed",
+        },
+      },
+    });
+    expect(JSON.stringify(written)).not.toContain("git@github.com");
+  });
+
+  it.each([
+    ["missing baseline", (value: ReturnType<typeof candidateRelease>) => delete value.candidate.targetBaseline],
+    [
+      "wrong repository",
+      (value: ReturnType<typeof candidateRelease>) =>
+        (value.candidate.targetBaseline.repositoryName = "other-atlas"),
+    ],
+  ])("rejects a %s before collecting live state", async (_name, mutate) => {
+    const current = candidateRelease();
+    mutate(current);
+    let collected = false;
+    await expect(
+      executeGitHubReleaseStage({
+        args: {
+          stage: "existing-prepush",
+          repositoryName: "fdm-material-atlas",
+          evidencePath: ".planning/10-RELEASE-EVIDENCE.json",
+        },
+        readEvidence: async () => current,
+        writeEvidence: async () => {},
+        collect: async () => {
+          collected = true;
+          return controlledPrepushProof();
+        },
+        now: () => "2026-09-01T18:12:00.000Z",
+      }),
+    ).rejects.toMatchObject({ code: expect.stringMatching(/^GITHUB_|^RELEASE_/) });
+    expect(collected).toBe(false);
+  });
+
+  it.each([
+    ["fast-forward", PRIOR_SHA],
+    ["no-op", SHA],
+  ])("advances fresh post-push evidence as an exact %s", async (kind, priorSha) => {
+    const current = candidateRelease({ includePrepush: true });
+    current.candidate.targetBaseline.priorRemoteMainSha = priorSha;
+    current.candidate.targetBaseline.advertisedRefs.refs.find(
+      (ref) => ref.name === "refs/heads/main",
+    )!.sha = priorSha;
+    if (kind === "no-op") {
+      current.priorVerifiedCycle!.commitSha = SHA;
+      const { createHash } = await import("node:crypto");
+      current.candidate.targetBaseline.advertisedRefs.digest = `sha256:${createHash("sha256")
+        .update(JSON.stringify(current.candidate.targetBaseline.advertisedRefs.refs))
+        .digest("hex")}`;
+      current.candidate.prepushEvidence!.priorRemoteMainSha = SHA;
+      current.candidate.prepushEvidence!.refTopologyDigest =
+        current.candidate.targetBaseline.advertisedRefs.digest;
+    }
+    let written: any;
+    const result = await executeGitHubReleaseStage({
+      args: {
+        stage: "existing-post-push",
+        repositoryName: "fdm-material-atlas",
+        evidencePath: ".planning/10-RELEASE-EVIDENCE.json",
+      },
+      readEvidence: async () => current,
+      writeEvidence: async (_path, value) => {
+        written = value;
+      },
+      collect: async () => ({
+        ok: true,
+        code: "GITHUB_POSTPUSH_VERIFIED",
+        stage: "existing-post-push",
+        candidateSha: SHA,
+        update: kind,
+      }),
+      now: () => "2026-09-01T18:20:00.000Z",
+    });
+    expect(result).toMatchObject({ ok: true, code: "GITHUB_PUBLICATION_RECORDED", stage: "published" });
+    expect(written).toMatchObject({
+      stage: "published",
+      publication: {
+        operation: { kind, priorSha, resultSha: SHA },
+        repository: {
+          nameWithOwner: "kleinpanic/fdm-material-atlas",
+          url: "https://github.com/kleinpanic/fdm-material-atlas",
+        },
+      },
+    });
+  });
+
+  it("rejects stale pre-push evidence before a post-push observation", async () => {
+    const current = candidateRelease({ includePrepush: true });
+    await expect(
+      executeGitHubReleaseStage({
+        args: {
+          stage: "existing-post-push",
+          repositoryName: "fdm-material-atlas",
+          evidencePath: ".planning/10-RELEASE-EVIDENCE.json",
+        },
+        readEvidence: async () => current,
+        writeEvidence: async () => {},
+        collect: async () => {
+          throw new Error("must not collect stale evidence");
+        },
+        now: () => "2026-09-01T19:00:00.000Z",
+      }),
+    ).rejects.toMatchObject({ code: "GITHUB_PREPUSH_EVIDENCE_INVALID" });
   });
 });
