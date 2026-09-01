@@ -103,6 +103,10 @@ describe("selector component boundary", () => {
     "utf8",
   );
   const astroConfig = readFileSync(new URL("../../astro.config.mjs", import.meta.url), "utf8");
+  const selectorStyles = readFileSync(
+    new URL("../../src/styles/selector.css", import.meta.url),
+    "utf8",
+  );
   const componentSource = `${controls}\n${results}`;
   const allSource = `${componentSource}\n${island}`;
 
@@ -169,6 +173,9 @@ describe("selector component boundary", () => {
     expect(island).toContain("productionActionRef.current?.reset");
     expect(island).toContain("productionActionRef.current?.view");
     expect(island).toContain("runtimePromiseRef.current ??=");
+    expect(selectorStyles).toMatch(
+      /\.selector-controls\s*\{[^}]*content-visibility:\s*auto;[^}]*contain-intrinsic-block-size:\s*auto 125rem;/su,
+    );
   });
 
   it("uses native form and disclosure semantics for all seven criteria", () => {

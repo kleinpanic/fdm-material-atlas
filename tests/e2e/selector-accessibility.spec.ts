@@ -220,6 +220,45 @@ test("compatible cards defer offscreen layout without hiding scroll or keyboard 
   await expect(shortlistControl).toBeFocused();
 });
 
+test("offscreen controls defer layout but remain complete for keyboard and no-JavaScript users", async ({
+  browser,
+  page,
+}) => {
+  await page.setViewportSize({ width: 412, height: 823 });
+  await waitForSelector(page);
+  const controls = page.locator(".selector-controls");
+  await expect(controls).toHaveCSS("content-visibility", "auto");
+  await expect(controls).toHaveCSS("contain-intrinsic-block-size", "auto 2000px");
+  const firstGoal = controls.getByRole("radio", { name: "Easy prototypes" });
+  await controls.scrollIntoViewIfNeeded();
+  await firstGoal.focus();
+  await expect(firstGoal).toBeVisible();
+  await expect(firstGoal).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(controls.getByRole("radio", { name: "Outdoor and UV exposure" })).toBeChecked();
+  await axePasses(page);
+
+  const context = await browser.newContext({
+    javaScriptEnabled: false,
+    viewport: { width: 412, height: 823 },
+  });
+  try {
+    const noScriptPage = await context.newPage();
+    await noScriptPage.goto("./");
+    const noScriptControls = noScriptPage.locator(".selector-controls");
+    await expect(noScriptControls).toHaveCSS("content-visibility", "auto");
+    await noScriptControls.scrollIntoViewIfNeeded();
+    await expect(noScriptControls.getByRole("radio")).toHaveCount(8);
+    await expect(noScriptControls.getByRole("combobox")).toHaveCount(6);
+    await expect(noScriptControls.getByRole("radio", { checked: true })).toHaveValue(
+      canonicalPageModel.defaults["selector-primary-goal"],
+    );
+    await axePasses(noScriptPage);
+  } finally {
+    await context.close();
+  }
+});
+
 test("selector reflows at 320px and 200 percent zoom with 44px actions in DOM order", async ({
   page,
 }) => {
