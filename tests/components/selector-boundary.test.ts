@@ -98,12 +98,16 @@ describe("selector component boundary", () => {
     new URL("../../src/features/selector/bootstrap.ts", import.meta.url),
     "utf8",
   );
+  const actionRuntime = readFileSync(
+    new URL("../../src/features/selector/action-runtime.ts", import.meta.url),
+    "utf8",
+  );
   const astroConfig = readFileSync(new URL("../../astro.config.mjs", import.meta.url), "utf8");
   const componentSource = `${controls}\n${results}`;
   const allSource = `${componentSource}\n${island}`;
 
   it("keeps exactly one lazy engine invocation owner", () => {
-    expect(island).toContain("prepareSelectorPresentationEvaluator");
+    expect(actionRuntime).toContain("prepareSelectorPresentationEvaluator");
     expect(island).not.toContain("evaluateSelectorSafely");
     expect(componentSource).not.toMatch(
       /selectProjectedMaterials|evaluateSelectorSafely|prepareSelectorPresentationEvaluator/,
@@ -113,8 +117,8 @@ describe("selector component boundary", () => {
   it("seeds default state without decoding or evaluating during production hydration", () => {
     expect(island).toContain("bootstrap");
     expect(island).toContain("runtimeRef.current ??=");
-    expect(island).toContain("decodeSelectorClientModel(pageModel)");
-    expect(island).toContain("prepareSelectorPresentationEvaluator(runtimeModel)");
+    expect(actionRuntime).toContain("decodeSelectorClientModel(pageModel)");
+    expect(actionRuntime).toContain("prepareSelectorPresentationEvaluator(runtimeModel)");
     expect(island).not.toMatch(/useMemo\(\s*\(\) => (?:decode|prepare)/u);
     expect(bootstrap).toContain("defaultCompatibleIds");
     expect(bootstrap).toContain("defaultAnnouncement");

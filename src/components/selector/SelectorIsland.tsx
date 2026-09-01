@@ -1,14 +1,12 @@
 /** @jsxImportSource preact */
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 
-import {
-  decodeSelectorClientModel,
-  type SelectorClientModel,
-  type SelectorRuntimePageModel,
+import type { PreparedSelectorActionRuntime } from "../../features/selector/action-runtime.ts";
+import type {
+  SelectorClientModel,
+  SelectorRuntimePageModel,
 } from "../../features/selector/client-model.ts";
-import { decodeSelectorDeferredPayload } from "../../features/selector/deferred-payload.ts";
 import {
-  buildSelectorBootstrap,
   selectorPresentationAnnouncement,
   type SelectorBootstrap,
 } from "../../features/selector/bootstrap.ts";
@@ -16,7 +14,6 @@ import type { MaterialId } from "../../data/schema/ids.ts";
 import { isMaterialIdValue } from "../../data/schema/public-id-values.ts";
 import { SELECTOR_COPY } from "../../features/selector/copy.ts";
 import type { SelectorPresentation } from "../../features/selector/presentation.ts";
-import { prepareSelectorPresentationEvaluator } from "../../features/selector/runtime-evaluator.ts";
 import {
   presentShortlist,
   reduceShortlist,
@@ -27,7 +24,7 @@ import {
 import { SelectorControls } from "./SelectorControls.tsx";
 import type { SelectorResultsProps } from "./SelectorResults.tsx";
 
-type Props = Readonly<{ pageModel?: SelectorClientModel; bootstrap?: SelectorBootstrap }>;
+type Props = Readonly<{ pageModel?: SelectorClientModel; bootstrap: SelectorBootstrap }>;
 type ResultsRenderer = typeof import("./render-selector-results.tsx");
 const RESULTS_MOUNT_ID = "selector-results-mount";
 
@@ -53,39 +50,9 @@ function SelectorStatus({ message, immediate }: Readonly<{ message: string; imme
   );
 }
 
-function recoverBootstrap(pageModel: SelectorClientModel | undefined): SelectorBootstrap | null {
-  try {
-    if (!pageModel) return null;
-    const runtimeModel = decodeSelectorClientModel(pageModel);
-    const evaluate = prepareSelectorPresentationEvaluator(runtimeModel);
-    return buildSelectorBootstrap(runtimeModel, evaluate(runtimeModel.defaults));
-  } catch {
-    return null;
-  }
-}
-
 export function SelectorIsland({ pageModel, bootstrap }: Props) {
-  const initialBootstrap = bootstrap ?? recoverBootstrap(pageModel);
-  if (initialBootstrap === null) {
-    return (
-      <div class="selector-controls-runtime">
-        <section class="selector-error" role="alert">
-          <h2>Recommendations are unavailable</h2>
-          <p>{SELECTOR_COPY.errorState}</p>
-          <p>{SELECTOR_COPY.errorAction}</p>
-        </section>
-      </div>
-    );
-  }
-  return (
-    <SelectorRuntimeIsland {...(pageModel ? { pageModel } : {})} bootstrap={initialBootstrap} />
-  );
+  return <SelectorRuntimeIsland {...(pageModel ? { pageModel } : {})} bootstrap={bootstrap} />;
 }
-
-type PreparedRuntime = Readonly<{
-  pageModel: SelectorRuntimePageModel;
-  evaluate: ReturnType<typeof prepareSelectorPresentationEvaluator>;
-}>;
 
 type EvaluatedState = Readonly<{
   pageModel: SelectorRuntimePageModel;
@@ -121,27 +88,29 @@ function SelectorRuntimeIsland({
   const disposedRef = useRef(false);
   const latestResultsPropsRef = useRef<SelectorResultsProps | null>(null);
   const staticActionRef = useRef<(action: string, materialId?: string) => void>(() => undefined);
-  const runtimeRef = useRef<PreparedRuntime | null>(null);
+  const runtimeRef = useRef<PreparedSelectorActionRuntime | null>(null);
+  const runtimePromiseRef = useRef<Promise<PreparedSelectorActionRuntime> | null>(null);
+  const latestEvaluationRef = useRef(0);
 
-  const prepareRuntime = (): PreparedRuntime | null => {
+  const prepareRuntime = async (): Promise<PreparedSelectorActionRuntime | null> => {
     if (runtimeRef.current) return runtimeRef.current;
     try {
-      const runtimeModel = pageModel
-        ? decodeSelectorClientModel(pageModel)
-        : decodeSelectorDeferredPayload(document);
-      return (runtimeRef.current ??= Object.freeze({
-        pageModel: runtimeModel,
-        evaluate: prepareSelectorPresentationEvaluator(runtimeModel),
-      }));
+      const runtime = await (runtimePromiseRef.current ??=
+        import("../../features/selector/action-runtime.ts").then(
+          ({ prepareSelectorActionRuntime }) => prepareSelectorActionRuntime(document, pageModel),
+        ));
+      return (runtimeRef.current ??= runtime);
     } catch {
       setAnnouncementOverride(SELECTOR_COPY.errorState);
       return null;
     }
   };
 
-  const evaluateForResults = (input: Readonly<Record<string, unknown>>): boolean => {
-    const runtime = prepareRuntime();
+  const evaluateForResults = async (input: Readonly<Record<string, unknown>>): Promise<boolean> => {
+    const evaluation = ++latestEvaluationRef.current;
+    const runtime = await prepareRuntime();
     if (!runtime) return false;
+    if (disposedRef.current || evaluation !== latestEvaluationRef.current) return false;
     setEvaluated(
       Object.freeze({ pageModel: runtime.pageModel, presentation: runtime.evaluate(input) }),
     );
@@ -188,7 +157,7 @@ function SelectorRuntimeIsland({
 
   const reset = () => {
     setSelection(bootstrap.defaults);
-    if (evaluated) evaluateForResults(bootstrap.defaults);
+    if (evaluated) void evaluateForResults(bootstrap.defaults);
     const transition = reduceShortlist(shortlistIds, { type: "criteria-reset" });
     setShortlistIds(transition.ids);
     setAnnouncementOverride("Selector reset to published defaults.");
@@ -206,7 +175,7 @@ function SelectorRuntimeIsland({
     pendingFocusIntentRef.current = transition.focusIntent;
     setShortlistIds(transition.ids);
     if (transition.announcement) setAnnouncementOverride(transition.announcement);
-    evaluateForResults(selection);
+    void evaluateForResults(selection);
   };
 
   const resultsProps: SelectorResultsProps | null = evaluated
@@ -327,14 +296,14 @@ function SelectorRuntimeIsland({
       applyShortlist({ type: "add", materialId: materialId as MaterialId });
     } else if (action === "show-all") {
       setShowAll(true);
-      evaluateForResults(selection);
+      void evaluateForResults(selection);
     } else if (action === "expand-calculation") {
       if (!isMaterialIdValue(materialId) || !compatibleIds.includes(materialId as MaterialId)) {
         setAnnouncementOverride(SELECTOR_COPY.errorState);
         return;
       }
       pendingCalculationOpenRef.current = materialId as MaterialId;
-      evaluateForResults(selection);
+      void evaluateForResults(selection);
     }
   };
 
@@ -380,12 +349,12 @@ function SelectorRuntimeIsland({
           const next = { ...selection, [criterionId]: optionId };
           setAnnouncementOverride(null);
           setSelection(next);
-          evaluateForResults(next);
+          void evaluateForResults(next);
           setShortlistIds(reduceShortlist(shortlistIds, { type: "criteria-changed" }).ids);
         }}
         onInvalid={(criterionId) => {
           setAnnouncementOverride(null);
-          evaluateForResults({ ...selection, [criterionId]: null });
+          void evaluateForResults({ ...selection, [criterionId]: null });
         }}
         onView={focusResultsHeading}
         onReset={reset}
