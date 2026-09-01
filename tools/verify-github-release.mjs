@@ -468,7 +468,7 @@ function activeAuthLogins(value) {
 export async function collectGitHubReleaseEvidence({
   expected: rawExpected,
   stage,
-  prepush,
+  prepush = undefined,
   run = defaultRun,
 }) {
   const expected = expectedInput(rawExpected);
