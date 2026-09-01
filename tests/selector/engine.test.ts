@@ -93,7 +93,7 @@ function projection(overrides: Partial<SelectorProjectionV1> = {}): SelectorProj
 
 describe("selectProjectedMaterials", () => {
   it("prepares an immutable projection snapshot for repeated evaluation", () => {
-    const mutable = projection() as SelectorProjectionV1;
+    const mutable = structuredClone(projection()) as SelectorProjectionV1;
     const prepared = prepareSelectorProjection(mutable);
     const first = prepared({});
 

@@ -1,5 +1,6 @@
 /** @jsxImportSource preact */
 import type { JSX, RefObject } from "preact";
+import { useEffect, useState } from "preact/hooks";
 
 import type { SelectorRuntimePageModel } from "../../features/selector/client-model.ts";
 import { SELECTOR_COPY } from "../../features/selector/copy.ts";
@@ -7,7 +8,6 @@ import { SELECTOR_COPY } from "../../features/selector/copy.ts";
 type Props = Readonly<{
   pageModel: SelectorRuntimePageModel;
   selection: Readonly<Record<string, string>>;
-  disabled: boolean;
   primaryFirstRef: RefObject<HTMLInputElement>;
   secondaryDetailsRef: RefObject<HTMLDetailsElement>;
   secondarySummaryRef: RefObject<HTMLElement>;
@@ -20,7 +20,6 @@ type Props = Readonly<{
 export function SelectorControls({
   pageModel,
   selection,
-  disabled,
   primaryFirstRef,
   secondaryDetailsRef,
   secondarySummaryRef,
@@ -29,6 +28,9 @@ export function SelectorControls({
   onView,
   onReset,
 }: Props) {
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+
   const primary = pageModel.projection.criteria.find((criterion) => criterion.role === "primary");
   const secondary = pageModel.projection.criteria.filter(
     (criterion) => criterion.role === "secondary",
@@ -58,7 +60,7 @@ export function SelectorControls({
       }}
     >
       <p id="selector-default-note">{SELECTOR_COPY.defaultStateNote}</p>
-      <fieldset disabled={disabled}>
+      <fieldset disabled={!hydrated}>
         <legend>{SELECTOR_COPY.primaryGoalLegend}</legend>
         <div class="selector-goals">
           {primary.options.map((option, index) => (
@@ -84,7 +86,7 @@ export function SelectorControls({
           <span>{SELECTOR_COPY.secondaryDisclosure}</span>
           <span class="selector-secondary-values">{secondary.map(selectedLabel).join(" · ")}</span>
         </summary>
-        <fieldset disabled={disabled}>
+        <fieldset disabled={!hydrated}>
           <legend class="visually-hidden">{SELECTOR_COPY.secondaryDisclosure}</legend>
           {secondary.map((criterion) => (
             <label key={criterion.id} class="selector-select">
@@ -120,10 +122,10 @@ export function SelectorControls({
       </section>
 
       <div class="selector-actions">
-        <button type="submit" disabled={disabled}>
+        <button type="submit" disabled={!hydrated}>
           {SELECTOR_COPY.primaryAction}
         </button>
-        <button type="button" disabled={disabled} onClick={onReset}>
+        <button type="button" disabled={!hydrated} onClick={onReset}>
           {SELECTOR_COPY.resetAction}
         </button>
       </div>

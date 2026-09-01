@@ -8,8 +8,11 @@ import {
 } from "../../features/selector/client-model.ts";
 import type { MaterialId } from "../../data/schema/ids.ts";
 import { SELECTOR_COPY } from "../../features/selector/copy.ts";
-import { presentSelectorOutcome } from "../../features/selector/presentation.ts";
-import { evaluateSelectorSafely } from "../../features/selector/safe-engine.ts";
+import {
+  presentSelectorOutcome,
+  type SelectorPresentation,
+} from "../../features/selector/presentation.ts";
+import { prepareSelectorEvaluator } from "../../features/selector/safe-engine.ts";
 import {
   presentShortlist,
   reduceShortlist,
@@ -21,6 +24,39 @@ import { SelectorControls } from "./SelectorControls.tsx";
 import { SelectorResults } from "./SelectorResults.tsx";
 
 type Props = Readonly<{ pageModel: SelectorClientModel }>;
+
+function aggregateAnnouncement(presentation: SelectorPresentation): string {
+  if (presentation.kind === "ranked") {
+    return `${presentation.compatible.length} compatible materials; ${presentation.eliminated.length} eliminated.${presentation.compatible[0] ? ` Highest alignment is ${presentation.compatible[0].materialLabel}.` : ""}`;
+  }
+  if (presentation.kind === "no-compatible") {
+    return "No compatible materials. Your selections were not changed.";
+  }
+  if (presentation.kind === "error") return SELECTOR_COPY.errorState;
+  return presentation.body;
+}
+
+function SelectorStatus({ message, immediate }: Readonly<{ message: string; immediate: boolean }>) {
+  const [announcement, setAnnouncement] = useState(SELECTOR_COPY.hydrationStatus);
+  const previousMessage = useRef(SELECTOR_COPY.hydrationStatus);
+
+  useEffect(() => {
+    if (previousMessage.current === message) return;
+    previousMessage.current = message;
+    if (immediate) {
+      setAnnouncement(message);
+      return;
+    }
+    const timer = window.setTimeout(() => setAnnouncement(message), 150);
+    return () => window.clearTimeout(timer);
+  }, [immediate, message]);
+
+  return (
+    <p role="status" aria-live="polite" aria-atomic="true">
+      {announcement}
+    </p>
+  );
+}
 
 export function SelectorIsland({ pageModel }: Props) {
   const runtimeModel = useMemo(() => {
@@ -45,15 +81,13 @@ export function SelectorIsland({ pageModel }: Props) {
 }
 
 function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRuntimePageModel }>) {
-  const [hydrated, setHydrated] = useState(false);
   const [selection, setSelection] = useState<Readonly<Record<string, string>>>(
     () => pageModel.defaults,
   );
   const [evaluationInput, setEvaluationInput] = useState<Readonly<Record<string, unknown>>>(
     () => pageModel.defaults,
   );
-  const [announcement, setAnnouncement] = useState<string>(SELECTOR_COPY.hydrationStatus);
-  const [announcementCause, setAnnouncementCause] = useState<"aggregate" | "reset">("aggregate");
+  const [announcementOverride, setAnnouncementOverride] = useState<string | null>(null);
   const [shortlistIds, setShortlistIds] = useState<ShortlistState>([]);
   const [showAll, setShowAll] = useState(false);
   const [eliminationsOpen, setEliminationsOpen] = useState(false);
@@ -66,10 +100,11 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
   const resultControlRefs = useRef(new Map<MaterialId, HTMLButtonElement>());
   const pendingFocusIntentRef = useRef<ShortlistFocusIntent | null>(null);
 
-  const evaluation = useMemo(
-    () => evaluateSelectorSafely(pageModel.projection, evaluationInput),
-    [pageModel.projection, evaluationInput],
+  const evaluator = useMemo(
+    () => prepareSelectorEvaluator(pageModel.projection),
+    [pageModel.projection],
   );
+  const evaluation = useMemo(() => evaluator(evaluationInput), [evaluationInput, evaluator]);
   const presentation = useMemo(
     () =>
       evaluation.kind === "success"
@@ -86,6 +121,7 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
       ? presentation.compatible.map(({ materialId }) => materialId)
       : [];
   const shortlist = presentShortlist(shortlistIds, compatibleIds);
+  const announcement = announcementOverride ?? aggregateAnnouncement(presentation);
 
   useLayoutEffect(() => {
     const intent = pendingFocusIntentRef.current;
@@ -100,39 +136,19 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
     }
   }, [focusRevision, shortlistIds]);
 
-  useEffect(() => setHydrated(true), []);
-  useEffect(() => {
-    if (!hydrated) return;
-    if (announcementCause === "reset") {
-      setAnnouncement("Selector reset to published defaults.");
-      return;
-    }
-    const next =
-      presentation.kind === "ranked"
-        ? `${presentation.compatible.length} compatible materials; ${presentation.eliminated.length} eliminated.${presentation.compatible[0] ? ` Highest alignment is ${presentation.compatible[0].materialLabel}.` : ""}`
-        : presentation.kind === "no-compatible"
-          ? "No compatible materials. Your selections were not changed."
-          : presentation.kind === "error"
-            ? SELECTOR_COPY.errorState
-            : presentation.body;
-    const timer = window.setTimeout(() => setAnnouncement(next), 150);
-    return () => window.clearTimeout(timer);
-  }, [announcementCause, hydrated, presentation]);
-
   const reset = () => {
-    setAnnouncementCause("reset");
     setSelection(pageModel.defaults);
     setEvaluationInput(pageModel.defaults);
     const transition = reduceShortlist(shortlistIds, { type: "criteria-reset" });
     setShortlistIds(transition.ids);
-    setAnnouncement("Selector reset to published defaults.");
+    setAnnouncementOverride("Selector reset to published defaults.");
   };
 
   const applyShortlist = (action: ShortlistAction) => {
     const transition = reduceShortlist(shortlistIds, action);
     pendingFocusIntentRef.current = transition.focusIntent;
     setShortlistIds(transition.ids);
-    if (transition.announcement) setAnnouncement(transition.announcement);
+    if (transition.announcement) setAnnouncementOverride(transition.announcement);
     if (transition.focusIntent.kind !== "preserve-trigger") {
       setFocusRevision((revision) => revision + 1);
     }
@@ -143,27 +159,24 @@ function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRunt
       <SelectorControls
         pageModel={pageModel}
         selection={selection}
-        disabled={!hydrated}
         primaryFirstRef={primaryFirstRef}
         secondaryDetailsRef={secondaryDetailsRef}
         secondarySummaryRef={secondarySummaryRef}
         onChange={(criterionId, optionId) => {
           const next = { ...selection, [criterionId]: optionId };
-          setAnnouncementCause("aggregate");
+          setAnnouncementOverride(null);
           setSelection(next);
           setEvaluationInput(next);
           setShortlistIds(reduceShortlist(shortlistIds, { type: "criteria-changed" }).ids);
         }}
         onInvalid={(criterionId) => {
-          setAnnouncementCause("aggregate");
+          setAnnouncementOverride(null);
           setEvaluationInput({ ...selection, [criterionId]: null });
         }}
         onView={() => resultsHeadingRef.current?.focus()}
         onReset={reset}
       />
-      <p role="status" aria-live="polite" aria-atomic="true">
-        {announcement}
-      </p>
+      <SelectorStatus message={announcement} immediate={announcementOverride !== null} />
       <SelectorResults
         pageModel={pageModel}
         presentation={presentation}

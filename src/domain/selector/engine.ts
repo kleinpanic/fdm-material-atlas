@@ -28,12 +28,14 @@ import type {
 } from "./types.ts";
 
 type PreparedOption = Readonly<{
-  definition: ProjectedSelectorOption;
+  definition: Readonly<Pick<ProjectedSelectorOption, "id">>;
   compiled: CompiledPredicateSet;
 }>;
 
 type PreparedCriterion = Readonly<{
-  definition: ProjectedSelectorCriterion;
+  definition: Readonly<
+    Pick<ProjectedSelectorCriterion, "id" | "defaultOptionId" | "role" | "weight">
+  >;
   options: ReadonlyMap<SelectorOptionId, PreparedOption>;
 }>;
 
@@ -41,6 +43,8 @@ type PreparedProjection = Readonly<{
   criteria: readonly PreparedCriterion[];
   materials: readonly ProjectedSelectorMaterial[];
 }>;
+
+export type PreparedSelectorEvaluator = (input: SelectorSelectionInput) => SelectorEngineOutcome;
 
 type SelectedCriterion = Readonly<{
   selection: NormalizedSelectionEntry;
@@ -103,7 +107,25 @@ function validateMaterial(material: unknown): ProjectedSelectorMaterial {
       invalidProjection();
     }
   }
-  return material as unknown as ProjectedSelectorMaterial;
+  return Object.freeze({
+    id: material.id,
+    label: material.label,
+    fields: Object.freeze(
+      material.fields.map((record) =>
+        record.state === "resolved"
+          ? Object.freeze({
+              field: record.field,
+              state: record.state,
+              value: Array.isArray(record.value) ? Object.freeze([...record.value]) : record.value,
+            })
+          : Object.freeze({
+              field: record.field,
+              state: record.state,
+              reason: record.reason,
+            }),
+      ),
+    ),
+  }) as unknown as ProjectedSelectorMaterial;
 }
 
 function prepareProjection(projection: SelectorProjectionV1): PreparedProjection {
@@ -173,7 +195,7 @@ function prepareProjection(projection: SelectorProjectionV1): PreparedProjection
         options.set(
           option.id as SelectorOptionId,
           Object.freeze({
-            definition: option as unknown as ProjectedSelectorOption,
+            definition: Object.freeze({ id: option.id as SelectorOptionId }),
             compiled,
           }),
         );
@@ -185,7 +207,12 @@ function prepareProjection(projection: SelectorProjectionV1): PreparedProjection
         invalidProjection();
       }
       return Object.freeze({
-        definition: criterion as unknown as ProjectedSelectorCriterion,
+        definition: Object.freeze({
+          id: criterion.id,
+          defaultOptionId: criterion.defaultOptionId as SelectorOptionId,
+          role: criterion.role,
+          weight: criterion.weight,
+        }) as PreparedCriterion["definition"],
         options,
       });
     });
@@ -367,24 +394,10 @@ function finalizeEliminated(
   });
 }
 
-/** Evaluate untrusted selection state against the compact browser-safe projection. */
-export function selectProjectedMaterials(
-  projection: SelectorProjectionV1,
+function selectPreparedMaterials(
+  prepared: PreparedProjection,
   input: SelectorSelectionInput,
 ): SelectorEngineOutcome {
-  let prepared: PreparedProjection;
-  try {
-    prepared = prepareProjection(projection);
-  } catch {
-    const issues: readonly SelectorIssue[] = Object.freeze([
-      { code: "SELECTOR_PROJECTION_INVALID" } satisfies SelectorIssue,
-    ]);
-    return Object.freeze({
-      kind: "invalid-selection",
-      issues,
-    });
-  }
-
   const normalized = normalizeSelection(prepared, input);
   if (!normalized.ok) {
     return Object.freeze({ kind: "invalid-selection", issues: normalized.issues });
@@ -463,6 +476,32 @@ export function selectProjectedMaterials(
     compatible: orderedCompatible,
     eliminated: orderedEliminated,
   });
+}
+
+/** Validate and compile a compact projection once for repeated browser evaluation. */
+export function prepareSelectorProjection(
+  projection: SelectorProjectionV1,
+): PreparedSelectorEvaluator {
+  const prepared = prepareProjection(projection);
+  return (input) => selectPreparedMaterials(prepared, input);
+}
+
+/** Evaluate untrusted selection state against the compact browser-safe projection. */
+export function selectProjectedMaterials(
+  projection: SelectorProjectionV1,
+  input: SelectorSelectionInput,
+): SelectorEngineOutcome {
+  try {
+    return prepareSelectorProjection(projection)(input);
+  } catch {
+    const issues: readonly SelectorIssue[] = Object.freeze([
+      { code: "SELECTOR_PROJECTION_INVALID" } satisfies SelectorIssue,
+    ]);
+    return Object.freeze({
+      kind: "invalid-selection",
+      issues,
+    });
+  }
 }
 
 /** Server and test convenience adapter; all calculation remains projected. */
