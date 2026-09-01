@@ -249,8 +249,8 @@ test("offscreen controls defer layout but remain complete for keyboard and no-Ja
     await expect(noScriptControls).toHaveCSS("content-visibility", "auto");
     await noScriptControls.scrollIntoViewIfNeeded();
     await expect(noScriptControls.getByRole("radio")).toHaveCount(
-      canonicalPageModel.projection.criteria.find(({ role }) => role === "primary")?.options.length ??
-        0,
+      canonicalPageModel.projection.criteria.find(({ role }) => role === "primary")?.options
+        .length ?? 0,
     );
     await expect(noScriptControls.getByRole("combobox")).toHaveCount(6);
     await expect(noScriptControls.getByRole("radio", { checked: true })).toHaveValue(
