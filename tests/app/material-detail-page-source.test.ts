@@ -38,4 +38,13 @@ describe("material detail route source", () => {
     expect(css).not.toMatch(/(?:^|[;{])\s*order\s*:/mu);
     expect(css).not.toContain("position: sticky");
   });
+
+  it("defers only offscreen material sections on screens and preserves print layout", () => {
+    expect(css).toMatch(
+      /@media screen\s*\{[\s\S]*?\.material-reference__sections\s*>\s*section:not\(:first-child\)\s*\{[\s\S]*?content-visibility:\s*auto;[\s\S]*?contain-intrinsic-block-size:\s*auto 100rem;/u,
+    );
+    const printRules = css.match(/@media print\s*\{[\s\S]*?\n\}/gu)?.join("\n") ?? "";
+    expect(printRules).not.toContain("content-visibility: auto");
+    expect(printRules).not.toContain("contain-intrinsic-block-size");
+  });
 });

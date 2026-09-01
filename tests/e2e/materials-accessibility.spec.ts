@@ -66,3 +66,43 @@ test("keyboard, narrow reflow, reduced motion, and forced colors retain meaning"
     .evaluate((element: Element) => getComputedStyle(element).transitionDuration);
   expect(Number.parseFloat(transition)).toBeLessThanOrEqual(0.001);
 });
+
+test("material rail anchors reveal contained sections without changing accessible order", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await page.goto(`${basePath}materials/abs/`);
+
+  const overview = page.locator("#overview");
+  const thermal = page.locator("#thermal");
+  await expect(overview).toHaveCSS("content-visibility", "visible");
+  await expect(thermal).toHaveCSS("content-visibility", "auto");
+  expect(
+    await thermal.evaluate((element: Element) => getComputedStyle(element).containIntrinsicBlockSize),
+  ).toBe("auto 1600px");
+  await expect(page.locator(".material-reference__sections > section")).toHaveCount(9);
+
+  const evidenceLink = page
+    .getByRole("navigation", { name: "On this page" })
+    .getByRole("link", { name: "Evidence" });
+  await evidenceLink.focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/#evidence$/u);
+  await expect(page.locator("#evidence")).toBeFocused();
+  await expect(page.locator("#evidence > h2")).toBeInViewport();
+  await axePasses(page);
+
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto(`${basePath}materials/abs/#starting-profile`);
+  await expect(page.locator("#starting-profile > h2")).toBeInViewport();
+  const readingOrder = await page.evaluate(() => {
+    const rail = document.querySelector(".material-reference__rail");
+    const sections = document.querySelector(".material-reference__sections");
+    if (!rail || !sections) throw new Error("material reference structure missing");
+    return rail.compareDocumentPosition(sections) & Node.DOCUMENT_POSITION_FOLLOWING;
+  });
+  expect(readingOrder).toBeTruthy();
+
+  await page.emulateMedia({ media: "print" });
+  await expect(thermal).toHaveCSS("content-visibility", "visible");
+});
