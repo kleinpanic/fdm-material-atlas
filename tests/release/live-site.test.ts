@@ -3,6 +3,16 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { captureLiveSurface } from "../../tools/verify-live-site.mjs";
 
+type LiveCaptureOptions = {
+  pagesUrl: string;
+  synthetic: true;
+  exactPatterns: Buffer[];
+};
+
+const captureSyntheticLiveSurface = captureLiveSurface as unknown as (
+  options: LiveCaptureOptions,
+) => Promise<{ ok: boolean; routeCount: number; assetCount: number; findingCount: number }>;
+
 const servers: ReturnType<typeof createServer>[] = [];
 afterEach(async () =>
   Promise.all(
@@ -54,7 +64,7 @@ describe("bounded live surface capture", () => {
       "/atlas/method/": { type: "text/html", body: document() },
       "/atlas/_astro/app.12345678.css": { type: "text/css", body: "body{color:#123}" },
     });
-    const result = await captureLiveSurface({
+    const result = await captureSyntheticLiveSurface({
       pagesUrl: origin,
       synthetic: true,
       exactPatterns: [Buffer.from("protected-value")],
@@ -91,12 +101,12 @@ describe("bounded live surface capture", () => {
       ...override,
     };
     if (code === "LIVE_SOURCE_MAP")
-      routes["/atlas/"].body = document(
+      routes["/atlas/"]!.body = document(
         '<script src="/atlas/_astro/app.12345678.css.map"></script>',
       );
     const origin = await site(routes);
     await expect(
-      captureLiveSurface({ pagesUrl: origin, synthetic: true, exactPatterns: [] }),
+      captureSyntheticLiveSurface({ pagesUrl: origin, synthetic: true, exactPatterns: [] }),
     ).rejects.toMatchObject({ code });
   });
 
@@ -104,7 +114,7 @@ describe("bounded live surface capture", () => {
     const marker = "do-not-echo-private-value";
     const origin = await site({ "/atlas/": { type: "text/html", body: document(marker) } });
     let message = "";
-    await captureLiveSurface({
+    await captureSyntheticLiveSurface({
       pagesUrl: origin,
       synthetic: true,
       exactPatterns: [Buffer.from(marker)],

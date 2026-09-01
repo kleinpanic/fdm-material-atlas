@@ -5,7 +5,40 @@ import { inspectArchiveEntries, verifyRemoteSnapshot } from "../../tools/verify-
 const sha = (value: string) => value.repeat(40);
 const human = { name: "Release Owner", email: "owner@example.test" };
 
-function validSnapshot() {
+type IdentityFixture = { name: string; email: string };
+type CommitFixture = {
+  sha: string;
+  parents: string[];
+  reachableFromMain: boolean;
+  author: IdentityFixture;
+  committer: IdentityFixture;
+  message: string;
+  trailers: string[];
+  paths: string[];
+  signature: string;
+};
+type RemoteSnapshotFixture = {
+  expectedSha: string;
+  human: IdentityFixture;
+  refs: { name: string; sha: string }[];
+  commits: CommitFixture[];
+  runs: {
+    id: number;
+    sha: string;
+    status: string;
+    conclusion: string;
+    logsScanned: boolean;
+    artifactIds: number[];
+  }[];
+  artifacts: {
+    id: number;
+    runId: number;
+    scanned: boolean;
+    findingCount: number;
+  }[];
+};
+
+function validSnapshot(): RemoteSnapshotFixture {
   return {
     expectedSha: sha("a"),
     human,
