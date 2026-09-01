@@ -158,9 +158,9 @@ describe("impact and flexibility renderer", () => {
 
     const withOmission = structuredClone(projection) as MapProjection;
     const omitted = withOmission.impactFlex.records[0]!;
+    const { impact: _impact, ...withoutImpact } = omitted;
     (withOmission.impactFlex.records as unknown as Array<typeof omitted>)[0] = {
-      ...omitted,
-      impact: undefined,
+      ...withoutImpact,
       impactFact: { state: "unknown", display: ["Unknown", "Verify impact guidance."], reason: "Verify impact guidance." },
       disposition: { disposition: "omitted", code: "impact-value-unavailable", reason: "Impact resistance: Verify impact guidance." },
     };
