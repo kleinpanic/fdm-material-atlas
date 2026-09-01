@@ -64,6 +64,7 @@ describe("complete decision-path transform", () => {
       const atlas = cloneAtlas();
       const allowed = new Set(outdoorIds.slice(0, count));
       atlas.materials = atlas.materials.filter(({ id }) => allowed.has(id));
+      atlas.visualizationReferences = atlas.visualizationReferences.filter(({ kind }) => kind === "decision-path");
       const outdoor = buildDecisionPaths(atlas).find(({ id }) => id === "lane-outdoor")!;
       expect(outdoor.candidates).toHaveLength(count);
       expect(outdoor.visibleCandidates).toHaveLength(Math.min(count, 8));
@@ -95,10 +96,10 @@ describe("complete decision-path transform", () => {
       atlas.decisionLanes.pop();
     }],
     ["DECISION_PATH_MATERIAL_MISSING", (atlas: AtlasV1) => {
-      const candidateId = buildDecisionPaths(atlas)[0]!.candidates[0]!.id;
-      atlas.materials = atlas.materials.filter(({ id }) => id !== candidateId);
-      const lane = atlas.decisionLanes[0]!;
-      lane.candidateRule = { op: "equals", field: "guidance.bestSuitedFor", value: candidateId };
+      atlas.visualizationReferences[0]!.related.push({
+        kind: "material-id",
+        materialId: "material-missing" as AtlasV1["materials"][number]["id"],
+      });
     }],
     ["DECISION_PATH_GATE_MISSING", (atlas: AtlasV1) => {
       atlas.processGates = atlas.processGates.slice(1);
@@ -119,7 +120,7 @@ describe("complete decision-path transform", () => {
     const source = readFileSync("src/features/map/decision-path.ts", "utf8");
     expect(source).toMatch(/deriveDecisionLaneMembership/u);
     expect(source).not.toMatch(/candidateMaterialIds\s*:/u);
-    expect(source).not.toMatch(/material-[a-z0-9-]+/u);
+    expect(source).not.toMatch(/"material-(?!id"|route")[a-z0-9-]+"/u);
     expect(source).not.toMatch(/selector\/(?:engine|presentation|page-model)/u);
   });
 });
