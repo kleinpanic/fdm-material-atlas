@@ -411,21 +411,23 @@ describe("fixed read-only process seam", () => {
       [];
     const outputs = [
       {
+        stderr: "",
         stdout: JSON.stringify({
           hosts: { "github.com": [{ active: true, login: "atlas-owner" }] },
         }),
       },
-      { stdout: JSON.stringify({ login: "atlas-owner" }) },
-      { stdout: JSON.stringify(repository().repository) },
-      { stdout: JSON.stringify(repository().pages) },
-      { stdout: "git@github.com:atlas-owner/fdm-material-atlas.git\n" },
+      { stdout: JSON.stringify({ login: "atlas-owner" }), stderr: "" },
+      { stdout: JSON.stringify(repository().repository), stderr: "" },
+      { stdout: JSON.stringify(repository().pages), stderr: "" },
+      { stdout: "git@github.com:atlas-owner/fdm-material-atlas.git\n", stderr: "" },
       {
+        stderr: "",
         stdout: refs()
           .map((ref) => `${ref.sha}\t${ref.name}`)
           .join("\n"),
       },
-      { stdout: `${CANDIDATE}\n` },
-      { stdout: "" },
+      { stdout: `${CANDIDATE}\n`, stderr: "" },
+      { stdout: "", stderr: "" },
     ];
     const run = async (
       file: string,
@@ -495,15 +497,20 @@ function refreshPrepushProof(value: ReturnType<typeof candidateRelease>) {
 
 function controlledPrepushProof() {
   const baseline = targetBaselineFixture();
+  const fixedRefs = baseline.advertisedRefs.refs.filter((ref) => ref.kind !== "pull-merge");
   return {
-    ok: true,
-    code: "GITHUB_PREPUSH_VERIFIED",
-    stage: "existing-prepush",
+    ok: true as const,
+    code: "GITHUB_PREPUSH_VERIFIED" as const,
+    stage: "existing-prepush" as const,
     candidateSha: SHA,
     priorRemoteMainSha: PRIOR_SHA,
     authenticatedOwner: baseline.authenticatedOwner,
     repositoryName: baseline.repositoryName,
+    refCount: baseline.advertisedRefs.count,
+    refNamesDigest: canonicalDigest(baseline.advertisedRefs.refs.map((ref) => ref.name)),
     refDigest: baseline.advertisedRefs.digest,
+    fixedRefDigest: canonicalDigest(fixedRefs),
+    mergeRefs: baseline.advertisedRefs.refs.filter((ref) => ref.kind === "pull-merge"),
     settingsDigest: `sha256:${"c".repeat(64)}`,
   };
 }
@@ -590,7 +597,8 @@ describe("release evidence CLI contract", () => {
   it.each([
     [
       "missing baseline",
-      (value: ReturnType<typeof candidateRelease>) => delete value.candidate.targetBaseline,
+      (value: ReturnType<typeof candidateRelease>) =>
+        Reflect.deleteProperty(value.candidate, "targetBaseline"),
     ],
     [
       "wrong repository",
@@ -655,7 +663,9 @@ describe("release evidence CLI contract", () => {
         code: "GITHUB_POSTPUSH_VERIFIED",
         stage: "existing-post-push",
         candidateSha: SHA,
-        update: kind,
+        update: kind as "no-op" | "fast-forward",
+        refCount: current.candidate.targetBaseline.advertisedRefs.count,
+        refDigest: current.candidate.targetBaseline.advertisedRefs.digest,
       }),
       now: () => "2026-09-01T18:20:00.000Z",
     });
@@ -710,9 +720,13 @@ describe("release evidence CLI contract", () => {
         published = value;
       },
       collect: async () => ({
+        ok: true,
         code: "GITHUB_POSTPUSH_VERIFIED",
+        stage: "existing-post-push",
         candidateSha: SHA,
         update: "fast-forward",
+        refCount: candidate.candidate.targetBaseline.advertisedRefs.count,
+        refDigest: candidate.candidate.targetBaseline.advertisedRefs.digest,
       }),
       now: () => "2026-09-01T18:20:00.000Z",
     });
@@ -757,7 +771,7 @@ describe("release evidence CLI contract", () => {
       writeEvidence: async (_path, value) => {
         deployed = value;
       },
-      collectDeployment: async () => ({ observation: deployment }),
+      collectDeployment: async () => ({ proofs: [], observation: deployment }),
     });
     expect(result).toEqual({ ok: true, code: "GITHUB_DEPLOYMENT_RECORDED", stage: "deployed" });
     expect(deployed).toMatchObject({ stage: "deployed", deployment });
