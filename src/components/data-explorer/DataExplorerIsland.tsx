@@ -38,7 +38,13 @@ export function DataExplorerIsland({ model }: Props) {
 
   return (
     <div class="data-explorer-island">
-      <DataControls model={model} state={current} onChange={(state: ExplorerState) => setRawState(state)} onInvalid={() => setRawState({ invalid: true })} onClear={clear} />
+      <DataControls
+        model={model}
+        state={current}
+        onChange={(update: (state: ExplorerState) => ExplorerState) => setRawState((previous: unknown) => update(safeExplore(model, previous).state))}
+        onInvalid={() => setRawState({ invalid: true })}
+        onClear={clear}
+      />
       <p role="status" aria-live="polite" aria-atomic="true">{announcement}</p>
       {result.kind === "failure" ? (
         <section role="alert"><h2>Data view reset</h2><p>The requested explorer state was not valid. No previous rows are shown.</p><button type="button" onClick={() => setRawState(defaultExplorerState(model))}>Reset explorer</button></section>

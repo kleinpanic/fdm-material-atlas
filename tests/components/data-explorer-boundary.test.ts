@@ -32,6 +32,12 @@ describe("data explorer component boundary", () => {
     const all = `${island}\n${controls}`;
     expect(controls).toContain("event.currentTarget.value");
     expect(controls).toMatch(/\.some\s*\(/u);
+    expect(controls).toContain("onChange((current)");
+    expect(controls).not.toContain("onChange({ ...state");
+    expect(controls).toContain("updateQuery(event.currentTarget.value)");
+    expect(controls).not.toContain("query: event.currentTarget.value");
+    expect(island).toMatch(/setRawState\(\(previous(?:: unknown)?\)/u);
+    expect(island).toContain("update(safeExplore(model, previous).state)");
     expect(all).not.toMatch(/fetch\s*\(|XMLHttpRequest|localStorage|sessionStorage|indexedDB|dangerouslySetInnerHTML|console\.|window\.location|history\./u);
   });
 
