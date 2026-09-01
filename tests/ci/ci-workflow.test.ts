@@ -87,9 +87,7 @@ describe("production CI workflow contract", () => {
     for (const name of ["browser", "performance"]) {
       const source = job(name);
       const audit = source.indexOf("npm run audit:dependencies");
-      const install = source.indexOf(
-        "npm exec --no -- playwright install --with-deps chromium",
-      );
+      const install = source.indexOf("npm exec --no -- playwright install --with-deps chromium");
       expect(audit).toBeGreaterThan(-1);
       expect(install).toBeGreaterThan(audit);
     }
@@ -123,9 +121,7 @@ describe("production CI workflow contract", () => {
 
   it("retains only short-lived failure diagnostics and never promotes CI output", () => {
     const source = job("browser");
-    expect(source).toContain(
-      `uses: actions/upload-artifact@${UPLOAD_ARTIFACT_SHA} # v7.0.1`,
-    );
+    expect(source).toContain(`uses: actions/upload-artifact@${UPLOAD_ARTIFACT_SHA} # v7.0.1`);
     expect(source).toContain("if: failure()");
     expect(source).toContain("path: test-results");
     expect(source).toMatch(/retention-days: [1-7]\b/u);
