@@ -15,16 +15,9 @@ const TEST_MODES = {
     resultOutput: "test-results/repository",
     previewCommand: "npm run preview:repository",
   },
-  pages: {
-    port: 4323,
-    basePath: readPagesBase(process.env.ATLAS_PAGES_BASE),
-    buildOutput: readPagesArtifact(process.env.ATLAS_PAGES_ARTIFACT),
-    resultOutput: "test-results/pages",
-    previewCommand: "node tools/verify-build-modes.mjs serve pages",
-  },
 } as const;
 
-export type AtlasTestMode = keyof typeof TEST_MODES;
+export type AtlasTestMode = keyof typeof TEST_MODES | "pages";
 
 export function readAtlasTestMode(value: string | undefined): AtlasTestMode {
   if (value !== "root" && value !== "repository" && value !== "pages") {
@@ -51,7 +44,16 @@ function readPagesBase(value: string | undefined): string {
 }
 
 const mode = readAtlasTestMode(process.env.ATLAS_TEST_MODE);
-const selected = TEST_MODES[mode];
+const selected =
+  mode === "pages"
+    ? {
+        port: 4323,
+        basePath: readPagesBase(process.env.ATLAS_PAGES_BASE),
+        buildOutput: readPagesArtifact(process.env.ATLAS_PAGES_ARTIFACT),
+        resultOutput: "test-results/pages",
+        previewCommand: "node tools/verify-build-modes.mjs serve pages",
+      }
+    : TEST_MODES[mode];
 const localOrigin = `http://127.0.0.1:${selected.port}`;
 const baseURL = new URL(selected.basePath, localOrigin).href;
 
