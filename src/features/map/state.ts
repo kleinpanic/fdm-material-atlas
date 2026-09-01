@@ -547,6 +547,8 @@ export function buildMapView(projection: MapProjection, state: MapState) {
     impactFlex: {
       ...projection.impactFlex,
       records: currentImpactRecords,
+      query: state.impactFlex.query,
+      maximumDifficulty: state.impactFlex.maximumDifficulty,
       shapesEnabled: state.impactFlex.difficultyShapes,
       activeTarget: impactTarget,
       selectedOutsideFilter: selectedImpact?.disposition.disposition === "filtered",

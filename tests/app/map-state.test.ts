@@ -146,6 +146,8 @@ describe("closed map state", () => {
     ]);
     const view = buildMapView(projection, state).impactFlex;
     expect(view.records).toHaveLength(23);
+    expect(view.query).toBe("");
+    expect(view.maximumDifficulty).toBe("easy");
     expect(view.shapesEnabled).toBe(true);
     expect(view.selectedOutsideFilter).toBe(true);
     expect(view.records.find(({ material }) => material.id === difficult.material.id)?.disposition)
