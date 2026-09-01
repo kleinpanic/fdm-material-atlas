@@ -94,7 +94,7 @@ function fail(code: string): never {
   throw new Error(code);
 }
 
-function unavailable(label: string): RouteAction {
+function unavailable(label: string): Readonly<{ kind: "unavailable"; label: string }> {
   return Object.freeze({ kind: "unavailable", label });
 }
 
