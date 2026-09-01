@@ -68,14 +68,25 @@ function runtimePageModel(
   };
 }
 
-function pageProps(
+function pageArtifact(
   route?: Record<string, unknown>,
   transform: (model: ReturnType<typeof runtimePageModel>) => unknown = (model) => model,
 ) {
-  return JSON.stringify({ pageModel: compact(transform(runtimePageModel(route))) });
+  const runtime = transform(runtimePageModel(route)) as ReturnType<typeof runtimePageModel>;
+  return {
+    props: JSON.stringify({
+      bootstrap: {
+        controls: { projection: { criteria: runtime.projection.criteria } },
+        defaults: runtime.defaults,
+        defaultCompatibleIds: runtime.projection.materials.map(({ id }) => id),
+        defaultAnnouncement: "1 compatible material; 0 eliminated.",
+      },
+    }),
+    payload: JSON.stringify(compact(runtime)).replaceAll("<", "\\u003c"),
+  };
 }
 
-function pagePropsWithCompiledRoutes(base: string) {
+function pageArtifactWithCompiledRoutes(base: string) {
   const materialId = "material-pla" as MaterialId;
   const registry: PublicRouteRegistry = Object.freeze({
     materialDetails: Object.freeze([
@@ -97,28 +108,39 @@ function pagePropsWithCompiledRoutes(base: string) {
     ]),
     lanes: Object.freeze([]),
   });
-  return JSON.stringify({
-    pageModel: compact({
-      projection: {
-        kind: "selector-projection",
-        criteria: [{ id: "selector-primary-goal", defaultOptionId: "option-goal-easy" }],
-        materials: [{ id: materialId }],
+  const runtime = {
+    projection: {
+      kind: "selector-projection",
+      criteria: [{ id: "selector-primary-goal", defaultOptionId: "option-goal-easy" }],
+      materials: [{ id: materialId }],
+    },
+    defaults: { "selector-primary-goal": "option-goal-easy" },
+    display: {
+      materials: [{ id: materialId, label: "PLA", familyOrFill: { state: "known", label: "PLA" } }],
+    },
+    routes,
+  };
+  return {
+    props: JSON.stringify({
+      bootstrap: {
+        controls: { projection: { criteria: runtime.projection.criteria } },
+        defaults: runtime.defaults,
+        defaultCompatibleIds: [materialId],
+        defaultAnnouncement: "1 compatible material; 0 eliminated.",
       },
-      defaults: { "selector-primary-goal": "option-goal-easy" },
-      display: {
-        materials: [
-          { id: materialId, label: "PLA", familyOrFill: { state: "known", label: "PLA" } },
-        ],
-      },
-      routes,
     }),
-  });
+    payload: JSON.stringify(compact(runtime)),
+  };
 }
 
 async function fixture(
   options: {
     base?: string;
     props?: string;
+    payload?: string;
+    artifact?: ReturnType<typeof pageArtifact>;
+    omitPayload?: boolean;
+    duplicatePayload?: boolean;
     component?: string;
     secondIsland?: boolean;
     sourceMap?: boolean;
@@ -133,7 +155,9 @@ async function fixture(
   roots.push(root);
   const base = options.base ?? "/atlas-preview/";
   const asset = options.componentUrl ?? `${base}_astro/Selector.js`;
-  const props = options.props ?? pageProps();
+  const artifact = options.artifact ?? pageArtifact();
+  const props = options.props ?? artifact.props;
+  const payload = options.payload ?? artifact.payload;
   const island = `<astro-island component-url="${asset}" renderer-url="${base}_astro/client.js" props="${props.replaceAll("&", "&amp;").replaceAll('"', "&quot;")}"></astro-island>`;
   await mkdir(join(root, "_astro"), { recursive: true });
   await mkdir(join(root, "materials/pla"), { recursive: true });
@@ -141,9 +165,12 @@ async function fixture(
     options.scriptSrc === undefined
       ? `<script>${options.inlineScript ?? "window.__selectorBoot=1"}</script>`
       : `<script src="${options.scriptSrc}"></script>`;
+  const payloadScript = options.omitPayload
+    ? ""
+    : `<script id="selector-client-model" type="application/json">${payload}</script>${options.duplicatePayload ? `<script id="selector-client-model" type="application/json">${payload}</script>` : ""}`;
   await writeFile(
     join(root, "index.html"),
-    `<!doctype html><a href="${base}materials/pla/">PLA</a>${island}${options.secondIsland ? island : ""}${script}`,
+    `<!doctype html><a href="${base}materials/pla/">PLA</a>${island}${options.secondIsland ? island : ""}${payloadScript}${script}`,
   );
   await writeFile(
     join(root, "materials/pla/index.html"),
@@ -185,6 +212,7 @@ describe("selector production build verifier", () => {
     expect(report).toMatchObject({
       islandCount: 1,
       inlineScriptCount: 1,
+      deferredPayloadCount: 1,
       reachableJavaScriptCount: 3,
       availableHrefCount: 0,
     });
@@ -265,6 +293,18 @@ describe("selector production build verifier", () => {
     ).toBe("SELECTOR_PRIVATE_PATTERN_FORBIDDEN");
   });
 
+  it.each([
+    ["missing", { omitPayload: true }],
+    ["duplicate", { duplicatePayload: true }],
+    ["malformed", { payload: "not-json" }],
+    ["oversized", { payload: JSON.stringify("x".repeat(70 * 1024)) }],
+  ])("fails closed for a %s deferred selector payload", async (_label, options) => {
+    const { root, base } = await fixture(options);
+    expect(await codeFor(() => verifySelectorBuild({ outputRoot: root, base }))).toBe(
+      "SELECTOR_DEFERRED_PAYLOAD_INVALID",
+    );
+  });
+
   it("rejects external or unaccounted script roots", async () => {
     const { root, base } = await fixture({ scriptSrc: "https://outside.example/client.js" });
     expect(await codeFor(() => verifySelectorBuild({ outputRoot: root, base }))).toBe(
@@ -272,8 +312,8 @@ describe("selector production build verifier", () => {
     );
   });
 
-  it("requires pageModel to be the only top-level prop", async () => {
-    const props = JSON.parse(pageProps()) as Record<string, unknown>;
+  it("requires bootstrap to be the only top-level prop", async () => {
+    const props = JSON.parse(pageArtifact().props) as Record<string, unknown>;
     props.extra = "not-allowed";
     const { root, base } = await fixture({ props: JSON.stringify(props) });
     expect(await codeFor(() => verifySelectorBuild({ outputRoot: root, base }))).toBe(
@@ -282,8 +322,11 @@ describe("selector production build verifier", () => {
   });
 
   it("requires projection, display, route, and default counts to agree", async () => {
-    const props = pageProps(undefined, (model) => ({ ...model, display: { materials: [] } }));
-    const { root, base } = await fixture({ props });
+    const artifact = pageArtifact(undefined, (model) => ({
+      ...model,
+      display: { materials: [] },
+    }));
+    const { root, base } = await fixture({ artifact });
     expect(await codeFor(() => verifySelectorBuild({ outputRoot: root, base }))).toBe(
       "SELECTOR_PROPS_COUNT_INVALID",
     );
@@ -299,7 +342,12 @@ describe("selector production build verifier", () => {
     ],
     [
       "SELECTOR_PROPS_BOUNDARY_VIOLATION",
-      { props: pageProps(undefined, (model) => ({ ...model, evidence: [{ id: "secret" }] })) },
+      {
+        artifact: pageArtifact(undefined, (model) => ({
+          ...model,
+          evidence: [{ id: "secret" }],
+        })),
+      },
     ],
   ])("returns stable code %s", async (expected, options) => {
     const { root, base } = await fixture(options);
@@ -323,14 +371,14 @@ describe("selector production build verifier", () => {
   }, 20_000);
 
   it.each([
-    ["SELECTOR_LINK_HREF_MISSING", pageProps({ kind: "link", label: "Details" })],
+    ["SELECTOR_LINK_HREF_MISSING", pageArtifact({ kind: "link", label: "Details" })],
     [
       "SELECTOR_LINK_HREF_INVALID",
-      pageProps({ kind: "link", label: "Details", href: "https://outside.example/" }),
+      pageArtifact({ kind: "link", label: "Details", href: "https://outside.example/" }),
     ],
     [
       "SELECTOR_LINK_HREF_INVALID",
-      pageProps({
+      pageArtifact({
         kind: "link",
         label: "Details",
         href: "/atlas-preview/atlas-preview/materials/pla/",
@@ -338,49 +386,57 @@ describe("selector production build verifier", () => {
     ],
     [
       "SELECTOR_LINK_HREF_INVALID",
-      pageProps({ kind: "link", label: "Details", href: "/atlas-preview/missing/" }),
+      pageArtifact({ kind: "link", label: "Details", href: "/atlas-preview/missing/" }),
     ],
     [
       "SELECTOR_LINK_HREF_INVALID",
-      pageProps({ kind: "link", label: "Details", href: "/atlas-preview/materials/pla/#missing" }),
+      pageArtifact({
+        kind: "link",
+        label: "Details",
+        href: "/atlas-preview/materials/pla/#missing",
+      }),
     ],
     [
       "SELECTOR_UNAVAILABLE_HREF_FORBIDDEN",
-      pageProps({ kind: "unavailable", label: "Later", href: "/atlas-preview/materials/pla/" }),
+      pageArtifact({
+        kind: "unavailable",
+        label: "Later",
+        href: "/atlas-preview/materials/pla/",
+      }),
     ],
     [
       "SELECTOR_ROUTE_ACTION_KIND_INVALID",
-      pageProps({
+      pageArtifact({
         kind: "available",
         label: "Legacy parallel contract",
         href: "/atlas-preview/materials/pla/",
       }),
     ],
-  ])("blocks invalid route contract with %s", async (expected, props) => {
-    const { root, base } = await fixture({ props });
+  ])("blocks invalid route contract with %s", async (expected, artifact) => {
+    const { root, base } = await fixture({ artifact });
     expect(await codeFor(() => verifySelectorBuild({ outputRoot: root, base }))).toBe(expected);
   });
 
   it("accepts one valid link and live fragment", async () => {
-    const props = pageProps({
+    const artifact = pageArtifact({
       kind: "link",
       label: "Details",
       href: "/atlas-preview/materials/pla/#profile",
     });
-    const { root, base } = await fixture({ props });
+    const { root, base } = await fixture({ artifact });
     await expect(verifySelectorBuild({ outputRoot: root, base })).resolves.toMatchObject({
       availableHrefCount: 1,
     });
   });
 
   it("does not count data attributes as duplicate fragment IDs", async () => {
-    const props = pageProps({
+    const artifact = pageArtifact({
       kind: "link",
       label: "Details",
       href: "/atlas-preview/materials/pla/#profile",
     });
     const { root, base } = await fixture({
-      props,
+      artifact,
       materialHtml: '<!doctype html><h1 id="profile">PLA</h1><div data-lane-id="profile"></div>',
     });
     await expect(verifySelectorBuild({ outputRoot: root, base })).resolves.toMatchObject({
@@ -390,7 +446,7 @@ describe("selector production build verifier", () => {
 
   it("validates a real link emitted by buildSelectorRouteAvailability", async () => {
     const base = "/atlas-preview/";
-    const { root } = await fixture({ base, props: pagePropsWithCompiledRoutes(base) });
+    const { root } = await fixture({ base, artifact: pageArtifactWithCompiledRoutes(base) });
     await expect(verifySelectorBuild({ outputRoot: root, base })).resolves.toMatchObject({
       availableHrefCount: 1,
     });
@@ -399,7 +455,7 @@ describe("selector production build verifier", () => {
   it("does not include private fixture bytes or environment values in failures", async () => {
     const marker = "fixture-private-value-never-report";
     const { root, base } = await fixture({
-      props: pageProps({ kind: "unavailable", label: marker }),
+      artifact: pageArtifact({ kind: "unavailable", label: marker }),
     });
     let error: unknown;
     try {
