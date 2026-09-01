@@ -9,12 +9,12 @@ import {
   shortlistAddLabel,
   shortlistRemoveLabel,
 } from "../../features/selector/copy.ts";
-import type { SelectorPageModel } from "../../features/selector/page-model.ts";
+import type { SelectorRuntimePageModel } from "../../features/selector/client-model.ts";
 import type { SelectorPresentation } from "../../features/selector/presentation.ts";
 import type { PresentedShortlistItem } from "../../features/selector/shortlist.ts";
 
 type Props = Readonly<{
-  pageModel: SelectorPageModel;
+  pageModel: SelectorRuntimePageModel;
   presentation: SelectorPresentation;
   shortlist: readonly PresentedShortlistItem[];
   showAll: boolean;
@@ -36,7 +36,7 @@ function RouteLink({ action }: Readonly<{ action: RouteAction; key?: unknown }>)
     : <span>{action.label}</span>;
 }
 
-function familyLabel(family: SelectorPageModel["display"]["materials"][number]["familyOrFill"]) {
+function familyLabel(family: SelectorRuntimePageModel["display"]["materials"][number]["familyOrFill"]) {
   return family.state === "unavailable"
     ? "Family or filler not available"
     : family.state === "conditional"

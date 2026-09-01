@@ -12,8 +12,8 @@ import type { RouteAction } from "../../lib/public-route-registry.ts";
 import { SELECTOR_COPY } from "./copy.ts";
 import type {
   SelectorMaterialDisplay,
-  SelectorPageModel,
-} from "./page-model.ts";
+  SelectorRuntimePageModel,
+} from "./client-model.ts";
 
 type SelectedCriterionPresentation = Readonly<{
   criterionId: SelectorCriterionId;
@@ -27,7 +27,7 @@ type SelectedCriterionPresentation = Readonly<{
 type MaterialRoutesPresentation = Readonly<{
   details: RouteAction;
   startingProfile: RouteAction;
-  decisionMaps: SelectorPageModel["routes"]["materials"][number]["decisionMaps"];
+  decisionMaps: SelectorRuntimePageModel["routes"]["materials"][number]["decisionMaps"];
   decisionMapFallback: RouteAction;
   methodEvidence: RouteAction;
 }>;
@@ -130,7 +130,7 @@ const ERROR_PRESENTATION: ErrorPresentation = Object.freeze({
 });
 
 function criterionAndOption(
-  pageModel: SelectorPageModel,
+  pageModel: SelectorRuntimePageModel,
   criterionId: SelectorCriterionId,
   optionId: SelectorOptionId,
 ) {
@@ -141,7 +141,7 @@ function criterionAndOption(
 }
 
 function presentSelection(
-  pageModel: SelectorPageModel,
+  pageModel: SelectorRuntimePageModel,
   selection: readonly NormalizedSelectionEntry[],
 ): readonly SelectedCriterionPresentation[] {
   return Object.freeze(selection.map((entry) => {
@@ -159,7 +159,7 @@ function presentSelection(
   }));
 }
 
-function materialContext(pageModel: SelectorPageModel, materialId: MaterialId) {
+function materialContext(pageModel: SelectorRuntimePageModel, materialId: MaterialId) {
   const display = pageModel.display.materials.find((candidate) => candidate.id === materialId);
   const route = pageModel.routes.materials.find((candidate) => candidate.materialId === materialId);
   if (!display || !route) throw new Error("SELECTOR_PRESENTATION_MATERIAL_MISSING");
@@ -176,7 +176,7 @@ function materialContext(pageModel: SelectorPageModel, materialId: MaterialId) {
 }
 
 function presentContributions(
-  pageModel: SelectorPageModel,
+  pageModel: SelectorRuntimePageModel,
   records: readonly ContributionRecord[],
 ): readonly ContributionPresentation[] {
   return Object.freeze(records.map((record) => {
@@ -195,7 +195,7 @@ function presentContributions(
 }
 
 function presentEliminated(
-  pageModel: SelectorPageModel,
+  pageModel: SelectorRuntimePageModel,
   records: readonly EliminatedMaterialResult[],
 ): readonly EliminatedPresentation[] {
   return Object.freeze(records.map((material) => {
@@ -230,7 +230,7 @@ function presentEliminated(
  * fields, calculate points, infer compatibility, construct URLs, or emit HTML.
  */
 export function presentSelectorOutcome(
-  pageModel: SelectorPageModel,
+  pageModel: SelectorRuntimePageModel,
   outcome: SelectorEngineOutcome,
 ): SelectorPresentation {
   if (pageModel.display.materials.length === 0) return EMPTY_PRESENTATION;

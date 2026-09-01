@@ -10,7 +10,8 @@ import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
 import { PUBLIC_ROUTE_REGISTRY } from "../../src/lib/public-route-registry.ts";
 
 const atlas = loadPublicAtlas();
-const runtimeModel = buildSelectorPageModel(atlas, "/atlas-preview/", PUBLIC_ROUTE_REGISTRY);
+const clientModel = buildSelectorPageModel(atlas, "/atlas-preview/", PUBLIC_ROUTE_REGISTRY);
+const runtimeModel = decodeSelectorClientModel(clientModel);
 
 describe("selector client model codec", () => {
   it("round-trips every selector runtime channel within the raw byte budget", () => {

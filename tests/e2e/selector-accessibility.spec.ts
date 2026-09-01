@@ -14,6 +14,7 @@ import type {
 type Page = PlaywrightTestArgs["page"];
 
 import { buildSelectorPageModel } from "../../src/features/selector/page-model.ts";
+import { decodeSelectorClientModel } from "../../src/features/selector/client-model.ts";
 import { selectProjectedMaterials } from "../../src/domain/selector/index.ts";
 import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
 import { PUBLIC_ROUTE_REGISTRY } from "../../src/lib/public-route-registry.ts";
@@ -32,7 +33,9 @@ const mode = process.env.ATLAS_TEST_MODE;
 if (mode !== "root" && mode !== "repository") throw new Error("ATLAS_TEST_MODE_INVALID");
 const basePath = mode === "root" ? "/" : "/atlas-preview/";
 const outputRoot = resolve(`dist-test/${mode}`);
-const canonicalPageModel = buildSelectorPageModel(loadPublicAtlas(), basePath, PUBLIC_ROUTE_REGISTRY);
+const canonicalPageModel = decodeSelectorClientModel(
+  buildSelectorPageModel(loadPublicAtlas(), basePath, PUBLIC_ROUTE_REGISTRY),
+);
 
 function noCompatiblePageModel() {
   const model = structuredClone(canonicalPageModel);

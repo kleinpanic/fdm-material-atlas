@@ -1,27 +1,28 @@
-import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 
 import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
 import { PUBLIC_ROUTE_REGISTRY } from "../../src/lib/public-route-registry.ts";
 import { buildSelectorPageModel } from "../../src/features/selector/page-model.ts";
+import { decodeSelectorClientModel } from "../../src/features/selector/client-model.ts";
 import { selectMaterials, selectProjectedMaterials } from "../../src/domain/selector/index.ts";
 
 const atlas = loadPublicAtlas();
 
 describe("buildSelectorPageModel", () => {
   it("emits the exact compact deterministic client contract", () => {
-    const model = buildSelectorPageModel(atlas, "/", PUBLIC_ROUTE_REGISTRY);
+    const clientModel = buildSelectorPageModel(atlas, "/", PUBLIC_ROUTE_REGISTRY);
+    const model = decodeSelectorClientModel(clientModel);
     expect(Object.keys(model).sort()).toEqual(["defaults", "display", "projection", "routes"]);
     expect(model.projection.criteria).toHaveLength(7);
     expect(model.projection.materials).toHaveLength(23);
     expect(model.defaults).toEqual(Object.fromEntries(model.projection.criteria.map((criterion) => [criterion.id, criterion.defaultOptionId])));
     expect(model.display.materials).toHaveLength(23);
     expect(model.display.materials.map(({ id }) => id).sort()).toEqual(model.projection.materials.map(({ id }) => id).sort());
-    expect(gzipSync(JSON.stringify(model), { level: 9 }).byteLength).toBeLessThanOrEqual(64 * 1024);
+    expect(JSON.stringify(clientModel).length).toBeLessThanOrEqual(48 * 1024);
   });
 
   it("keeps default engine results identical across Atlas and projection entry points", () => {
-    const model = buildSelectorPageModel(atlas, "/", PUBLIC_ROUTE_REGISTRY);
+    const model = decodeSelectorClientModel(buildSelectorPageModel(atlas, "/", PUBLIC_ROUTE_REGISTRY));
     expect(selectProjectedMaterials(model.projection, model.defaults)).toEqual(selectMaterials(atlas, model.defaults));
   });
 
@@ -51,7 +52,7 @@ describe("buildSelectorPageModel", () => {
       '"decisionLanes"', '"visualizationReferences"', '"sourceContract"', '"thermalObservations"',
       '"process"', '"properties"', '"guidance"', '"url"', '"path"', '"credentials"', '"adapter"',
     ]) expect(serialized).not.toContain(forbidden);
-    const model = buildSelectorPageModel(atlas, "/", PUBLIC_ROUTE_REGISTRY);
+    const model = decodeSelectorClientModel(buildSelectorPageModel(atlas, "/", PUBLIC_ROUTE_REGISTRY));
     model.routes.materials.forEach((route) => {
       expect(Object.keys(route).sort()).toEqual(["decisionMaps", "details", "materialId", "startingProfile"]);
       expect(route.startingProfile).toEqual(expect.objectContaining({ kind: "link" }));

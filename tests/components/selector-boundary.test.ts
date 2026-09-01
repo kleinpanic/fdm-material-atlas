@@ -4,9 +4,10 @@ import { describe, expect, it, vi } from "vitest";
 import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
 import { PUBLIC_ROUTE_REGISTRY } from "../../src/lib/public-route-registry.ts";
 import { buildSelectorPageModel } from "../../src/features/selector/page-model.ts";
+import { decodeSelectorClientModel } from "../../src/features/selector/client-model.ts";
 import { evaluateSelectorSafely } from "../../src/features/selector/safe-engine.ts";
 
-const pageModel = buildSelectorPageModel(loadPublicAtlas(), "/", PUBLIC_ROUTE_REGISTRY);
+const pageModel = decodeSelectorClientModel(buildSelectorPageModel(loadPublicAtlas(), "/", PUBLIC_ROUTE_REGISTRY));
 
 describe("evaluateSelectorSafely", () => {
   it("returns the current successful outcome for canonical selections", () => {

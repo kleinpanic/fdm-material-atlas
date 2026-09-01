@@ -1,7 +1,11 @@
 /** @jsxImportSource preact */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 
-import type { SelectorPageModel } from "../../features/selector/page-model.ts";
+import {
+  decodeSelectorClientModel,
+  type SelectorClientModel,
+  type SelectorRuntimePageModel,
+} from "../../features/selector/client-model.ts";
 import type { MaterialId } from "../../data/schema/ids.ts";
 import { SELECTOR_COPY } from "../../features/selector/copy.ts";
 import { presentSelectorOutcome } from "../../features/selector/presentation.ts";
@@ -16,9 +20,27 @@ import {
 import { SelectorControls } from "./SelectorControls.tsx";
 import { SelectorResults } from "./SelectorResults.tsx";
 
-type Props = Readonly<{ pageModel: SelectorPageModel }>;
+type Props = Readonly<{ pageModel: SelectorClientModel }>;
 
 export function SelectorIsland({ pageModel }: Props) {
+  const runtimeModel = useMemo(() => {
+    try { return decodeSelectorClientModel(pageModel); } catch { return null; }
+  }, [pageModel]);
+  if (runtimeModel === null) {
+    return (
+      <div class="selector-island">
+        <section class="selector-error" role="alert">
+          <h2>Recommendations are unavailable</h2>
+          <p>{SELECTOR_COPY.errorState}</p>
+          <p>{SELECTOR_COPY.errorAction}</p>
+        </section>
+      </div>
+    );
+  }
+  return <SelectorRuntimeIsland pageModel={runtimeModel} />;
+}
+
+function SelectorRuntimeIsland({ pageModel }: Readonly<{ pageModel: SelectorRuntimePageModel }>) {
   const [hydrated, setHydrated] = useState(false);
   const [selection, setSelection] = useState<Readonly<Record<string, string>>>(() => pageModel.defaults);
   const [evaluationInput, setEvaluationInput] = useState<Readonly<Record<string, unknown>>>(() => pageModel.defaults);

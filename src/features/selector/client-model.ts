@@ -1,15 +1,26 @@
-import type { SelectorPageModel } from "./page-model.ts";
+import type { MaterialId, SelectorOptionId } from "../../data/schema/ids.ts";
+import type { SelectorProjectionV1 } from "../../domain/selector/index.ts";
+import type { SelectorRouteAvailability } from "../../lib/public-route-registry.ts";
 
-export type SelectorRuntimePageModel = SelectorPageModel;
+type FamilyDisplay =
+  | Readonly<{ state: "known" | "conditional"; label: string }>
+  | Readonly<{ state: "unavailable" }>;
 
-type EncodedNode =
-  | readonly [0, number]
-  | readonly [1, ...readonly (number | EncodedNode)[]]
-  | readonly [2, ...readonly EncodedNode[]]
-  | readonly [3, number]
-  | readonly [4, 0 | 1]
-  | readonly [5];
-type ObjectNode = Extract<EncodedNode, readonly [1, ...unknown[]]>;
+export type SelectorMaterialDisplay = Readonly<{
+  id: MaterialId;
+  label: string;
+  familyOrFill: FamilyDisplay;
+}>;
+
+export type SelectorRuntimePageModel = Readonly<{
+  projection: SelectorProjectionV1;
+  defaults: Readonly<Record<string, SelectorOptionId>>;
+  display: Readonly<{ materials: readonly SelectorMaterialDisplay[] }>;
+  routes: SelectorRouteAvailability;
+}>;
+
+type EncodedNode = readonly unknown[];
+type ObjectNode = readonly [1, ...readonly unknown[]];
 
 /** Version, lexically sorted string dictionary, and encoded root object. */
 export type SelectorClientModel = readonly [1, readonly string[], EncodedNode];

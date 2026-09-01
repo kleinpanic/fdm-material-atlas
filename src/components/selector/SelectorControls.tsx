@@ -1,11 +1,11 @@
 /** @jsxImportSource preact */
 import type { JSX, RefObject } from "preact";
 
-import type { SelectorPageModel } from "../../features/selector/page-model.ts";
+import type { SelectorRuntimePageModel } from "../../features/selector/client-model.ts";
 import { SELECTOR_COPY } from "../../features/selector/copy.ts";
 
 type Props = Readonly<{
-  pageModel: SelectorPageModel;
+  pageModel: SelectorRuntimePageModel;
   selection: Readonly<Record<string, string>>;
   disabled: boolean;
   primaryFirstRef: RefObject<HTMLInputElement>;

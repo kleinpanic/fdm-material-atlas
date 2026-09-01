@@ -1,9 +1,6 @@
 import type { AtlasV1 } from "../../data/schema/atlas.ts";
-import type { MaterialId, SelectorOptionId } from "../../data/schema/ids.ts";
-import {
-  compileSelectorProjection,
-  type SelectorProjectionV1,
-} from "../../domain/selector/index.ts";
+import type { SelectorOptionId } from "../../data/schema/ids.ts";
+import { compileSelectorProjection } from "../../domain/selector/index.ts";
 import { resolveSelectorField } from "../../domain/selector/field-resolver.ts";
 import {
   compilePredicate,
@@ -14,25 +11,16 @@ import {
   type PublicRouteRegistry,
   type SelectorRouteAvailability,
 } from "../../lib/public-route-registry.ts";
+import {
+  encodeSelectorClientModel,
+  type SelectorClientModel,
+  type SelectorMaterialDisplay,
+  type SelectorRuntimePageModel,
+} from "./client-model.ts";
 
 type FamilyDisplay =
   | Readonly<{ state: "known" | "conditional"; label: string }>
   | Readonly<{ state: "unavailable" }>;
-
-export type SelectorMaterialDisplay = Readonly<{
-  id: MaterialId;
-  label: string;
-  familyOrFill: FamilyDisplay;
-}>;
-
-export type SelectorPageModel = Readonly<{
-  projection: SelectorProjectionV1;
-  defaults: Readonly<Record<string, SelectorOptionId>>;
-  display: Readonly<{
-    materials: readonly SelectorMaterialDisplay[];
-  }>;
-  routes: SelectorRouteAvailability;
-}>;
 
 type SelectorPageModelErrorCode =
   | "SELECTOR_PAGE_EMPTY_MATERIALS"
@@ -82,7 +70,7 @@ export function buildSelectorPageModel(
   atlas: AtlasV1,
   base: string | undefined,
   registry: PublicRouteRegistry,
-): SelectorPageModel {
+): SelectorClientModel {
   if (atlas.materials.length === 0) fail("SELECTOR_PAGE_EMPTY_MATERIALS");
   if (atlas.selector.criteria.length !== 7) fail("SELECTOR_PAGE_DEFINITIONS_MISSING");
 
@@ -119,10 +107,11 @@ export function buildSelectorPageModel(
     return fail("SELECTOR_PAGE_ROUTE_REGISTRY_INVALID");
   }
 
-  return Object.freeze({
+  const runtimeModel: SelectorRuntimePageModel = Object.freeze({
     projection,
     defaults,
     display: Object.freeze({ materials }),
     routes,
   });
+  return encodeSelectorClientModel(runtimeModel);
 }

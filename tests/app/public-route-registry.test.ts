@@ -8,6 +8,7 @@ import {
 } from "../../src/lib/public-route-registry.ts";
 import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
 import { buildSelectorPageModel } from "../../src/features/selector/page-model.ts";
+import { decodeSelectorClientModel } from "../../src/features/selector/client-model.ts";
 
 const MATERIAL_ID = "material-synthetic-alpha" as MaterialId;
 const LANE_ID = "lane-synthetic-alpha" as DecisionLaneId;
@@ -65,7 +66,7 @@ describe("public selector route registry", () => {
     ["/atlas-preview/", "/atlas-preview/compare/#comparison-matrix", "/atlas-preview/map/#", "/atlas-preview/method/#selector-scoring"],
   ])("activates every emitted production target under %s", (base, compareHref, mapPrefix, methodHref) => {
     const atlas = loadPublicAtlas();
-    const model = buildSelectorPageModel(atlas, base, PUBLIC_ROUTE_REGISTRY);
+    const model = decodeSelectorClientModel(buildSelectorPageModel(atlas, base, PUBLIC_ROUTE_REGISTRY));
     expect(model.routes.materials).toHaveLength(23);
     for (const route of model.routes.materials) {
       expect(route.details.kind).toBe("link");

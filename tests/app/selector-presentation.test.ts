@@ -7,11 +7,12 @@ import type { PublicRouteRegistry } from "../../src/lib/public-route-registry.ts
 import { selectProjectedMaterials } from "../../src/domain/selector/index.ts";
 import type { NoCompatibleSelectorOutcome } from "../../src/domain/selector/types.ts";
 import { buildSelectorPageModel } from "../../src/features/selector/page-model.ts";
+import { decodeSelectorClientModel } from "../../src/features/selector/client-model.ts";
 import { SELECTOR_COPY } from "../../src/features/selector/copy.ts";
 import { presentSelectorOutcome } from "../../src/features/selector/presentation.ts";
 
 const atlas = loadPublicAtlas();
-const pageModel = buildSelectorPageModel(atlas, "/atlas-preview/", PUBLIC_ROUTE_REGISTRY);
+const pageModel = decodeSelectorClientModel(buildSelectorPageModel(atlas, "/atlas-preview/", PUBLIC_ROUTE_REGISTRY));
 const rankedOutcome = selectProjectedMaterials(pageModel.projection, pageModel.defaults);
 
 function ranked() {
@@ -136,7 +137,7 @@ describe("presentSelectorOutcome", () => {
         verifiedFragments: Object.freeze(["lane-easy-prototypes"]),
       })]),
     });
-    const mappedModel = buildSelectorPageModel(atlas, "/atlas-preview/", registry);
+    const mappedModel = decodeSelectorClientModel(buildSelectorPageModel(atlas, "/atlas-preview/", registry));
     const mappedOutcome = selectProjectedMaterials(mappedModel.projection, mappedModel.defaults);
     const presented = presentSelectorOutcome(mappedModel, mappedOutcome);
     expect(presented.kind).toBe("ranked");
