@@ -1,7 +1,8 @@
 /** @jsxImportSource preact */
-import { useEffect, useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import type { ComparisonModel, ComparisonSuccess } from "../../features/comparison/contracts.ts";
+import type { ComparisonPayload } from "../../features/comparison/payload.ts";
 import { safeCompare } from "../../features/comparison/safe-compare.ts";
 import {
   decodeCompareUrlState,
@@ -10,15 +11,29 @@ import {
 import { CompareSelection } from "./CompareSelection.tsx";
 import { ComparisonGroups } from "./ComparisonGroups.tsx";
 
-type Props = Readonly<{ model: ComparisonModel; base?: string | undefined }>;
+type Props = Readonly<{ payload: ComparisonPayload; base?: string | undefined }>;
 type ViewState = "preparing" | "empty" | "invalid" | "ready" | "failure";
 
 const INVALID_COPY =
   "The comparison link is not valid. Choose two to four different materials and update the comparison.";
 const FAILURE_COPY = "The comparison could not be prepared. Choose the materials again and retry.";
 
-export function CompareIsland({ model, base }: Props) {
-  const knownIds = useMemo(() => model.materials.map(({ id }) => id), [model]);
+function decodeBase64(value: string): Uint8Array<ArrayBuffer> {
+  const binary = window.atob(value);
+  const bytes = new Uint8Array(new ArrayBuffer(binary.length));
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
+async function decodeComparisonModel(gzipBase64: string): Promise<ComparisonModel> {
+  const compressed = decodeBase64(gzipBase64);
+  const decompressed = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return (await new Response(decompressed).json()) as ComparisonModel;
+}
+
+export function CompareIsland({ payload, base }: Props) {
+  const knownIds = useMemo(() => payload.index.map(({ id }) => id), [payload.index]);
+  const modelPromise = useRef<Promise<ComparisonModel> | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [slots, setSlots] = useState<readonly string[]>(["", "", "", ""]);
   const [view, setView] = useState<ViewState>("preparing");
@@ -26,7 +41,13 @@ export function CompareIsland({ model, base }: Props) {
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("Comparison controls are preparing.");
 
+  const loadModel = () => {
+    modelPromise.current ??= decodeComparisonModel(payload.gzipBase64);
+    return modelPromise.current;
+  };
+
   useEffect(() => {
+    let active = true;
     setHydrated(true);
     const decoded = decodeCompareUrlState(window.location.search, knownIds);
     if (decoded.kind === "empty") {
@@ -40,22 +61,33 @@ export function CompareIsland({ model, base }: Props) {
       setAnnouncement("Comparison link is not valid.");
       return;
     }
-    const nextSlots = [...decoded.materialIds, ...Array(4 - decoded.materialIds.length).fill("")];
-    const compared = safeCompare(model, decoded.materialIds);
-    setSlots(nextSlots);
-    if (compared.kind === "failure") {
-      setView("failure");
-      setAnnouncement("Comparison is unavailable.");
-      return;
-    }
-    setResult(compared);
-    setView("ready");
-    setAnnouncement(
-      `${compared.materials.length} materials loaded with ${compared.differenceCount} differences.`,
-    );
-  }, [knownIds, model]);
+    setSlots([...decoded.materialIds, ...Array(4 - decoded.materialIds.length).fill("")]);
+    void loadModel()
+      .then((model) => {
+        if (!active) return;
+        const compared = safeCompare(model, decoded.materialIds);
+        if (compared.kind === "failure") {
+          setView("failure");
+          setAnnouncement("Comparison is unavailable.");
+          return;
+        }
+        setResult(compared);
+        setView("ready");
+        setAnnouncement(
+          `${compared.materials.length} materials loaded with ${compared.differenceCount} differences.`,
+        );
+      })
+      .catch(() => {
+        if (!active) return;
+        setView("failure");
+        setAnnouncement("Comparison is unavailable.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [knownIds, payload.gzipBase64]);
 
-  const updateComparison = () => {
+  const updateComparison = async () => {
     const selected = slots.filter((value) => value !== "");
     const encoded = encodeCompareUrlState(selected, knownIds, base, window.location.href);
     if (encoded.kind === "invalid") {
@@ -65,7 +97,17 @@ export function CompareIsland({ model, base }: Props) {
       setAnnouncement("Comparison selection is not valid.");
       return;
     }
-    const compared = safeCompare(model, encoded.materialIds);
+    setView("preparing");
+    setAnnouncement("Preparing the selected comparison.");
+    const model = await loadModel().catch(() => null);
+    const compared = model === null ? null : safeCompare(model, encoded.materialIds);
+    if (compared === null) {
+      setResult(null);
+      setView("failure");
+      setSelectionError(FAILURE_COPY);
+      setAnnouncement("Comparison is unavailable.");
+      return;
+    }
     if (compared.kind === "failure") {
       setResult(null);
       setView("failure");
@@ -85,7 +127,7 @@ export function CompareIsland({ model, base }: Props) {
   return (
     <div class="compare-island">
       <CompareSelection
-        materials={model.materials}
+        materials={payload.index}
         slots={slots}
         disabled={!hydrated}
         error={selectionError}

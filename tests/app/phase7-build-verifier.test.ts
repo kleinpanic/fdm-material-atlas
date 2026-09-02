@@ -1,6 +1,7 @@
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { gzipSync } from "node:zlib";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { Phase7BuildError, verifyPhase7Build } from "../../tools/verify-phase7-build.mjs";
@@ -16,6 +17,15 @@ function island(
   return `<astro-island component-url="${componentUrl}" component-export="${component}" renderer-url="${assetBase}/client.js" props='${JSON.stringify(props)}' ssr client="load"><section><h2>${component} static fallback</h2></section><!--astro:end--></astro-island>`;
 }
 
+function comparisonPayload(
+  model: object = { groups: [], materials: [], thermalGroups: [] },
+): object {
+  return {
+    index: [],
+    gzipBase64: gzipSync(Buffer.from(JSON.stringify(model)), { level: 9 }).toString("base64"),
+  };
+}
+
 async function writeMode(root: string, base: string): Promise<void> {
   const prefix = base === "/" ? "" : base.slice(0, -1);
   await mkdir(join(root, "compare"), { recursive: true });
@@ -27,7 +37,7 @@ async function writeMode(root: string, base: string): Promise<void> {
   );
   await writeFile(
     join(root, "compare/index.html"),
-    `<!doctype html><link rel="canonical" href="https://atlas.example${prefix}/compare/"><a href="${base}">Selector</a>${island("CompareIsland", `${prefix}/_astro/compare.js`, { model: { materials: [] }, base })}`,
+    `<!doctype html><link rel="canonical" href="https://atlas.example${prefix}/compare/"><a href="${base}">Selector</a>${island("CompareIsland", `${prefix}/_astro/compare.js`, { payload: comparisonPayload(), base })}`,
   );
   await writeFile(
     join(root, "data/index.html"),
@@ -94,6 +104,14 @@ describe("Phase 7 emitted build verifier", () => {
         ),
     ],
     [
+      "CLIENT_PRIVATE_PATTERN_FORBIDDEN",
+      async (outputs: Awaited<ReturnType<typeof fixture>>) =>
+        writeFile(
+          join(outputs.root, "compare/index.html"),
+          `<!doctype html><link rel="canonical" href="https://atlas.example/compare/">${island("CompareIsland", "/_astro/compare.js", { payload: comparisonPayload({ groups: [{ label: "private-fixture-sentinel" }], materials: [], thermalGroups: [] }), base: "/" })}`,
+        ),
+    ],
+    [
       "CLIENT_REQUEST_FORBIDDEN",
       async (outputs: Awaited<ReturnType<typeof fixture>>) =>
         writeFile(join(outputs.root, "_astro/data.js"), "fetch('/public-data.json')"),
@@ -111,7 +129,7 @@ describe("Phase 7 emitted build verifier", () => {
       async (outputs: Awaited<ReturnType<typeof fixture>>) =>
         writeFile(
           join(outputs.root, "compare/index.html"),
-          `<!doctype html><link rel="canonical" href="https://atlas.example/compare/">${island("CompareIsland", "/_astro/compare.js", { model: { atlas: {} }, base: "/" })}`,
+          `<!doctype html><link rel="canonical" href="https://atlas.example/compare/">${island("CompareIsland", "/_astro/compare.js", { payload: comparisonPayload({ groups: [], materials: [], thermalGroups: [], atlas: {} }), base: "/" })}`,
         ),
     ],
   ])("fails closed with %s", async (code, mutate) => {

@@ -6,11 +6,12 @@ const page = readFileSync(new URL("../../src/pages/compare/index.astro", import.
 const styles = readFileSync(new URL("../../src/styles/comparison.css", import.meta.url), "utf8");
 
 describe("compare page source contract", () => {
-  it("compiles one compact model at build time and passes it once to one SSR island", () => {
+  it("compresses one build-time model before passing it to one SSR island", () => {
     expect(page).toContain("buildComparisonModel(loadPublicAtlas(), base)");
+    expect(page).toContain("encodeComparisonPayload(model)");
     expect(page.match(/<CompareIsland\b/gu)).toHaveLength(1);
     expect(page.match(/client:load/gu)).toHaveLength(1);
-    expect(page).toContain("model={model}");
+    expect(page).toContain("payload={payload}");
     expect(page).not.toMatch(/client:only|atlas=\{|atlas\.materials\.map|compactFact/u);
   });
 

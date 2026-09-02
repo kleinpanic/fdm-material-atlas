@@ -1,6 +1,7 @@
 ---
 import { CompareIsland } from "../../components/comparison/CompareIsland.tsx";
 import { buildComparisonModel } from "../../features/comparison/model.ts";
+import { encodeComparisonPayload } from "../../features/comparison/payload.ts";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { loadPublicAtlas } from "../../lib/public-atlas.ts";
 import { internalHref } from "../../lib/routes.ts";
@@ -8,6 +9,7 @@ import "../../styles/comparison.css";
 
 const base = import.meta.env.BASE_URL;
 const model = buildComparisonModel(loadPublicAtlas(), base);
+const payload = encodeComparisonPayload(model);
 const homeHref = internalHref(base, { id: "home" });
 const materialsHref = internalHref(base, { id: "materials" });
 const methodHref = internalHref(base, { id: "method" });
@@ -65,7 +67,7 @@ const footerLinks = navigation.map(({ label, href }) => ({ label, href }));
         > or <a href={methodHref}>read the comparison method</a>.
       </p>
     </noscript>
-    <CompareIsland model={model} base={base} client:load />
+    <CompareIsland payload={payload} base={base} client:load />
   </section>
 
   <aside class="compare-method-note" aria-labelledby="compare-method-heading">

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { gzipSync } from "node:zlib";
+import { gunzipSync, gzipSync } from "node:zlib";
 import { lstat, opendir, readFile, realpath } from "node:fs/promises";
 import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +14,7 @@ const MAX_FILES = 20_000;
 const MAX_FILE_BYTES = 64 * 1024 * 1024;
 const MAX_COMPARE_GZIP = 140 * 1024;
 const MAX_DATA_GZIP = 180 * 1024;
+const MAX_COMPARE_MODEL_BYTES = 4 * 1024 * 1024;
 const REQUEST_PATTERN = /\b(?:fetch|XMLHttpRequest|EventSource|WebSocket)\s*\(/u;
 const FORBIDDEN_CLIENT_TEXT = [
   /sourceMappingURL/iu,
@@ -145,6 +146,56 @@ function inspectProps(value, exactPatterns, seen = new Set()) {
   }
 }
 
+function inspectComparisonPayload(props, exactPatterns) {
+  const payload = props.payload;
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    Array.isArray(payload) ||
+    Object.keys(payload).sort().join("\0") !== "gzipBase64\0index" ||
+    !Array.isArray(payload.index) ||
+    typeof payload.gzipBase64 !== "string" ||
+    payload.gzipBase64.length === 0 ||
+    payload.gzipBase64.length % 4 !== 0 ||
+    !/^[A-Za-z0-9+/]+={0,2}$/u.test(payload.gzipBase64)
+  ) {
+    fail("PROPS_SHAPE_INVALID");
+  }
+  let source;
+  let model;
+  try {
+    source = gunzipSync(Buffer.from(payload.gzipBase64, "base64"), {
+      maxOutputLength: MAX_COMPARE_MODEL_BYTES,
+    }).toString("utf8");
+    model = JSON.parse(source);
+  } catch {
+    fail("PROPS_INVALID");
+  }
+  if (exactPatterns.some((pattern) => pattern !== "" && source.includes(pattern))) {
+    fail("CLIENT_PRIVATE_PATTERN_FORBIDDEN");
+  }
+  inspectProps(model, exactPatterns);
+  if (
+    typeof model !== "object" ||
+    model === null ||
+    Array.isArray(model) ||
+    Object.keys(model).sort().join("\0") !== "groups\0materials\0thermalGroups" ||
+    !Array.isArray(model.materials) ||
+    model.materials.length !== payload.index.length ||
+    payload.index.some(
+      (item, index) =>
+        typeof item !== "object" ||
+        item === null ||
+        Array.isArray(item) ||
+        Object.keys(item).sort().join("\0") !== "id\0name" ||
+        item.id !== model.materials[index]?.id ||
+        item.name !== model.materials[index]?.name,
+    )
+  ) {
+    fail("PROPS_SHAPE_INVALID");
+  }
+}
+
 async function collectFiles(root) {
   const literal = await lstat(root).catch(() => fail("OUTPUT_MISSING"));
   if (
@@ -272,7 +323,7 @@ async function inspectRoute(mode, route, expectedExport, files, exactPatterns) {
   const serialized = attrs.get("props");
   if (serialized === undefined) fail("PROPS_INVALID");
   const props = parseProps(serialized);
-  const expectedKeys = expectedExport === "CompareIsland" ? ["base", "model"] : ["model"];
+  const expectedKeys = expectedExport === "CompareIsland" ? ["base", "payload"] : ["model"];
   if (
     typeof props !== "object" ||
     props === null ||
@@ -281,6 +332,7 @@ async function inspectRoute(mode, route, expectedExport, files, exactPatterns) {
   )
     fail("PROPS_SHAPE_INVALID");
   inspectProps(props, exactPatterns);
+  if (expectedExport === "CompareIsland") inspectComparisonPayload(props, exactPatterns);
   const component = localFile(
     attrs.get("component-url") ?? "",
     mode,
