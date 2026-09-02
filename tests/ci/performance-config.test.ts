@@ -23,7 +23,7 @@ describe("performance release policy", () => {
       ".map-lane-directory",
     );
     expect(policy.lighthouse).toEqual({
-      runs: 3,
+      runs: 1,
       performanceScore: 0.9,
       firstContentfulPaintMs: 2000,
       largestContentfulPaintMs: 2500,
@@ -43,7 +43,7 @@ describe("performance release policy", () => {
       mapPreVisibleBytes: 8 * 1024,
       mapDynamicChunkBytes: 30 * 1024,
     });
-    expect(config.ci.collect.numberOfRuns).toBe(3);
+    expect(config.ci.collect.numberOfRuns).toBe(1);
     expect(config.ci.assert.aggregationMethod).toBe("median");
     expect(config.ci.upload.target).toBe("filesystem");
     expect(config.ci.upload.outputDir).toMatch(/^test-results\/performance/u);

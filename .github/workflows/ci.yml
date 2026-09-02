@@ -192,7 +192,7 @@ jobs:
           retention-days: 3
 
   performance:
-    needs: browser
+    needs: build
     permissions:
       contents: read
     runs-on: ubuntu-latest

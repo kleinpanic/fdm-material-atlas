@@ -56,7 +56,7 @@ describe("production CI workflow contract", () => {
   it("runs each quality surface in a stable dependency chain", () => {
     expect(job("build")).toMatch(/^    needs: quality$/mu);
     expect(job("browser")).toMatch(/^    needs: build$/mu);
-    expect(job("performance")).toMatch(/^    needs: browser$/mu);
+    expect(job("performance")).toMatch(/^    needs: build$/mu);
 
     expect(job("quality")).toContain("npm run audit:dependencies");
     expect(job("quality")).toContain("npm run ci:quality");
