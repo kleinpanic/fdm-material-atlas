@@ -4,7 +4,7 @@ import { h } from "preact";
 import render from "preact-render-to-string";
 import { describe, expect, it } from "vitest";
 
-import { MapExplorerIsland } from "../../src/components/map/MapExplorerIsland.tsx";
+import { MapExplorer } from "../../src/components/map/MapExplorerIsland.tsx";
 import { MAP_MODES } from "../../src/features/map/contracts.ts";
 import { compileMapProjection } from "../../src/features/map/projection.ts";
 import { loadPublicAtlas } from "../../src/lib/public-atlas.ts";
@@ -16,7 +16,7 @@ const styles = readFileSync("src/styles/map-board.css", "utf8");
 const browserSuite = readFileSync("tests/e2e/map.spec.ts", "utf8");
 const browserConfig = readFileSync("playwright.config.ts", "utf8");
 const projection = compileMapProjection(loadPublicAtlas(), "/repo/");
-const renderedIsland = render(h(MapExplorerIsland, { projection }));
+const renderedIsland = render(h(MapExplorer, { projection }));
 
 function occurrences(source: string, value: string | RegExp): number {
   if (typeof value === "string") return source.split(value).length - 1;
@@ -28,8 +28,14 @@ describe("static-first map page source", () => {
     expect(page).toContain(
       'import { compileMapProjection } from "../../features/map/projection.ts"',
     );
+    expect(page).toContain(
+      'import { encodeMapProjectionPayload } from "../../features/map/payload.ts"',
+    );
     expect(page).toContain("const projection = compileMapProjection(atlas, base)");
+    expect(page).toContain("const payload = encodeMapProjectionPayload(projection)");
     expect(occurrences(page, /<MapExplorerIsland\b/g)).toBe(1);
+    expect(page).toContain("payload={payload}");
+    expect(page).not.toContain("<MapExplorerIsland projection=");
     expect(page).toContain('client:visible={{ rootMargin: "200px" }}');
     expect(page).not.toMatch(/client:(?:load|only)|fetch\s*\(|dangerouslySetInnerHTML|set:html/);
     expect(page).not.toMatch(/deriveDecisionLaneMembership|materialById|DecisionBoard/);

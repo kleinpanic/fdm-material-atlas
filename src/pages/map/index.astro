@@ -1,5 +1,6 @@
 ---
-import { MapExplorerIsland } from "../../components/map/MapExplorerIsland.tsx";
+import { MapExplorer, MapExplorerIsland } from "../../components/map/MapExplorerIsland.tsx";
+import { encodeMapProjectionPayload } from "../../features/map/payload.ts";
 import { compileMapProjection } from "../../features/map/projection.ts";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { loadPublicAtlas } from "../../lib/public-atlas.ts";
@@ -9,6 +10,7 @@ import "../../styles/map-board.css";
 const base = import.meta.env.BASE_URL;
 const atlas = loadPublicAtlas();
 const projection = compileMapProjection(atlas, base);
+const payload = encodeMapProjectionPayload(projection);
 const homeHref = internalHref(base, { id: "home" });
 const materialsHref = internalHref(base, { id: "materials" });
 const compareHref = internalHref(base, { id: "compare" });
@@ -123,9 +125,10 @@ const navigation = [
         Interactive highlighting is unavailable. All decision paths and structured visualization
         data remain readable below.
       </p>
+      <MapExplorer projection={projection} />
     </noscript>
 
-    <MapExplorerIsland projection={projection} client:visible={{ rootMargin: "200px" }} />
+    <MapExplorerIsland payload={payload} client:visible={{ rootMargin: "200px" }} />
 
     <footer class="map-method-note">
       <p class="technical-eyebrow">Interpretation boundary</p>

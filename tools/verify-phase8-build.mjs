@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import { gzipSync } from "node:zlib";
+import { gunzipSync, gzipSync } from "node:zlib";
 import { lstat, mkdir, opendir, readFile, realpath, rename, writeFile } from "node:fs/promises";
 import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +14,8 @@ const ORIGIN = "https://atlas.example";
 const MAX_FILES = 20_000;
 const MAX_FILE_BYTES = 64 * 1024 * 1024;
 const MAX_PROJECTION_GZIP = 8 * 1024;
+const MAX_PROJECTION_JSON = 1024 * 1024;
+const MAX_SERIALIZED_PROPS = 16 * 1024;
 const MAX_ROUTE_GZIP = 120 * 1024;
 const MAX_VISUALIZATION_MODULE_GZIP = 30 * 1024;
 const REQUEST_PATTERN = /\b(?:fetch|XMLHttpRequest|EventSource|WebSocket)\s*\(/u;
@@ -367,14 +369,39 @@ async function inspectMap(mode, files, exactPatterns) {
     fail("MAP_ISLAND_CONTRACT_INVALID");
   const serialized = island.attrs.get("props");
   if (serialized === undefined) fail("PROPS_INVALID");
+  if (Buffer.byteLength(serialized) > MAX_SERIALIZED_PROPS) fail("MAP_PROPS_BUDGET_EXCEEDED");
   const props = parseProps(serialized);
-  if (typeof props !== "object" || props === null || Object.keys(props).join("\0") !== "projection")
+  if (typeof props !== "object" || props === null || Object.keys(props).join("\0") !== "payload")
     fail("PROPS_INVALID");
-  const contract = assertProjectionContract(props.projection, mode, files, exactPatterns);
+  if (
+    typeof props.payload !== "object" ||
+    props.payload === null ||
+    Object.keys(props.payload).join("\0") !== "gzipBase64" ||
+    typeof props.payload.gzipBase64 !== "string" ||
+    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(
+      props.payload.gzipBase64,
+    )
+  )
+    fail("MAP_PAYLOAD_INVALID");
+  let projectionBytes;
+  try {
+    projectionBytes = gunzipSync(Buffer.from(props.payload.gzipBase64, "base64"), {
+      maxOutputLength: MAX_PROJECTION_JSON,
+    });
+  } catch {
+    fail("MAP_PAYLOAD_INVALID");
+  }
+  let projection;
+  try {
+    projection = JSON.parse(projectionBytes.toString("utf8"));
+  } catch {
+    fail("MAP_PAYLOAD_INVALID");
+  }
+  const contract = assertProjectionContract(projection, mode, files, exactPatterns);
   assertExactFragmentTargets(html, contract.allowedFragments);
   if (contract.projectionGzipBytes > MAX_PROJECTION_GZIP) fail("MAP_PROJECTION_BUDGET_EXCEEDED");
   for (const copy of STATIC_ALTERNATIVES)
-    if (!island.complete.includes(copy)) fail("MAP_STATIC_ALTERNATIVE_MISSING");
+    if (!html.includes(copy)) fail("MAP_STATIC_ALTERNATIVE_MISSING");
   for (const fragment of [...MAP_MODES, ...LANE_IDS]) {
     const target = `${prefix}/map/#${fragment}`;
     if (!html.includes(`href="${target}"`) && !html.includes(`href='${target}'`))
@@ -411,7 +438,7 @@ async function inspectMap(mode, files, exactPatterns) {
     fail("MAP_MODULE_BUDGET_EXCEEDED");
   return {
     html,
-    projection: props.projection,
+    projection,
     projectionGzipBytes: contract.projectionGzipBytes,
     totalGzipBytes,
     javascriptCount: graph.names.size,

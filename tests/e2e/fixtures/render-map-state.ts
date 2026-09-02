@@ -1,7 +1,7 @@
 import { h } from "preact";
 import render from "preact-render-to-string";
 
-import { MapExplorerIsland } from "../../../src/components/map/MapExplorerIsland.tsx";
+import { MapExplorer } from "../../../src/components/map/MapExplorerIsland.tsx";
 import {
   phase8OmissionRecoveryProjection,
   phase8OmissionRecoveryReason,
@@ -25,7 +25,7 @@ export function renderMapOmissionRecoveryDocument(base = "/"): Readonly<{
   const projection = phase8OmissionRecoveryProjection(base);
   const omitted = projection.impactFlex.records[0];
   if (omitted === undefined) throw new Error("PHASE8_OMISSION_FIXTURE_MISSING");
-  const component = render(h(MapExplorerIsland, { projection }));
+  const component = render(h(MapExplorer, { projection }));
   return Object.freeze({
     html: `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Map omission and recovery test</title><style>${DOCUMENT_STYLE}</style></head><body><main><h1>Controlled map omission and recovery state</h1>${component}</main></body></html>`,
     omittedMaterialId: omitted.material.id,

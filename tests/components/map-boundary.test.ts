@@ -4,7 +4,7 @@ import { h } from "preact";
 import render from "preact-render-to-string";
 import { describe, expect, it } from "vitest";
 
-import { MapExplorerIsland } from "../../src/components/map/MapExplorerIsland.tsx";
+import { MapExplorer } from "../../src/components/map/MapExplorerIsland.tsx";
 import { compileMapProjection } from "../../src/features/map/projection.ts";
 import { createSafeMapReducer } from "../../src/features/map/safe-map.ts";
 import {
@@ -27,7 +27,7 @@ function count(source: string, fragment: string | RegExp): number {
 
 describe("map explorer island boundary", () => {
   it("server-renders one preparing state and all four analyses in canonical order", () => {
-    const html = render(h(MapExplorerIsland, { projection }));
+    const html = render(h(MapExplorer, { projection }));
     const sections = [
       "map-mode--decision-paths",
       "map-mode--thermal",
@@ -46,16 +46,18 @@ describe("map explorer island boundary", () => {
     expect(positions).toEqual([...positions].sort((left, right) => left - right));
   });
 
-  it("owns exactly one reducer, presenter, hydration effect, and renderer dispatch seam", () => {
+  it("owns one reducer and presenter behind one bounded payload activation seam", () => {
     expect(count(islandSource, /\buseReducer\s*\(/g)).toBe(1);
     expect(count(islandSource, /\bbuildMapView\s*\(/g)).toBe(1);
-    expect(count(islandSource, /\buseEffect\s*\(/g)).toBe(1);
+    expect(count(islandSource, /\buseEffect\s*\(/g)).toBe(2);
+    expect(islandSource).toContain("useState<MapProjection | null>(null)");
+    expect(islandSource).toContain("useState(false)");
+    expect(islandSource).toContain("MAX_DECOMPRESSED_BYTES");
+    expect(islandSource).toContain('new DecompressionStream("gzip")');
     expect(islandSource).toContain("createInitialMapState");
     expect(islandSource).toContain("createSafeMapReducer");
     expect(islandSource).toContain('{ type: "hydration-ready" }');
-    expect(islandSource).not.toMatch(
-      /\buseState\s*\(|\buseRef\s*\(|\buseMemo\s*\(|\.focus\s*\(|querySelector/,
-    );
+    expect(islandSource).not.toMatch(/\buseRef\s*\(|\buseMemo\s*\(|\.focus\s*\(|querySelector/);
 
     for (const renderer of [
       "DecisionPaths",
@@ -79,7 +81,9 @@ describe("map explorer island boundary", () => {
       'aria-live={view.status.recovery === undefined ? "polite" : "assertive"}',
     );
     expect(islandSource).toContain('{ type: "reset-view", mode: "all" }');
-    expect(islandSource).not.toMatch(/autoFocus|tabIndex=\{-1\}|document\.|window\./);
+    expect(islandSource.replace("window.atob", "atob")).not.toMatch(
+      /autoFocus|tabIndex=\{-1\}|document\.|window\./,
+    );
 
     const reducer = createMapReducer(projection);
     const lane = projection.lanes[0]!;
@@ -109,6 +113,7 @@ describe("map explorer island boundary", () => {
     expect(imports).toEqual([
       "preact/hooks",
       "../../features/map/contracts.ts",
+      "../../features/map/payload.ts",
       "../../features/map/safe-map.ts",
       "../../features/map/state.ts",
       "./DecisionPaths.tsx",

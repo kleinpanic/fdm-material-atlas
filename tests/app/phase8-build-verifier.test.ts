@@ -1,6 +1,7 @@
 import { mkdtemp, mkdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { gzipSync } from "node:zlib";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -138,7 +139,10 @@ function projection(base: string) {
 
 function island(base: string): string {
   const prefix = base === "/" ? "" : base.slice(0, -1);
-  const props = JSON.stringify({ projection: projection(base) }).replaceAll("'", "&#39;");
+  const gzipBase64 = gzipSync(Buffer.from(JSON.stringify(projection(base))), { level: 9 }).toString(
+    "base64",
+  );
+  const props = JSON.stringify({ payload: { gzipBase64 } }).replaceAll("'", "&#39;");
   const staticAlternatives = [
     "Decision paths",
     "Practical service guidance",
@@ -375,7 +379,14 @@ describe("Phase 8 emitted build verifier", () => {
       async (outputs: Awaited<ReturnType<typeof fixture>>) => {
         const path = join(outputs.root, "map/index.html");
         const html = await (await import("node:fs/promises")).readFile(path, "utf8");
-        await writeFile(path, html.replace('"projection":{', '"projection":{"atlas":{},'));
+        const unsafeProjection = { ...projection("/"), atlas: {} };
+        const unsafePayload = gzipSync(Buffer.from(JSON.stringify(unsafeProjection)), {
+          level: 9,
+        }).toString("base64");
+        await writeFile(
+          path,
+          html.replace(/"gzipBase64":"[^"]+"/u, `"gzipBase64":"${unsafePayload}"`),
+        );
       },
     ],
     [
