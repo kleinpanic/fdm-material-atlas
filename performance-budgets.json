@@ -25,7 +25,7 @@
     { "label": "map", "path": "/map/", "marker": ".map-lane-directory" }
   ],
   "lighthouse": {
-    "runs": 1,
+    "runs": 3,
     "performanceScore": 0.9,
     "firstContentfulPaintMs": 2000,
     "largestContentfulPaintMs": 2500,
