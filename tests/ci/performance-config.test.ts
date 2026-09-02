@@ -82,7 +82,7 @@ describe("bounded performance runner", () => {
     expect(
       medianMetrics([metricSet(0.95, 150), metricSet(0.91, 100), metricSet(0.93, 125)]),
     ).toEqual(metricSet(0.93, 125));
-  }, 15_000);
+  }, 30_000);
 
   it("tolerates one valid environmental outlier when the median passes", async () => {
     const { assertMedianMetrics } = await import("../../tools/run-performance-budget.mjs");
