@@ -441,10 +441,10 @@ async function withCollectionTimeout(operation, timeoutMs) {
 }
 
 const MAX_CAPTURE_ATTEMPTS = 2;
-const QUIET_SAMPLE_MS = 250;
-const QUIET_IDLE_FRACTION = 0.7;
-const QUIET_CONSECUTIVE_SAMPLES = 2;
-const QUIET_MAX_SAMPLES = 60;
+const QUIET_SAMPLE_MS = 500;
+const QUIET_IDLE_FRACTION = 0.8;
+const QUIET_CONSECUTIVE_SAMPLES = 3;
+const QUIET_MAX_SAMPLES = 40;
 
 function cpuCounters(source) {
   const fields = source
