@@ -123,7 +123,12 @@ test("material rail anchors reveal contained sections without changing accessibl
   const overview = page.locator("#overview");
   const thermal = page.locator("#thermal");
   await expect(overview).toHaveCSS("content-visibility", "visible");
-  await expect(thermal).toHaveCSS("content-visibility", "visible");
+  await expect(thermal).toHaveCSS("content-visibility", "auto");
+  expect(
+    await thermal.evaluate(
+      (element: Element) => getComputedStyle(element).containIntrinsicBlockSize,
+    ),
+  ).toBe("auto 1045px");
   await expect(page.locator(".material-reference__sections > section")).toHaveCount(9);
 
   await activateMaterialRailAnchor(page, "Evidence", "#evidence");
