@@ -73,7 +73,7 @@ jobs:
       - run: node tools/verify-ci-environment.mjs
         env:
           SITE_ORIGIN: \${{ steps.pages.outputs.origin }}
-          SITE_BASE_PATH: \${{ steps.pages.outputs.base_path }}
+          SITE_BASE_PATH: \${{ format('{0}/', steps.pages.outputs.base_path) }}
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run ci:all
       - run: npm exec --no -- astro build --outDir dist-pages

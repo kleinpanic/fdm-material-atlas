@@ -49,7 +49,7 @@ jobs:
           GITHUB_REF: ${{ github.ref }}
           GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           SITE_ORIGIN: ${{ steps.pages.outputs.origin }}
-          SITE_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          SITE_BASE_PATH: ${{ format('{0}/', steps.pages.outputs.base_path) }}
       - name: Install reviewed dependencies without lifecycle scripts
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Audit direct dependencies
@@ -62,13 +62,13 @@ jobs:
         run: npm exec --no -- astro build --outDir dist-pages
         env:
           SITE_ORIGIN: ${{ steps.pages.outputs.origin }}
-          SITE_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          SITE_BASE_PATH: ${{ format('{0}/', steps.pages.outputs.base_path) }}
       - name: Test the exact Pages artifact
         run: ATLAS_TEST_MODE=pages npm run verify:exact-artifact
         env:
           ATLAS_PAGES_ARTIFACT: dist-pages
           ATLAS_PAGES_ORIGIN: ${{ steps.pages.outputs.origin }}
-          ATLAS_PAGES_BASE: ${{ steps.pages.outputs.base_path }}
+          ATLAS_PAGES_BASE: ${{ format('{0}/', steps.pages.outputs.base_path) }}
       - name: Upload the tested Pages artifact once
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
