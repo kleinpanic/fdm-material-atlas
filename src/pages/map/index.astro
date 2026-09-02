@@ -53,17 +53,6 @@ const navigation = [
       </p>
     </header>
 
-    <aside class="map-caution" aria-labelledby="map-caution-heading">
-      <span class="map-caution__mark" aria-hidden="true">!</span>
-      <div>
-        <h2 id="map-caution-heading">Read paths and plots as guidance</h2>
-        <p>
-          Candidate status means that a material satisfies the published lane rule. It is not a
-          universal recommendation, safety approval, or engineering certification.
-        </p>
-      </div>
-    </aside>
-
     <section id="comparison-matrix" class="map-comparison" aria-labelledby="map-comparison-heading">
       <header class="map-comparison__header">
         <p class="technical-eyebrow">Selected comparison</p>
@@ -81,6 +70,17 @@ const navigation = [
       </noscript>
       <CompareIsland payload={comparisonPayload} base={base} historyPath={mapHref} client:load />
     </section>
+
+    <aside class="map-caution" aria-labelledby="map-caution-heading">
+      <span class="map-caution__mark" aria-hidden="true">!</span>
+      <div>
+        <h2 id="map-caution-heading">Read paths and plots as guidance</h2>
+        <p>
+          Candidate status means that a material satisfies the published lane rule. It is not a
+          universal recommendation, safety approval, or engineering certification.
+        </p>
+      </div>
+    </aside>
 
     <nav class="map-mode-index" aria-label="Explore visualization modes">
       <p class="map-index-label">Explore relationship views</p>
