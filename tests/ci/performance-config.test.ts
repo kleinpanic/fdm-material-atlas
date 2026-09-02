@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
@@ -187,6 +188,22 @@ describe("bounded performance runner", () => {
       }),
     ).rejects.toMatchObject({ code: "PERFORMANCE_HOST_BUSY" });
     expect(calls).toBe(3);
+  }, 15_000);
+
+  it("measures the compressed map projection carried by the deferred island payload", async () => {
+    const { mapProjectionTransferBytes } = await import("../../tools/run-performance-budget.mjs");
+    const projection = { lanes: [{ id: "outdoor" }], modeFragments: { outdoor: "/map/#outdoor" } };
+    const compressed = gzipSync(Buffer.from(JSON.stringify(projection)), { level: 9 });
+    const serialized = JSON.stringify({
+      payload: [0, { gzipBase64: [0, compressed.toString("base64")] }],
+    }).replaceAll('"', "&quot;");
+
+    expect(mapProjectionTransferBytes(serialized)).toBe(compressed.byteLength);
+    expect(() =>
+      mapProjectionTransferBytes(
+        JSON.stringify({ payload: [0, { gzipBase64: [0, "not base64"] }] }),
+      ),
+    ).toThrowError(expect.objectContaining({ code: "PERFORMANCE_REPORT_INVALID" }));
   }, 15_000);
 
   it("rejects a missing production artifact with a stable code", async () => {

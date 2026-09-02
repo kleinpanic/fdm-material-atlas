@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { launch as launchChrome } from "chrome-launcher";
-import { gzipSync } from "node:zlib";
+import { gunzipSync, gzipSync } from "node:zlib";
 import { lstat, mkdir, opendir, readFile, realpath, writeFile } from "node:fs/promises";
 import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -202,6 +202,34 @@ function reviveAstro(value) {
   return reviveObject(value);
 }
 
+const MAX_MAP_PROJECTION_JSON_BYTES = 1024 * 1024;
+
+export function mapProjectionTransferBytes(serializedProps) {
+  const decodedProps = serializedProps
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#34;", '"')
+    .replaceAll("&amp;", "&");
+  try {
+    const parsed = reviveAstro(JSON.parse(decodedProps));
+    const encoded = parsed?.payload?.gzipBase64;
+    if (
+      typeof encoded !== "string" ||
+      !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(encoded)
+    )
+      fail("PERFORMANCE_REPORT_INVALID");
+    const compressed = Buffer.from(encoded, "base64");
+    const projection = JSON.parse(
+      gunzipSync(compressed, { maxOutputLength: MAX_MAP_PROJECTION_JSON_BYTES }).toString("utf8"),
+    );
+    if (typeof projection !== "object" || projection === null || Array.isArray(projection))
+      fail("PERFORMANCE_REPORT_INVALID");
+    return compressed.byteLength;
+  } catch (error) {
+    if (error instanceof PerformanceBudgetError) throw error;
+    fail("PERFORMANCE_REPORT_INVALID");
+  }
+}
+
 export async function mapTransfer(mode, policy) {
   const html = await readFile(mode.files.get("map/index.html")?.path ?? "", "utf8").catch(() =>
     fail("PERFORMANCE_ROUTE_MISSING"),
@@ -244,21 +272,7 @@ export async function mapTransfer(mode, policy) {
       pending.push(posix.normalize(posix.join(posix.dirname(name), specifier)));
     }
   }
-  const decodedProps = props
-    .replaceAll("&quot;", '"')
-    .replaceAll("&#34;", '"')
-    .replaceAll("&amp;", "&");
-  let projectionBytes;
-  try {
-    const parsed = reviveAstro(JSON.parse(decodedProps));
-    const encoded = parsed.projection;
-    projectionBytes = gzipSync(Buffer.from(JSON.stringify(encoded)), {
-      level: 9,
-      mtime: 0,
-    }).byteLength;
-  } catch {
-    fail("PERFORMANCE_REPORT_INVALID");
-  }
+  const projectionBytes = mapProjectionTransferBytes(props);
   const totalGzipBytes =
     javascriptGzipBytes + gzipSync(Buffer.from(props), { level: 9, mtime: 0 }).byteLength;
   if (
