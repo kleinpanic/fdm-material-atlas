@@ -22,7 +22,7 @@
       "marker": "[aria-label='Material comparison tool']"
     },
     { "label": "data", "path": "/data/", "marker": ".data-explorer-island" },
-    { "label": "map", "path": "/map/", "marker": ".map-explorer" }
+    { "label": "map", "path": "/map/", "marker": ".map-lane-directory" }
   ],
   "lighthouse": {
     "runs": 3,

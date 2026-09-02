@@ -19,6 +19,9 @@ describe("performance release policy", () => {
       "data",
       "map",
     ]);
+    expect(policy.routes.find((route: { label: string }) => route.label === "map")?.marker).toBe(
+      ".map-lane-directory",
+    );
     expect(policy.lighthouse).toEqual({
       runs: 3,
       performanceScore: 0.9,
