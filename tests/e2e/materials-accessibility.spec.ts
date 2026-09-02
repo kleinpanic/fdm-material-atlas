@@ -60,6 +60,21 @@ async function expectMaterialAnchorToRemainSettled(
   });
 }
 
+async function activateMaterialRailAnchor(
+  page: Page,
+  linkName: string,
+  targetSelector: string,
+): Promise<void> {
+  const link = page
+    .getByRole("navigation", { name: "On this page" })
+    .getByRole("link", { name: linkName });
+  await link.focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(new RegExp(`#${targetSelector.slice(1)}$`, "u"));
+  await expect(page.locator(targetSelector)).toBeFocused();
+  await expectMaterialAnchorToRemainSettled(page, `${targetSelector} > h2`);
+}
+
 test("atlas default, filtered, zero-result, material, and method states pass axe", async ({
   page,
 }) => {
@@ -108,23 +123,15 @@ test("material rail anchors reveal contained sections without changing accessibl
   const overview = page.locator("#overview");
   const thermal = page.locator("#thermal");
   await expect(overview).toHaveCSS("content-visibility", "visible");
-  await expect(thermal).toHaveCSS("content-visibility", "auto");
-  expect(
-    await thermal.evaluate(
-      (element: Element) => getComputedStyle(element).containIntrinsicBlockSize,
-    ),
-  ).toBe("auto 1600px");
+  await expect(thermal).toHaveCSS("content-visibility", "visible");
   await expect(page.locator(".material-reference__sections > section")).toHaveCount(9);
 
-  const evidenceLink = page
-    .getByRole("navigation", { name: "On this page" })
-    .getByRole("link", { name: "Evidence" });
-  await evidenceLink.focus();
-  await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/#evidence$/u);
-  await expect(page.locator("#evidence")).toBeFocused();
-  await expectMaterialAnchorToRemainSettled(page, "#evidence > h2");
+  await activateMaterialRailAnchor(page, "Evidence", "#evidence");
   await axePasses(page);
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto(`${basePath}materials/abs/`);
+  await activateMaterialRailAnchor(page, "Evidence", "#evidence");
 
   await page.setViewportSize({ width: 320, height: 800 });
   await page.goto(`${basePath}materials/abs/#starting-profile`);

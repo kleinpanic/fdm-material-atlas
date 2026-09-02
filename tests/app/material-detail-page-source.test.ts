@@ -39,10 +39,10 @@ describe("material detail route source", () => {
     expect(css).not.toContain("position: sticky");
   });
 
-  it("defers only offscreen material sections on screens and preserves print layout", () => {
-    expect(css).toMatch(
-      /@media screen\s*\{[\s\S]*?\.material-reference__sections\s*>\s*section:not\(\s*:first-child\s*\):not\(\s*:target\s*\):not\(\s*:focus-within\s*\)\s*\{[\s\S]*?content-visibility:\s*auto;[\s\S]*?contain-intrinsic-block-size:\s*auto 100rem;/u,
-    );
+  it("keeps material anchor geometry stable on screens and preserves print layout", () => {
+    expect(css).toMatch(/:root\s*\{\s*scroll-behavior:\s*auto;/u);
+    expect(css).not.toContain("content-visibility");
+    expect(css).not.toContain("contain-intrinsic-block-size");
     expect(css).not.toMatch(/:has\(\s*~\s*section:focus-within\s*\)/u);
     const printRules = css.match(/@media print\s*\{[\s\S]*?\n\}/gu)?.join("\n") ?? "";
     expect(printRules).not.toContain("content-visibility: auto");

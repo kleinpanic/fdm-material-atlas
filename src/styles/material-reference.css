@@ -1,3 +1,6 @@
+:root {
+  scroll-behavior: auto;
+}
 .material-reference__identity {
   padding-block: var(--spacing-8);
   border-block-end: var(--size-rule-strong) solid var(--color-ink-strong);
@@ -36,12 +39,6 @@
 .material-reference__sections > section:first-child {
   padding-block-start: 0;
   border-block-start: 0;
-}
-@media screen {
-  .material-reference__sections > section:not(:first-child):not(:target):not(:focus-within) {
-    content-visibility: auto;
-    contain-intrinsic-block-size: auto 100rem;
-  }
 }
 .material-fact-list {
   display: grid;
