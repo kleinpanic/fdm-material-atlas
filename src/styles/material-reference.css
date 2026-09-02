@@ -40,6 +40,62 @@
   padding-block-start: 0;
   border-block-start: 0;
 }
+@media screen {
+  .material-reference__sections > section:not(:first-child):not(:target):not(:focus-within) {
+    content-visibility: auto;
+    contain-intrinsic-block-size: auto var(--material-section-intrinsic-size);
+  }
+  #thermal {
+    --material-section-intrinsic-size: 1045px;
+  }
+  #properties {
+    --material-section-intrinsic-size: 3142px;
+  }
+  #process {
+    --material-section-intrinsic-size: 2088px;
+  }
+  #uses-tradeoffs {
+    --material-section-intrinsic-size: 952px;
+  }
+  #starting-profile {
+    --material-section-intrinsic-size: 1354px;
+  }
+  #evidence {
+    --material-section-intrinsic-size: 3005px;
+  }
+  #limitations {
+    --material-section-intrinsic-size: 295px;
+  }
+  #relationships {
+    --material-section-intrinsic-size: 2020px;
+  }
+}
+@media screen and (max-width: 39.999rem) {
+  #thermal {
+    --material-section-intrinsic-size: 1369px;
+  }
+  #properties {
+    --material-section-intrinsic-size: 3687px;
+  }
+  #process {
+    --material-section-intrinsic-size: 2583px;
+  }
+  #uses-tradeoffs {
+    --material-section-intrinsic-size: 1200px;
+  }
+  #starting-profile {
+    --material-section-intrinsic-size: 1733px;
+  }
+  #evidence {
+    --material-section-intrinsic-size: 3611px;
+  }
+  #limitations {
+    --material-section-intrinsic-size: 493px;
+  }
+  #relationships {
+    --material-section-intrinsic-size: 2386px;
+  }
+}
 .material-fact-list {
   display: grid;
   gap: var(--spacing-4);
