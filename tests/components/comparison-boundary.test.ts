@@ -40,7 +40,8 @@ describe("comparison island boundary", () => {
     expect(islandSource).toContain("decodeCompareUrlState(window.location.search");
     expect(islandSource).toContain('new DecompressionStream("gzip")');
     expect(islandSource).toContain("encodeCompareUrlState(");
-    expect(islandSource).toContain('window.history.replaceState(null, "", encoded.href)');
+    expect(islandSource).toContain('window.history.replaceState(null, "", nextHref)');
+    expect(islandSource).toContain("historyPath === undefined");
     expect(islandSource).not.toMatch(/useState\([^\n]*(?:window|location|history)/u);
     expect(islandSource).not.toMatch(/fetch\(|localStorage|sessionStorage/u);
     expect(islandSource).not.toMatch(/data\/schema\/atlas|public-atlas|comparison\/model/u);

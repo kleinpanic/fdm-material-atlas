@@ -11,7 +11,11 @@ import {
 import { CompareSelection } from "./CompareSelection.tsx";
 import { ComparisonGroups } from "./ComparisonGroups.tsx";
 
-type Props = Readonly<{ payload: ComparisonPayload; base?: string | undefined }>;
+type Props = Readonly<{
+  payload: ComparisonPayload;
+  base?: string | undefined;
+  historyPath?: string | undefined;
+}>;
 type ViewState = "preparing" | "empty" | "invalid" | "ready" | "failure";
 
 const INVALID_COPY =
@@ -31,7 +35,7 @@ async function decodeComparisonModel(gzipBase64: string): Promise<ComparisonMode
   return (await new Response(decompressed).json()) as ComparisonModel;
 }
 
-export function CompareIsland({ payload, base }: Props) {
+export function CompareIsland({ payload, base, historyPath }: Props) {
   const knownIds = useMemo(() => payload.index.map(({ id }) => id), [payload.index]);
   const modelPromise = useRef<Promise<ComparisonModel> | null>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -115,7 +119,11 @@ export function CompareIsland({ payload, base }: Props) {
       setAnnouncement("Comparison is unavailable.");
       return;
     }
-    window.history.replaceState(null, "", encoded.href);
+    const nextHref =
+      historyPath === undefined
+        ? encoded.href
+        : `${historyPath}${new URL(encoded.href, window.location.origin).search}`;
+    window.history.replaceState(null, "", nextHref);
     setSelectionError(null);
     setResult(compared);
     setView("ready");

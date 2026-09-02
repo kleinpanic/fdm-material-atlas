@@ -13,14 +13,12 @@ const payload = encodeDataExplorerPayload(model);
 const homeHref = internalHref(base, { id: "home" });
 const materialsHref = internalHref(base, { id: "materials" });
 const methodHref = internalHref(base, { id: "method" });
-const compareHref = internalHref(base, { id: "compare" });
 const mapHref = internalHref(base, { id: "map" });
 const dataHref = internalHref(base, { id: "data" });
 const navigation = [
   { label: "Material selector", href: homeHref, current: false },
   { label: "Material atlas", href: materialsHref, current: false },
-  { label: "Compare", href: compareHref, current: false },
-  { label: "Map", href: mapHref, current: false },
+  { label: "Explore & compare", href: mapHref, current: false },
   { label: "Data", href: dataHref, current: true },
   { label: "Method", href: methodHref, current: false },
 ] as const;

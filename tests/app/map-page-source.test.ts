@@ -36,17 +36,18 @@ describe("static-first map page source", () => {
     expect(occurrences(page, /<MapExplorerIsland\b/g)).toBe(1);
     expect(page).toContain("payload={payload}");
     expect(page).not.toContain("<MapExplorerIsland projection=");
-    expect(page).toContain('client:visible={{ rootMargin: "200px" }}');
-    expect(page).not.toMatch(/client:(?:load|only)|fetch\s*\(|dangerouslySetInnerHTML|set:html/);
+    expect(occurrences(page, "client:load")).toBe(2);
+    expect(page).not.toMatch(/client:only|fetch\s*\(|dangerouslySetInnerHTML|set:html/);
     expect(page).not.toMatch(/deriveDecisionLaneMembership|materialById|DecisionBoard/);
   });
 
   it("renders compact orientation, caution, mode directory, and no-script meaning before the island", () => {
     const normalizedPage = page.replace(/\s+/gu, " ");
     for (const copy of [
-      "Material decision maps",
-      "Trace material choices through properties and process gates",
-      "Follow a use need to the properties, live material candidates, and process checks that require verification. Then inspect selected scientific relationships without combining unlike measurements.",
+      "Material exploration workbench",
+      "Compare materials, then trace the engineering tradeoffs",
+      "Select two to four materials for a direct comparison, or follow a use need through live candidates, properties, and process checks. Every view keeps unlike thermal measurements separate.",
+      "Compare two to four materials",
       "Read paths and plots as guidance",
       "Candidate status means that a material satisfies the published lane rule. It is not a universal recommendation, safety approval, or engineering certification.",
       "Explore visualization modes",
@@ -64,8 +65,8 @@ describe("static-first map page source", () => {
       "Interactive map controls are preparing. Every path and structured table is already available.",
     );
     expect(page).toContain('{ label: "Home", href: homeHref }');
-    expect(page).toContain('{ label: "Decision maps", current: true }');
-    expect(page).toContain('title="Decision maps | FDM Material Atlas"');
+    expect(page).toContain('{ label: "Explore and compare", current: true }');
+    expect(page).toContain('title="Explore and compare materials | FDM Material Atlas"');
   });
 
   it("uses all exact projection-owned mode and lane fragment hrefs with complete SSR analyses", () => {

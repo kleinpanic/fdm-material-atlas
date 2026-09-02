@@ -4,13 +4,15 @@ FDM Material Atlas is a public, static decision aid for FDM/FFF material selecti
 
 The atlas supports early screening and comparison. It does not declare one material universally best.
 
+**Live site:** [kleinpanic.github.io/fdm-material-atlas](https://kleinpanic.github.io/fdm-material-atlas/)
+
 ## Product routes
 
 - `/` — interactive selector and explained recommendations
 - `/materials/` — searchable material atlas
 - `/materials/<slug>/` — one generated detail page for each material family
-- `/compare/` — side-by-side comparison of shortlisted materials
-- `/map/` — decision paths and scientific visualizations
+- `/map/` — selected comparison, decision paths, and scientific visualizations in one workbench
+- `/compare/` — compatibility route for existing comparison links
 - `/data/` — advanced table and data explorer
 - `/method/` — definitions, evidence, scoring method, and limitations
 
@@ -58,7 +60,7 @@ Exact filament formulations differ. Geometry, moisture, load, print orientation,
 
 ## Deployment and publication boundary
 
-The Pages workflow installs exact dependencies, runs the release checks, builds the repository-path artifact, and permits deployment only after its required jobs pass. The repository has no verified live-site link in this document yet; release closure adds one only after the deployed location is observed.
+The Pages workflow installs exact dependencies, runs the release checks, builds the repository-path artifact, and permits deployment only after its required jobs pass. The deployed application is available at [kleinpanic.github.io/fdm-material-atlas](https://kleinpanic.github.io/fdm-material-atlas/).
 
 The committed public Atlas is the application’s complete content input. Repository files, browser bundles, build output, and workflow logs must not contain acquisition locations, account details, access material, or internal engineering records. Publication checks scan the tracked tree, history, artifacts, and release logs before closure.
 

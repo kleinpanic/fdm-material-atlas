@@ -1,52 +1,55 @@
 ---
 import { MapExplorer, MapExplorerIsland } from "../../components/map/MapExplorerIsland.tsx";
+import { CompareIsland } from "../../components/comparison/CompareIsland.tsx";
+import { buildComparisonModel } from "../../features/comparison/model.ts";
+import { encodeComparisonPayload } from "../../features/comparison/payload.ts";
 import { encodeMapProjectionPayload } from "../../features/map/payload.ts";
 import { compileMapProjection } from "../../features/map/projection.ts";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { loadPublicAtlas } from "../../lib/public-atlas.ts";
 import { internalHref } from "../../lib/routes.ts";
 import "../../styles/map-board.css";
+import "../../styles/comparison.css";
 
 const base = import.meta.env.BASE_URL;
 const atlas = loadPublicAtlas();
 const projection = compileMapProjection(atlas, base);
 const payload = encodeMapProjectionPayload(projection);
+const comparisonPayload = encodeComparisonPayload(buildComparisonModel(atlas, base));
 const homeHref = internalHref(base, { id: "home" });
 const materialsHref = internalHref(base, { id: "materials" });
-const compareHref = internalHref(base, { id: "compare" });
 const mapHref = internalHref(base, { id: "map" });
 const dataHref = internalHref(base, { id: "data" });
 const methodHref = internalHref(base, { id: "method" });
 const navigation = [
   { label: "Selector", href: homeHref, current: false },
   { label: "Materials", href: materialsHref, current: false },
-  { label: "Compare", href: compareHref, current: false },
-  { label: "Map", href: mapHref, current: true },
+  { label: "Explore & compare", href: mapHref, current: true },
   { label: "Data", href: dataHref, current: false },
   { label: "Method", href: methodHref, current: false },
 ] as const;
 ---
 
 <BaseLayout
-  title="Decision maps | FDM Material Atlas"
-  description="Trace eight data-derived material decision paths and inspect thermal, process-gate, impact, and flexibility relationships."
+  title="Explore and compare materials | FDM Material Atlas"
+  description="Compare selected FDM materials, trace eight data-derived decision paths, and inspect thermal, process, impact, and flexibility relationships."
   canonicalPath={mapHref}
   homeHref={homeHref}
   navigation={navigation}
   breadcrumbs={[
     { label: "Home", href: homeHref },
-    { label: "Decision maps", current: true },
+    { label: "Explore and compare", current: true },
   ]}
   footerLinks={navigation.map(({ label, href }) => ({ label, href }))}
 >
   <article class="map-page">
     <header class="map-hero">
-      <p class="technical-eyebrow">Material decision maps</p>
-      <h1>Trace material choices through properties and process gates</h1>
+      <p class="technical-eyebrow">Material exploration workbench</p>
+      <h1>Compare materials, then trace the engineering tradeoffs</h1>
       <p class="map-hero__lede">
-        Follow a use need to the properties, live material candidates, and process checks that
-        require verification. Then inspect selected scientific relationships without combining
-        unlike measurements.
+        Select two to four materials for a direct comparison, or follow a use need through live
+        candidates, properties, and process checks. Every view keeps unlike thermal measurements
+        separate.
       </p>
     </header>
 
@@ -61,8 +64,26 @@ const navigation = [
       </div>
     </aside>
 
+    <section id="comparison-matrix" class="map-comparison" aria-labelledby="map-comparison-heading">
+      <header class="map-comparison__header">
+        <p class="technical-eyebrow">Selected comparison</p>
+        <h2 id="map-comparison-heading">Compare two to four materials</h2>
+        <p>
+          Choose the material families you want to inspect together. Differences retain units,
+          conditions, qualifications, fact state, and evidence scope.
+        </p>
+      </header>
+      <noscript>
+        <p class="compare-noscript">
+          JavaScript is required to update a selected comparison. The decision maps and complete
+          material records remain available below.
+        </p>
+      </noscript>
+      <CompareIsland payload={comparisonPayload} base={base} historyPath={mapHref} client:load />
+    </section>
+
     <nav class="map-mode-index" aria-label="Explore visualization modes">
-      <p class="map-index-label">Explore visualization modes</p>
+      <p class="map-index-label">Explore relationship views</p>
       <ol>
         <li>
           <a href={projection.modeFragments["decision-paths"]}
@@ -128,7 +149,7 @@ const navigation = [
       <MapExplorer projection={projection} />
     </noscript>
 
-    <MapExplorerIsland payload={payload} client:visible={{ rootMargin: "200px" }} />
+    <MapExplorerIsland payload={payload} client:load />
 
     <footer class="map-method-note">
       <p class="technical-eyebrow">Interpretation boundary</p>

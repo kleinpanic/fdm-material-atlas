@@ -74,7 +74,7 @@ function denyPrivateRuntimeRequests(page: PlaywrightTestArgs["page"]): string[] 
 async function openMap(page: PlaywrightTestArgs["page"]): Promise<void> {
   await page.goto(mapPath());
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Trace material choices through properties and process gates",
+    "Compare materials, then trace the engineering tradeoffs",
   );
   await page.locator(".map-explorer").scrollIntoViewIfNeeded();
   await expect(
@@ -82,6 +82,21 @@ async function openMap(page: PlaywrightTestArgs["page"]): Promise<void> {
   ).toBeVisible();
   await page.evaluate(() => scrollTo(0, 0));
 }
+
+test("combined workbench compares selected materials without leaving the map", async ({ page }) => {
+  await page.goto(mapPath());
+  const comparison = page.getByRole("region", { name: "Compare two to four materials" });
+  await expect(comparison.getByLabel("Material 1")).toBeEnabled();
+  await comparison.getByLabel("Material 1").selectOption(atlas.materials[0]!.id);
+  await comparison.getByLabel("Material 2").selectOption(atlas.materials[1]!.id);
+  await comparison.getByRole("button", { name: "Update comparison" }).click();
+
+  await expect(page).toHaveURL(/\/map\/\?material=[^&]+&material=[^&]+$/u);
+  await expect(
+    comparison.getByRole("heading", { name: "Comparison of 2 materials" }),
+  ).toBeVisible();
+  await expect(comparison.getByText(/differing attributes across/u)).toBeVisible();
+});
 
 async function exposeEverySelectorResult(page: PlaywrightTestArgs["page"]): Promise<void> {
   await page.goto(basePath);
@@ -113,6 +128,8 @@ test("selector exposes every exact lane handoff and all four-stage paths retain 
     const handoff = page.getByRole("link", { name: action!.label, exact: true }).first();
     await expect(handoff).toHaveAttribute("href", lane.href);
   }
+
+  await openMap(page);
   for (const lane of projection.lanes) {
     await page.goto(lane.href);
     await expect(page).toHaveURL(
@@ -120,8 +137,6 @@ test("selector exposes every exact lane handoff and all four-stage paths retain 
     );
     await expect(page.locator(":target")).toHaveAttribute("data-lane-id", lane.id);
   }
-
-  await openMap(page);
   await expect(
     page.getByRole("navigation", { name: "Decision lane index" }).getByRole("listitem"),
   ).toHaveCount(8);

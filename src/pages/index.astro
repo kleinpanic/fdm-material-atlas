@@ -29,7 +29,6 @@ const secondarySummaryServerRef = createRef<HTMLElement>();
 const inertChange = () => undefined;
 const homeHref = internalHref(base, { id: "home" });
 const materialsHref = internalHref(base, { id: "materials" });
-const compareHref = internalHref(base, { id: "compare" });
 const mapHref = internalHref(base, { id: "map" });
 const dataHref = internalHref(base, { id: "data" });
 const methodHref = internalHref(base, { id: "method" });
@@ -37,8 +36,7 @@ const methodHref = internalHref(base, { id: "method" });
 const navigation = [
   { label: "Material selector", href: homeHref, current: true },
   { label: "Materials", href: materialsHref, current: false },
-  { label: "Compare", href: compareHref, current: false },
-  { label: "Map", href: mapHref, current: false },
+  { label: "Explore & compare", href: mapHref, current: false },
   { label: "Data", href: dataHref, current: false },
   { label: "Method", href: methodHref, current: false },
 ] as const;
@@ -46,8 +44,7 @@ const navigation = [
 const footerLinks = [
   { label: "Material selector", href: homeHref },
   { label: "Materials", href: materialsHref },
-  { label: "Compare", href: compareHref },
-  { label: "Map", href: mapHref },
+  { label: "Explore & compare", href: mapHref },
   { label: "Data", href: dataHref },
   { label: "Method", href: methodHref },
 ] as const;

@@ -101,6 +101,28 @@
   margin: 0;
 }
 
+.map-comparison {
+  display: grid;
+  gap: var(--spacing-6);
+  margin-block: var(--spacing-8);
+  padding: clamp(var(--spacing-4), 3vw, var(--spacing-8));
+  border-block: var(--size-rule-strong) solid var(--color-accent);
+  background: var(--color-surface);
+}
+
+.map-comparison__header {
+  max-inline-size: var(--width-reading);
+}
+
+.map-comparison__header h2 {
+  margin-block: var(--spacing-2);
+}
+
+.map-comparison__header p:last-child {
+  margin-block-end: 0;
+  color: var(--color-ink-muted);
+}
+
 .map-mode-index {
   margin-block: var(--spacing-4);
   padding-block: var(--spacing-2);

@@ -29,7 +29,7 @@ function documentedCommands(document: string): readonly string[] {
 
 const readmeSubjects = [
   /selector-first/iu,
-  /\/materials\/.*\/materials\/<slug>\/.*\/compare\/.*\/map\/.*\/data\/.*\/method\//isu,
+  /\/materials\/.*\/materials\/<slug>\/.*\/map\/.*\/compare\/.*\/data\/.*\/method\//isu,
   /Node\.js 22/iu,
   /Astro.*TypeScript.*Tailwind/isu,
   /src\/data\/public\/atlas\.v1\.json/u,
