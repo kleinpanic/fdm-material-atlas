@@ -66,7 +66,7 @@ describe("production CI workflow contract", () => {
     expect(job("build")).toContain("npm run validate:html");
     expect(job("build")).toContain("npm run validate:routes");
 
-    expect(job("browser")).toContain("npm run test:browser");
+    expect(job("browser")).toContain("npm run test:release-browser");
     expect(job("browser")).toContain("npm run test:accessibility");
     expect(job("performance")).toContain("npm run test:performance");
 
@@ -75,7 +75,7 @@ describe("production CI workflow contract", () => {
       "npm run test:ci-contracts",
       "npm run validate:html",
       "npm run validate:routes",
-      "npm run test:browser",
+      "npm run test:release-browser",
       "npm run test:accessibility",
       "npm run test:performance",
     ]) {

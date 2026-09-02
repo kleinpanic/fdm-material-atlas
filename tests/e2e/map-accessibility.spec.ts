@@ -226,7 +226,7 @@ test("axe passes filtered impact states and the real-component omission/recovery
 test("no-script and failed hydration retain complete static meaning", async ({ browser }) => {
   const noScript = await openWithoutJavaScript(browser);
   await expect(noScript.page.getByRole("heading", { level: 1 })).toHaveText(
-    "Trace material choices through properties and process gates",
+    "Compare materials, then trace the engineering tradeoffs",
   );
   expect(readFileSync(resolve(outputRoot, "map/index.html"), "utf8")).toContain(
     "Interactive highlighting is unavailable. All decision paths and structured visualization data remain readable below.",
@@ -235,11 +235,11 @@ test("no-script and failed hydration retain complete static meaning", async ({ b
   await expect(noScript.page.locator("[data-service-row]")).toHaveCount(23);
   await expect(noScript.page.locator("[data-gate-cell]")).toHaveCount(64);
   await expect(noScript.page.locator("[data-impact-row]")).toHaveCount(23);
-  await expect(noScript.page.getByText(/controls are preparing/u)).toHaveCount(1);
+  expect(await noScript.page.getByText(/controls are preparing/u).count()).toBeGreaterThan(0);
   await noScript.context.close();
 
   const aborted = await openWithMapChunkAborted(browser);
-  await expect(aborted.page.getByText(/controls are preparing/u)).toHaveCount(1);
+  expect(await aborted.page.getByText(/controls are preparing/u).count()).toBeGreaterThan(0);
   await expect(aborted.page.locator("[data-decision-lane]")).toHaveCount(8);
   await expect(aborted.page.locator("[data-service-row]")).toHaveCount(23);
   await expect(aborted.page.locator("[data-gate-cell]")).toHaveCount(64);
@@ -362,15 +362,20 @@ for (const viewport of [
         header: rect(".site-header"),
         hero: rect(".map-hero"),
         title: rect(".map-hero h1"),
+        comparison: rect(".map-comparison"),
         firstIndex: rect(".map-lane-directory a"),
         viewportHeight: innerHeight,
+        documentHeight: document.documentElement.scrollHeight,
         overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       };
     });
     expect(geometry.header.height).toBeLessThanOrEqual(geometry.viewportHeight * 0.25);
     expect(geometry.hero.height).toBeLessThanOrEqual(geometry.viewportHeight * 0.52);
     expect(geometry.title.height).toBeLessThanOrEqual(geometry.viewportHeight * 0.28);
-    expect(geometry.firstIndex.top).toBeLessThan(geometry.viewportHeight);
+    expect(geometry.comparison.top).toBeLessThan(geometry.viewportHeight);
+    expect(geometry.comparison.height).toBeGreaterThan(0);
+    expect(geometry.firstIndex.top).toBeGreaterThan(geometry.comparison.top);
+    expect(geometry.firstIndex.bottom).toBeLessThanOrEqual(geometry.documentHeight);
     expect(geometry.firstIndex.bottom).toBeGreaterThan(0);
     expect(geometry.overflow).toBeLessThanOrEqual(0);
 

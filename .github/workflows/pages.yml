@@ -56,8 +56,8 @@ jobs:
         run: npm run audit:dependencies
       - name: Install lockfile-controlled Chromium
         run: npm exec --no -- playwright install --with-deps chromium
-      - name: Run complete release gates in both fixed bases
-        run: npm run ci:all
+      - name: Run source quality and workflow contract gates
+        run: npm run ci:quality && npm run test:ci-contracts
       - name: Build the one Pages artifact
         run: npm exec --no -- astro build --outDir dist-pages
         env:

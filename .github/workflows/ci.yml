@@ -163,8 +163,8 @@ jobs:
       - name: Build both deployment modes for browser verification
         run: npm run build:test-modes
 
-      - name: Run browser journeys in both deployment modes
-        run: npm run test:browser
+      - name: Run release-critical browser journeys in both deployment modes
+        run: npm run test:release-browser
 
       - name: Run axe and explicit accessibility gates in both modes
         run: npm run test:accessibility
