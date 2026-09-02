@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { inspectArchiveEntries, verifyRemoteSnapshot } from "../../tools/verify-remote-release.mjs";
+import {
+  inspectArchiveEntries,
+  remoteCommandEnvironment,
+  verifyRemoteSnapshot,
+} from "../../tools/verify-remote-release.mjs";
 
 const sha = (value: string) => value.repeat(40);
 const human = { name: "Release Owner", email: "owner@example.test" };
@@ -203,5 +207,26 @@ describe("bounded archive inspection", () => {
     ]) {
       expect(() => inspectArchiveEntries([entry], policy)).toThrow();
     }
+  });
+});
+
+describe("remote command environment", () => {
+  it("retains GitHub CLI config lookup without forwarding credential values", () => {
+    const environment = remoteCommandEnvironment({
+      PATH: "/usr/bin",
+      HOME: "/controlled/home",
+      GH_TOKEN: "do-not-forward",
+      GITHUB_TOKEN: "do-not-forward",
+      UNRELATED_VALUE: "do-not-forward",
+    });
+
+    expect(environment).toEqual({
+      PATH: "/usr/bin",
+      HOME: "/controlled/home",
+      LANG: "C",
+      LC_ALL: "C",
+    });
+    expect(environment).not.toHaveProperty("GH_TOKEN");
+    expect(environment).not.toHaveProperty("GITHUB_TOKEN");
   });
 });

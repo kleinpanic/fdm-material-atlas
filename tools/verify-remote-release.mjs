@@ -212,11 +212,21 @@ async function command(file, args, options = {}) {
       ...options,
       encoding: options.encoding ?? "utf8",
       maxBuffer: options.maxBuffer ?? 64 * 1024 * 1024,
-      env: { PATH: process.env.PATH, LANG: "C", LC_ALL: "C" },
+      env: remoteCommandEnvironment(),
     });
   } catch {
     fail("REMOTE_COMMAND_FAILED");
   }
+}
+
+/** Preserve local CLI configuration lookup without forwarding token-bearing environment values. */
+export function remoteCommandEnvironment(env = process.env) {
+  return {
+    PATH: env.PATH,
+    HOME: env.HOME,
+    LANG: "C",
+    LC_ALL: "C",
+  };
 }
 
 async function git(cwd, args) {
