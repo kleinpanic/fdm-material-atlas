@@ -133,8 +133,26 @@ const { homeHref, navigation } = Astro.props;
   }
 
   @media (max-width: 39.999rem) {
+    .site-header__inner {
+      gap: var(--spacing-2);
+      padding-block: var(--spacing-2);
+    }
+
+    .site-identity__descriptor {
+      display: none;
+    }
+
     .site-navigation {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--spacing-1);
       overflow: visible;
+    }
+
+    .site-navigation a {
+      justify-content: center;
+      padding-inline: var(--spacing-1);
+      text-align: center;
     }
   }
 
