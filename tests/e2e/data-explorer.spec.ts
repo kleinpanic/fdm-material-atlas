@@ -94,12 +94,15 @@ test("the SSR default and no-script fallback expose the complete identity and th
   const noScript = await openWithoutJavaScript(browser);
   await expect(
     noScript.page.getByText(
-      "Interactive filters require JavaScript. The complete default identity and thermal table remains available in this page.",
+      "Interactive filters and the complete attribute table require JavaScript. Material counts, attribute groups, thermal cautions, and methodology guidance remain available in this page.",
       { exact: true },
     ),
   ).toBeVisible();
-  await expect(noScript.page.getByRole("table")).toHaveCount(1);
-  await expect(noScript.page.getByRole("rowheader")).toHaveCount(model.materials.length);
+  await expect(noScript.page.getByRole("table")).toHaveCount(0);
+  await expect(
+    noScript.page.getByText(`${model.materials.length} material families`),
+  ).toBeVisible();
+  await expect(noScript.page.getByRole("region", { name: "Attribute group guide" })).toBeVisible();
   await noScript.context.close();
 });
 

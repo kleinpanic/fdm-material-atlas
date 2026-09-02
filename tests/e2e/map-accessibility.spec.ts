@@ -121,7 +121,7 @@ test("built map exposes landmarks, structured alternatives, labels, and logical 
     page.getByRole("table", { name: /All materials in categorical order/u }),
   ).toBeVisible();
   await expect(page.locator("svg [tabindex], svg a, svg button")).toHaveCount(0);
-  const liveStatus = page.locator('[role="status"]');
+  const liveStatus = page.locator('.map-explorer [role="status"]');
   await expect(liveStatus).toHaveCount(1);
   await expect(liveStatus).toHaveText("Interactive map controls are ready.");
 

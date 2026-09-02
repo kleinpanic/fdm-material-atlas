@@ -253,7 +253,12 @@ test("material details submit current-first pairs by pointer and every displayed
     await page.goto(path);
     await page.getByRole("link", { name: lane.label, exact: true }).click();
     expect(page.url().endsWith(lane.action.href)).toBe(true);
-    await expect(page.locator(":target")).toHaveCount(1);
+    await expect(
+      page.getByText("Interactive map controls are ready.", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.locator(`[data-decision-lane="true"][data-lane-id="${lane.laneId}"]`),
+    ).toBeVisible();
     await page.goBack();
     await expect(page.getByRole("heading", { level: 1, name: detail.name })).toBeVisible();
   }
