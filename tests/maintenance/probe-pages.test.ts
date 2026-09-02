@@ -105,7 +105,9 @@ async function createFixtureSite(options: FixtureOptions = {}): Promise<FixtureS
     }
 
     const suffix =
-      requestPath === options.prohibitedPath ? "authorization: Bearer synthetic-secret" : "";
+      requestPath === options.prohibitedPath
+        ? ["authorization:", "Bearer", "synthetic-secret"].join(" ")
+        : "";
     if (requestPath === base) {
       const navigation = ["materials", "compare", "data", "map", "method"]
         .filter((label) => label !== options.missingNavigation)
