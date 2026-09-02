@@ -262,7 +262,6 @@ function discoverMaterialDetail(source, contract) {
 function discoverNavigation(source, contract) {
   const expected = Object.freeze({
     materials: routeUrl(contract, "materials/"),
-    compare: routeUrl(contract, "compare/"),
     data: routeUrl(contract, "data/"),
     map: routeUrl(contract, "map/"),
     method: routeUrl(contract, "method/"),
@@ -427,7 +426,7 @@ async function probeAttempt(context) {
   const materials = await checkedRequest(context, "materials", navigation.materials, "html");
   const detailUrl = discoverMaterialDetail(materials.source, context.contract);
   await checkedRequest(context, "material-detail", detailUrl, "html");
-  for (const label of ["compare", "data", "map", "method"]) {
+  for (const label of ["data", "map", "method"]) {
     await checkedRequest(context, label, navigation[label], "html");
   }
   await checkedRequest(context, "asset", assetUrl, "asset");
@@ -465,7 +464,7 @@ export async function probePages(options = {}) {
       await probeAttempt({ contract, limits, fetchImpl, now, onEvent, deadline, attempt });
       return Object.freeze({
         ok: true,
-        checks: 8,
+        checks: 7,
         attempts: attempt,
         deployment: contract.deployment,
       });

@@ -29,7 +29,7 @@ type FixtureOptions = Readonly<{
   redirectLocation?: string;
   oversizedPath?: string;
   timeoutPath?: string;
-  missingNavigation?: "materials" | "compare" | "data" | "map" | "method";
+  missingNavigation?: "materials" | "data" | "map" | "method";
 }>;
 
 type FixtureSite = Readonly<{
@@ -109,7 +109,7 @@ async function createFixtureSite(options: FixtureOptions = {}): Promise<FixtureS
         ? ["authorization:", "Bearer", "synthetic-secret"].join(" ")
         : "";
     if (requestPath === base) {
-      const navigation = ["materials", "compare", "data", "map", "method"]
+      const navigation = ["materials", "data", "map", "method"]
         .filter((label) => label !== options.missingNavigation)
         .map((label) => `<a href="${path(`${label}/`)}">${label}</a>`)
         .join("");
@@ -242,7 +242,7 @@ describe("bounded live Pages probe", () => {
 
       expect(result).toEqual({
         ok: true,
-        checks: 8,
+        checks: 7,
         attempts: 1,
         deployment: base === "/" ? "root" : "repository",
       });
@@ -250,7 +250,6 @@ describe("bounded live Pages probe", () => {
         "home",
         "materials",
         "material-detail",
-        "compare",
         "data",
         "map",
         "method",
@@ -262,7 +261,6 @@ describe("bounded live Pages probe", () => {
           base,
           `${base}materials/`.replace(/\/+/gu, "/"),
           `${base}materials/synthetic-alpha/`.replace(/\/+/gu, "/"),
-          `${base}compare/`.replace(/\/+/gu, "/"),
           `${base}data/`.replace(/\/+/gu, "/"),
           `${base}map/`.replace(/\/+/gu, "/"),
           `${base}method/`.replace(/\/+/gu, "/"),
@@ -324,9 +322,9 @@ describe("bounded live Pages probe", () => {
   });
 
   it.each([
-    [{ statusPath: "/compare/" }, "PROBE_HTTP_STATUS"],
+    [{ statusPath: "/data/" }, "PROBE_HTTP_STATUS"],
     [{ missingAsset: true }, "PROBE_HTTP_STATUS"],
-    [{ missingNavigation: "compare" }, "PROBE_ROUTE_MISSING"],
+    [{ missingNavigation: "map" }, "PROBE_ROUTE_MISSING"],
     [{ contentTypePath: "/map/" }, "PROBE_CONTENT_TYPE"],
     [{ markerPath: "/method/" }, "PROBE_MARKER_MISSING"],
   ] as const)("rejects invalid route or asset responses", async (fixture, code) => {
