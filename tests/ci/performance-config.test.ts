@@ -156,6 +156,39 @@ describe("bounded performance runner", () => {
     expect(calls).toBe(2);
   }, 15_000);
 
+  it("waits for quiet samples before capture without discarding a measured report", async () => {
+    const { waitForMeasurementIsolation } = await import("../../tools/run-performance-budget.mjs");
+    const observations = [0.9, 0.4, 0.75, 0.8];
+    let calls = 0;
+
+    await waitForMeasurementIsolation({
+      observe: async () => observations[calls++] ?? 0,
+      minimumIdleFraction: 0.7,
+      consecutiveSamples: 2,
+      maxSamples: observations.length,
+    });
+
+    expect(calls).toBe(4);
+  }, 15_000);
+
+  it("fails closed when the host never becomes quiet", async () => {
+    const { waitForMeasurementIsolation } = await import("../../tools/run-performance-budget.mjs");
+    let calls = 0;
+
+    await expect(
+      waitForMeasurementIsolation({
+        observe: async () => {
+          calls += 1;
+          return 0.5;
+        },
+        minimumIdleFraction: 0.7,
+        consecutiveSamples: 2,
+        maxSamples: 3,
+      }),
+    ).rejects.toMatchObject({ code: "PERFORMANCE_HOST_BUSY" });
+    expect(calls).toBe(3);
+  }, 15_000);
+
   it("rejects a missing production artifact with a stable code", async () => {
     const temporaryRoot = await mkdtemp(join(tmpdir(), "atlas-performance-"));
     try {

@@ -28,6 +28,7 @@ const CONTROLLED_CODES = new Set([
   "PERFORMANCE_REPORT_INVALID",
   "PERFORMANCE_BUDGET_EXCEEDED",
   "PERFORMANCE_COLLECTION_FAILED",
+  "PERFORMANCE_HOST_BUSY",
 ]);
 
 export class PerformanceBudgetError extends Error {
@@ -440,6 +441,71 @@ async function withCollectionTimeout(operation, timeoutMs) {
 }
 
 const MAX_CAPTURE_ATTEMPTS = 2;
+const QUIET_SAMPLE_MS = 250;
+const QUIET_IDLE_FRACTION = 0.7;
+const QUIET_CONSECUTIVE_SAMPLES = 2;
+const QUIET_MAX_SAMPLES = 60;
+
+function cpuCounters(source) {
+  const fields = source
+    .split("\n")
+    .find((line) => /^cpu\s/u.test(line))
+    ?.trim()
+    .split(/\s+/u)
+    .slice(1)
+    .map(Number);
+  if (!fields || fields.length < 5 || fields.some((value) => !Number.isFinite(value)))
+    fail("PERFORMANCE_COLLECTION_FAILED");
+  return {
+    total: fields.reduce((sum, value) => sum + value, 0),
+    idle: (fields[3] ?? 0) + (fields[4] ?? 0),
+  };
+}
+
+async function observeCpuIdleFraction() {
+  const before = cpuCounters(
+    await readFile("/proc/stat", "utf8").catch(() => fail("PERFORMANCE_COLLECTION_FAILED")),
+  );
+  await new Promise((accept) => {
+    setTimeout(accept, QUIET_SAMPLE_MS);
+  });
+  const after = cpuCounters(
+    await readFile("/proc/stat", "utf8").catch(() => fail("PERFORMANCE_COLLECTION_FAILED")),
+  );
+  const total = after.total - before.total;
+  const idle = after.idle - before.idle;
+  if (total <= 0 || idle < 0 || idle > total) fail("PERFORMANCE_COLLECTION_FAILED");
+  return idle / total;
+}
+
+/** Wait for a quiet host before capture; never reject or replace a measured Lighthouse report. */
+export async function waitForMeasurementIsolation({
+  observe = observeCpuIdleFraction,
+  minimumIdleFraction = QUIET_IDLE_FRACTION,
+  consecutiveSamples = QUIET_CONSECUTIVE_SAMPLES,
+  maxSamples = QUIET_MAX_SAMPLES,
+} = {}) {
+  if (
+    typeof observe !== "function" ||
+    !Number.isFinite(minimumIdleFraction) ||
+    minimumIdleFraction <= 0 ||
+    minimumIdleFraction > 1 ||
+    !Number.isSafeInteger(consecutiveSamples) ||
+    consecutiveSamples < 1 ||
+    !Number.isSafeInteger(maxSamples) ||
+    maxSamples < consecutiveSamples
+  )
+    fail("PERFORMANCE_ARGUMENTS_INVALID");
+  let quiet = 0;
+  for (let sample = 0; sample < maxSamples; sample += 1) {
+    const idleFraction = await observe();
+    if (!Number.isFinite(idleFraction) || idleFraction < 0 || idleFraction > 1)
+      fail("PERFORMANCE_COLLECTION_FAILED");
+    quiet = idleFraction >= minimumIdleFraction ? quiet + 1 : 0;
+    if (quiet >= consecutiveSamples) return;
+  }
+  fail("PERFORMANCE_HOST_BUSY");
+}
 
 function hasInvalidColdCaptureTiming(result, navigationTimeoutMs) {
   const timing = result?.lhr?.audits?.metrics?.details?.items?.[0];
@@ -493,8 +559,9 @@ async function collectMode(origin, mode, routes, policy) {
       const results = await collectValidReports({
         runs: policy.lighthouse.runs,
         navigationTimeoutMs: policy.limits.navigationTimeoutMs,
-        collect: () =>
-          withCollectionTimeout(
+        collect: async () => {
+          await waitForMeasurementIsolation();
+          return withCollectionTimeout(
             lighthouse(new URL(publicPath(mode, route.pathname), origin).href, {
               port: chrome.port,
               output: "json",
@@ -505,7 +572,8 @@ async function collectMode(origin, mode, routes, policy) {
           ).catch((error) => {
             if (error instanceof PerformanceBudgetError) throw error;
             fail("PERFORMANCE_COLLECTION_FAILED");
-          }),
+          });
+        },
       });
       for (const [index, result] of results.entries()) {
         const metrics = measuredMetrics(result.lhr);
