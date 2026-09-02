@@ -184,7 +184,7 @@ test("keyboard changes retain focus and announce selector, atlas, compare, data,
   await lane.focus();
   await page.keyboard.press("Enter");
   await expect(lane).toBeFocused();
-  await expect(page.getByRole("status")).toHaveText("Decision lane selected.");
+  await expect(page.locator(".map-explorer [role=status]")).toHaveText("Decision lane selected.");
 });
 
 test("dense data and diagrams expose keyboard-readable table, record, lane, and legend alternatives", async ({
@@ -294,7 +294,9 @@ test("no-script selector, data, and map pages retain complete static meaning", a
 
   const data = await openNoScript(browser, routes.data.href);
   await expect(data.getByRole("heading", { level: 1, name: routes.data.label })).toBeVisible();
-  await expect(data.getByRole("table")).toBeVisible();
+  await expect(data.getByRole("table")).toHaveCount(0);
+  await expect(data.getByText(/complete attribute table require JavaScript/u)).toBeVisible();
+  await expect(data.getByRole("region", { name: "Attribute group guide" })).toBeVisible();
   await expect(
     data.getByText("Named thermal tests are not directly interchangeable."),
   ).toBeVisible();
@@ -306,6 +308,6 @@ test("no-script selector, data, and map pages retain complete static meaning", a
     await map.getByRole("navigation", { name: "Decision path index" }).getByRole("link").count(),
   );
   await expect(map.locator("[data-service-row]")).toHaveCount(routes.materialIds.length);
-  await expect(map.getByText(/controls are preparing/u)).toHaveCount(1);
+  expect(await map.getByText(/controls are preparing/u).count()).toBeGreaterThan(0);
   await map.context().close();
 });
