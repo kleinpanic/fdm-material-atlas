@@ -185,7 +185,7 @@ test("selector keyboard flow preserves focus and uses one aggregate polite statu
   expect(outline).toBe("3px");
 });
 
-test("compatible cards defer offscreen layout without hiding scroll or keyboard meaning", async ({
+test("compatible cards render at their measured size with complete keyboard meaning", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
@@ -204,8 +204,8 @@ test("compatible cards defer offscreen layout without hiding scroll or keyboard 
   );
   expect(containment).toEqual(
     containment.map(() => ({
-      contentVisibility: "auto",
-      containIntrinsicBlockSize: "auto 768px",
+      contentVisibility: "visible",
+      containIntrinsicBlockSize: "none",
     })),
   );
 
@@ -220,15 +220,16 @@ test("compatible cards defer offscreen layout without hiding scroll or keyboard 
   await expect(shortlistControl).toBeFocused();
 });
 
-test("offscreen controls defer layout but remain complete for keyboard and no-JavaScript users", async ({
+test("controls keep measured layout and remain complete for keyboard and no-JavaScript users", async ({
   browser,
   page,
 }) => {
   await page.setViewportSize({ width: 412, height: 823 });
   await waitForSelector(page);
   const controls = page.locator(".selector-controls");
-  await expect(controls).toHaveCSS("content-visibility", "auto");
-  await expect(controls).toHaveCSS("contain-intrinsic-block-size", "auto 2000px");
+  await expect(controls).toHaveCSS("content-visibility", "visible");
+  await expect(controls).toHaveCSS("contain-intrinsic-block-size", "none");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(412);
   const firstGoal = controls.getByRole("radio", { name: "Easy prototypes" });
   await controls.scrollIntoViewIfNeeded();
   await firstGoal.focus();
@@ -246,7 +247,7 @@ test("offscreen controls defer layout but remain complete for keyboard and no-Ja
     const noScriptPage = await context.newPage();
     await noScriptPage.goto("./");
     const noScriptControls = noScriptPage.locator(".selector-controls");
-    await expect(noScriptControls).toHaveCSS("content-visibility", "auto");
+    await expect(noScriptControls).toHaveCSS("content-visibility", "visible");
     await noScriptControls.scrollIntoViewIfNeeded();
     await expect(noScriptControls.getByRole("radio")).toHaveCount(
       canonicalPageModel.projection.criteria.find(({ role }) => role === "primary")?.options

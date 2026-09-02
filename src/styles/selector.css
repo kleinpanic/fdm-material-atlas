@@ -72,8 +72,6 @@
   }
 
   .selector-controls {
-    content-visibility: auto;
-    contain-intrinsic-block-size: auto 125rem;
     min-inline-size: 0;
     padding: var(--spacing-6);
     border: var(--size-rule) solid var(--color-rule);
@@ -360,8 +358,7 @@
   }
 
   .selector-compatible-list > li {
-    content-visibility: auto;
-    contain-intrinsic-block-size: auto 48rem;
+    min-inline-size: 0;
   }
 
   .selector-compatible-list > li[data-alignment="highest"] {
