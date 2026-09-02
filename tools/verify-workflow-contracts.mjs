@@ -21,6 +21,8 @@ const CONTROLLED_FILES = Object.freeze({
   "pages.yaml": "pages",
   "dependency-review.yml": "dependency-review",
   "dependency-review.yaml": "dependency-review",
+  "dependabot-automerge.yml": "dependabot-automerge",
+  "dependabot-automerge.yaml": "dependabot-automerge",
   "link-health.yml": "link-health",
   "link-health.yaml": "link-health",
 });
@@ -81,6 +83,7 @@ export const workflowIssueCodes = Object.freeze([
   "PROBE_COMMAND_INVALID",
   "PROBE_OUTPUT_INVALID",
   "DEPENDENCY_REVIEW_INVALID",
+  "DEPENDABOT_AUTOMERGE_INVALID",
   "LINK_HEALTH_INVALID",
   "LYCHEE_URL_INVALID",
   "LYCHEE_CHECKSUM_INVALID",
@@ -230,14 +233,20 @@ function validateActions(record, add) {
 
 function validateGeneric(record, add) {
   const { file, source } = record;
+  const guardedAutomerge = file === "dependabot-automerge";
   if (!/^permissions:\s*\{\}\s*(?:#.*)?$/mu.test(source))
     add("WORKFLOW_DEFAULT_DENY_REQUIRED", file);
-  if (/^\s*(?:pull_request_target|workflow_run):/mu.test(source)) add("EVENT_FORBIDDEN", file);
-  if (/\$\{\{\s*secrets\.|\b(?:GITHUB_TOKEN|GH_TOKEN|AUTHORIZATION)\s*:/iu.test(source))
+  if (!guardedAutomerge && /^\s*(?:pull_request_target|workflow_run):/mu.test(source))
+    add("EVENT_FORBIDDEN", file);
+  if (
+    !guardedAutomerge &&
+    /\$\{\{\s*secrets\.|\b(?:GITHUB_TOKEN|GH_TOKEN|AUTHORIZATION)\s*:/iu.test(source)
+  )
     add("SECRET_REFERENCE_FORBIDDEN", file);
   for (const command of runCommands(source)) {
     if (/\$\{\{/u.test(command)) add("SHELL_EXPRESSION_FORBIDDEN", file);
     if (
+      !guardedAutomerge &&
       /\b(?:git\s+(?:commit|push)|gh\s+(?:pr|issue|release)\s+(?:create|merge|edit)|auto-?merge)\b/iu.test(
         command,
       )
@@ -249,6 +258,37 @@ function validateGeneric(record, add) {
   if (/uses:\s*actions\/download-artifact@|uses:\s*actions\/cache@/iu.test(source))
     add("PROMOTION_FORBIDDEN", file);
   validateActions(record, add);
+}
+
+function validateDependabotAutomerge(record, add) {
+  const { source } = record;
+  const jobs = jobBlocks(source);
+  const job = jobs.get("dependabot-automerge");
+  const commands = runCommands(source);
+  const guarded = [
+    "github.actor == 'dependabot[bot]'",
+    "github.event.pull_request.user.login == 'dependabot[bot]'",
+    "github.event.pull_request.head.repo.full_name == github.repository",
+    "startsWith(github.event.pull_request.head.ref, 'dependabot/')",
+  ].every((condition) => job?.includes(condition));
+
+  if (
+    !/^\s*pull_request_target:\s*$/mu.test(source) ||
+    !/^\s{4}types:\s*\[opened, synchronize, reopened, ready_for_review\]\s*$/mu.test(source) ||
+    /^\s*(?:pull_request|push|schedule|workflow_dispatch|workflow_run):/mu.test(source) ||
+    jobs.size !== 1 ||
+    !job ||
+    !guarded ||
+    permissionEntries(job).join(",") !== "contents:write,pull-requests:write" ||
+    stepBlocks(job).length !== 1 ||
+    /\buses\s*:/iu.test(source) ||
+    commands.length !== 1 ||
+    commands[0] !== 'gh pr merge "$PR_URL" --auto --squash' ||
+    !/^\s{10}GH_TOKEN:\s*\$\{\{\s*github\.token\s*\}\}\s*$/mu.test(job) ||
+    !/^\s{10}PR_URL:\s*\$\{\{\s*github\.event\.pull_request\.html_url\s*\}\}\s*$/mu.test(job) ||
+    /\$\{\{\s*secrets\./iu.test(source)
+  )
+    add("DEPENDABOT_AUTOMERGE_INVALID", record.file);
 }
 
 function validatePermissions(record, jobs, add) {
@@ -414,9 +454,12 @@ export function verifyWorkflowContracts(input) {
   for (const record of records) {
     validateGeneric(record, collector.add);
     const jobs = jobBlocks(record.source);
-    if (record.file !== "pages") validatePermissions(record, jobs, collector.add);
+    if (record.file !== "pages" && record.file !== "dependabot-automerge")
+      validatePermissions(record, jobs, collector.add);
     if (record.file === "pages") validatePages(record, collector.add);
     else if (record.file === "dependency-review") validateDependencyReview(record, collector.add);
+    else if (record.file === "dependabot-automerge")
+      validateDependabotAutomerge(record, collector.add);
     else if (record.file === "link-health") validateLinkHealth(record, collector.add);
   }
   return collector.result();
