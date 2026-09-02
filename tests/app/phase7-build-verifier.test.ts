@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
@@ -26,6 +26,16 @@ function comparisonPayload(
   };
 }
 
+function dataExplorerPayload(
+  model: object = { fields: [], groups: [], materials: [], thermalMetrics: [] },
+): object {
+  return {
+    index: [],
+    groups: [],
+    gzipBase64: gzipSync(Buffer.from(JSON.stringify(model)), { level: 9 }).toString("base64"),
+  };
+}
+
 async function writeMode(root: string, base: string): Promise<void> {
   const prefix = base === "/" ? "" : base.slice(0, -1);
   await mkdir(join(root, "compare"), { recursive: true });
@@ -41,7 +51,7 @@ async function writeMode(root: string, base: string): Promise<void> {
   );
   await writeFile(
     join(root, "data/index.html"),
-    `<!doctype html><link rel="canonical" href="https://atlas.example${prefix}/data/"><a href="${prefix}/compare/">Compare</a>${island("DataExplorerIsland", `${prefix}/_astro/data.js`, { model: { materials: [], fields: [], groups: [], thermalMetrics: [] } })}`,
+    `<!doctype html><link rel="canonical" href="https://atlas.example${prefix}/data/"><a href="${prefix}/compare/">Compare</a>${island("DataExplorerIsland", `${prefix}/_astro/data.js`, { payload: dataExplorerPayload() })}`,
   );
   await writeFile(join(root, "_astro/client.js"), "export const hydrate = true;");
   await writeFile(join(root, "_astro/shared.js"), "export const shared = true;");
@@ -90,6 +100,14 @@ describe("Phase 7 emitted build verifier", () => {
   });
 
   it.each([
+    [
+      "DATA_HTML_BUDGET_EXCEEDED",
+      async (outputs: Awaited<ReturnType<typeof fixture>>) =>
+        writeFile(
+          join(outputs.root, "data/index.html"),
+          `${await readFile(join(outputs.root, "data/index.html"), "utf8")}<!--${"x".repeat(96 * 1024)}-->`,
+        ),
+    ],
     [
       "SOURCE_MAP_FORBIDDEN",
       async (outputs: Awaited<ReturnType<typeof fixture>>) =>

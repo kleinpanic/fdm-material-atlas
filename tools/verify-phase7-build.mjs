@@ -15,6 +15,8 @@ const MAX_FILE_BYTES = 64 * 1024 * 1024;
 const MAX_COMPARE_GZIP = 140 * 1024;
 const MAX_DATA_GZIP = 180 * 1024;
 const MAX_COMPARE_MODEL_BYTES = 4 * 1024 * 1024;
+const MAX_DATA_MODEL_BYTES = 4 * 1024 * 1024;
+const MAX_DATA_HTML_BYTES = 96 * 1024;
 const REQUEST_PATTERN = /\b(?:fetch|XMLHttpRequest|EventSource|WebSocket)\s*\(/u;
 const FORBIDDEN_CLIENT_TEXT = [
   /sourceMappingURL/iu,
@@ -196,6 +198,69 @@ function inspectComparisonPayload(props, exactPatterns) {
   }
 }
 
+function inspectDataExplorerPayload(props, exactPatterns) {
+  const payload = props.payload;
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    Array.isArray(payload) ||
+    Object.keys(payload).sort().join("\0") !== "groups\0gzipBase64\0index" ||
+    !Array.isArray(payload.index) ||
+    !Array.isArray(payload.groups) ||
+    typeof payload.gzipBase64 !== "string" ||
+    payload.gzipBase64.length === 0 ||
+    payload.gzipBase64.length % 4 !== 0 ||
+    !/^[A-Za-z0-9+/]+={0,2}$/u.test(payload.gzipBase64)
+  ) {
+    fail("PROPS_SHAPE_INVALID");
+  }
+  let source;
+  let model;
+  try {
+    source = gunzipSync(Buffer.from(payload.gzipBase64, "base64"), {
+      maxOutputLength: MAX_DATA_MODEL_BYTES,
+    }).toString("utf8");
+    model = JSON.parse(source);
+  } catch {
+    fail("PROPS_INVALID");
+  }
+  if (exactPatterns.some((pattern) => pattern !== "" && source.includes(pattern))) {
+    fail("CLIENT_PRIVATE_PATTERN_FORBIDDEN");
+  }
+  inspectProps(model, exactPatterns);
+  if (
+    typeof model !== "object" ||
+    model === null ||
+    Array.isArray(model) ||
+    Object.keys(model).sort().join("\0") !== "fields\0groups\0materials\0thermalMetrics" ||
+    !Array.isArray(model.materials) ||
+    !Array.isArray(model.groups) ||
+    model.materials.length !== payload.index.length ||
+    model.groups.length !== payload.groups.length ||
+    payload.index.some(
+      (item, index) =>
+        typeof item !== "object" ||
+        item === null ||
+        Array.isArray(item) ||
+        Object.keys(item).sort().join("\0") !== "id\0name" ||
+        item.id !== model.materials[index]?.id ||
+        item.name !== model.materials[index]?.name,
+    ) ||
+    payload.groups.some(
+      (item, index) =>
+        typeof item !== "object" ||
+        item === null ||
+        Array.isArray(item) ||
+        Object.keys(item).sort().join("\0") !== "fieldCount\0key\0label" ||
+        item.key !== model.groups[index]?.key ||
+        item.label !== model.groups[index]?.label ||
+        item.fieldCount !== model.groups[index]?.fieldKeys?.length,
+    )
+  ) {
+    fail("PROPS_SHAPE_INVALID");
+  }
+}
+
 async function collectFiles(root) {
   const literal = await lstat(root).catch(() => fail("OUTPUT_MISSING"));
   if (
@@ -293,6 +358,8 @@ async function reachableJavaScript(entryNames, files, exactPatterns) {
 async function inspectRoute(mode, route, expectedExport, files, exactPatterns) {
   const htmlName = `${route}/index.html`;
   const html = await readFile(files.get(htmlName)?.path ?? "").catch(() => fail("ROUTE_MISSING"));
+  if (expectedExport === "DataExplorerIsland" && html.byteLength > MAX_DATA_HTML_BYTES)
+    fail("DATA_HTML_BUDGET_EXCEEDED");
   const source = html.toString("utf8");
   const publicRoute = `${mode.base}${route}/`.replaceAll("//", "/");
   const canonical = [
@@ -323,7 +390,7 @@ async function inspectRoute(mode, route, expectedExport, files, exactPatterns) {
   const serialized = attrs.get("props");
   if (serialized === undefined) fail("PROPS_INVALID");
   const props = parseProps(serialized);
-  const expectedKeys = expectedExport === "CompareIsland" ? ["base", "payload"] : ["model"];
+  const expectedKeys = expectedExport === "CompareIsland" ? ["base", "payload"] : ["payload"];
   if (
     typeof props !== "object" ||
     props === null ||
@@ -333,6 +400,7 @@ async function inspectRoute(mode, route, expectedExport, files, exactPatterns) {
     fail("PROPS_SHAPE_INVALID");
   inspectProps(props, exactPatterns);
   if (expectedExport === "CompareIsland") inspectComparisonPayload(props, exactPatterns);
+  else inspectDataExplorerPayload(props, exactPatterns);
   const component = localFile(
     attrs.get("component-url") ?? "",
     mode,

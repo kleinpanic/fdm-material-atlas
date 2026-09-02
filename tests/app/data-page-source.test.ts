@@ -5,11 +5,12 @@ const page = readFileSync(new URL("../../src/pages/data/index.astro", import.met
 const styles = readFileSync(new URL("../../src/styles/data-explorer.css", import.meta.url), "utf8");
 
 describe("data page source contract", () => {
-  it("compiles one compact model and passes it to exactly one server-rendered client island", () => {
+  it("encodes one compact payload and passes it to exactly one server-rendered client island", () => {
     expect(page).toContain("buildDataExplorerModel(loadPublicAtlas(), base)");
+    expect(page).toContain("encodeDataExplorerPayload(model)");
     expect(page.match(/<DataExplorerIsland\b/gu)).toHaveLength(1);
     expect(page.match(/client:load/gu)).toHaveLength(1);
-    expect(page).toContain("model={model}");
+    expect(page).toContain("payload={payload}");
     expect(page).not.toMatch(/atlas\.materials\.map|compactFact|client:only/u);
   });
 

@@ -1,6 +1,7 @@
 ---
 import { DataExplorerIsland } from "../../components/data-explorer/DataExplorerIsland.tsx";
 import { buildDataExplorerModel } from "../../features/data-explorer/model.ts";
+import { encodeDataExplorerPayload } from "../../features/data-explorer/payload.ts";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { loadPublicAtlas } from "../../lib/public-atlas.ts";
 import { internalHref } from "../../lib/routes.ts";
@@ -8,6 +9,7 @@ import "../../styles/data-explorer.css";
 
 const base = import.meta.env.BASE_URL;
 const model = buildDataExplorerModel(loadPublicAtlas(), base);
+const payload = encodeDataExplorerPayload(model);
 const homeHref = internalHref(base, { id: "home" });
 const materialsHref = internalHref(base, { id: "materials" });
 const methodHref = internalHref(base, { id: "method" });
@@ -60,11 +62,11 @@ const footerLinks = navigation.map(({ label, href }) => ({ label, href }));
   <section class="data-experience" aria-label="Complete material data explorer">
     <noscript
       ><p class="data-noscript">
-        Interactive filters require JavaScript. The complete default identity and thermal table
-        remains available in this page.
+        Interactive filters and the complete attribute table require JavaScript. Material counts,
+        attribute groups, thermal cautions, and methodology guidance remain available in this page.
       </p></noscript
     >
-    <DataExplorerIsland model={model} client:load />
+    <DataExplorerIsland payload={payload} client:load />
   </section>
 
   <section class="data-group-guide" aria-labelledby="data-group-guide-heading">
