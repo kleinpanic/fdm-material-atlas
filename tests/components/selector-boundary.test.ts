@@ -173,9 +173,9 @@ describe("selector component boundary", () => {
     expect(island).toContain("productionActionRef.current?.reset");
     expect(island).toContain("productionActionRef.current?.view");
     expect(island).toContain("runtimePromiseRef.current ??=");
-    expect(selectorStyles).toMatch(
-      /\.selector-controls\s*\{[^}]*content-visibility:\s*auto;[^}]*contain-intrinsic-block-size:\s*auto 125rem;/su,
-    );
+    expect(selectorStyles).toMatch(/\.selector-controls\s*\{[^}]*min-inline-size:\s*0;/su);
+    expect(selectorStyles).not.toContain("content-visibility: auto");
+    expect(selectorStyles).not.toContain("contain-intrinsic-block-size");
   });
 
   it("uses native form and disclosure semantics for all seven criteria", () => {
