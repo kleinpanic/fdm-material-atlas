@@ -105,6 +105,19 @@ describe("maintenance workflow contracts", () => {
     );
   });
 
+  it("rejects guard text moved outside the job condition", () => {
+    const unsafe = safeDependabotAutomergeWorkflow().replace(
+      /    if: >-\n(?:      .*\n){3}      startsWith\([^\n]+\)/u,
+      `    if: true
+    name: >-
+      github.actor == 'dependabot[bot]' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'dependabot/')`,
+    );
+    expectCode("dependabot-automerge.yml", unsafe, "DEPENDABOT_AUTOMERGE_INVALID");
+  });
+
   it("accepts a checksum-verified, token-free, non-blocking Lychee run", () => {
     expect(verifyWorkflowContracts({ "link-health.yml": safeLinkHealthWorkflow() })).toEqual({
       ok: true,

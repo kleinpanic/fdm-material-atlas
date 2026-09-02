@@ -265,12 +265,12 @@ function validateDependabotAutomerge(record, add) {
   const jobs = jobBlocks(source);
   const job = jobs.get("dependabot-automerge");
   const commands = runCommands(source);
-  const guarded = [
-    "github.actor == 'dependabot[bot]'",
-    "github.event.pull_request.user.login == 'dependabot[bot]'",
-    "github.event.pull_request.head.repo.full_name == github.repository",
-    "startsWith(github.event.pull_request.head.ref, 'dependabot/')",
-  ].every((condition) => job?.includes(condition));
+  const exactGuard = `    if: >-
+      github.actor == 'dependabot[bot]' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'dependabot/')`;
+  const guarded = job?.includes(exactGuard) && (job.match(/^\s{4}if:/gmu) ?? []).length === 1;
 
   if (
     !/^\s*pull_request_target:\s*$/mu.test(source) ||
