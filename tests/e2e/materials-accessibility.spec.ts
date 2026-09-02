@@ -29,7 +29,11 @@ async function axePasses(page: Page) {
   expect(result.violations).toEqual([]);
 }
 
-async function waitForMaterialAnchorLayout(page: Page, targetSelector: string): Promise<void> {
+async function expectMaterialAnchorToRemainSettled(
+  page: Page,
+  targetSelector: string,
+): Promise<void> {
+  await expect(page.locator(targetSelector)).toBeInViewport();
   await page.locator(targetSelector).evaluate(async (target: Element) => {
     const sections = target.closest(".material-reference__sections");
     if (!(sections instanceof HTMLElement)) {
@@ -37,11 +41,9 @@ async function waitForMaterialAnchorLayout(page: Page, targetSelector: string): 
     }
 
     await document.fonts.ready;
-    const deadline = performance.now() + 15_000;
-    let previousHeight = -1;
-    let stableVisibleFrames = 0;
+    const settledUntil = performance.now() + 5_000;
 
-    while (performance.now() < deadline) {
+    while (performance.now() < settledUntil) {
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const bounds = target.getBoundingClientRect();
       const visible =
@@ -49,14 +51,12 @@ async function waitForMaterialAnchorLayout(page: Page, targetSelector: string): 
         bounds.right > 0 &&
         bounds.top < window.innerHeight &&
         bounds.left < window.innerWidth;
-      const currentHeight = sections.scrollHeight;
-      stableVisibleFrames =
-        visible && currentHeight === previousHeight ? stableVisibleFrames + 1 : 0;
-      previousHeight = currentHeight;
-      if (stableVisibleFrames >= 2) return;
+      if (!visible) {
+        throw new Error(
+          `MATERIAL_ANCHOR_LEFT_VIEWPORT:${bounds.top.toFixed(1)}:${bounds.bottom.toFixed(1)}`,
+        );
+      }
     }
-
-    throw new Error("MATERIAL_ANCHOR_LAYOUT_DID_NOT_SETTLE");
   });
 }
 
@@ -102,6 +102,7 @@ test("material rail anchors reveal contained sections without changing accessibl
   page,
 }) => {
   test.setTimeout(90_000);
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${basePath}materials/abs/`);
 
   const overview = page.locator("#overview");
@@ -122,8 +123,7 @@ test("material rail anchors reveal contained sections without changing accessibl
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/#evidence$/u);
   await expect(page.locator("#evidence")).toBeFocused();
-  await waitForMaterialAnchorLayout(page, "#evidence > h2");
-  await expect(page.locator("#evidence > h2")).toBeInViewport();
+  await expectMaterialAnchorToRemainSettled(page, "#evidence > h2");
   await axePasses(page);
 
   await page.setViewportSize({ width: 320, height: 800 });
