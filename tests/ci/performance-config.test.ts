@@ -49,6 +49,15 @@ describe("performance release policy", () => {
     expect(config.ci.upload.outputDir).toMatch(/^test-results\/performance/u);
     expect(JSON.stringify(config)).not.toContain("temporary-public-storage");
   });
+
+  it("uses deterministic transfer budgets for PR CI and retains full Lighthouse release checks", async () => {
+    const packageJson = JSON.parse(await readFile("package.json", "utf8"));
+    expect(packageJson.scripts["test:performance:ci"]).toContain(
+      "ATLAS_PERFORMANCE_SCOPE=transfer",
+    );
+    expect(packageJson.scripts["test:performance"]).not.toContain("ATLAS_PERFORMANCE_SCOPE");
+    expect(packageJson.scripts["verify:exact-artifact"]).toContain("run-performance-budget.mjs");
+  });
 });
 
 describe("bounded performance runner", () => {
@@ -103,6 +112,79 @@ describe("bounded performance runner", () => {
       ),
     ).toThrowError(expect.objectContaining({ code: "PERFORMANCE_BUDGET_EXCEEDED" }));
   }, 15_000);
+
+  it("confirms a failed median with two additional samples without discarding failures", async () => {
+    const { confirmMedianMetrics } = await import("../../tools/run-performance-budget.mjs");
+    const initial = [metricSet(0.7, 300), metricSet(0.7, 300), metricSet(0.95, 100)];
+    let confirmations = 0;
+
+    const result = await confirmMedianMetrics(initial, budget, async () => {
+      confirmations += 1;
+      return [metricSet(0.95, 100), metricSet(0.95, 100)];
+    });
+
+    expect(confirmations).toBe(1);
+    expect(result.runs).toHaveLength(5);
+    expect(result.runs.slice(0, 3)).toEqual(initial);
+    expect(result.median).toEqual(metricSet(0.95, 100));
+  }, 15_000);
+
+  it("does not collect confirmation samples when the initial median passes", async () => {
+    const { confirmMedianMetrics } = await import("../../tools/run-performance-budget.mjs");
+    let confirmations = 0;
+
+    const result = await confirmMedianMetrics(
+      [metricSet(0.95, 100), metricSet(0.95, 100), metricSet(0.7, 300)],
+      budget,
+      async () => {
+        confirmations += 1;
+        return [];
+      },
+    );
+
+    expect(confirmations).toBe(0);
+    expect(result.runs).toHaveLength(3);
+    expect(result.median).toEqual(metricSet(0.95, 100));
+  }, 15_000);
+
+  it("still fails when the five-sample median exceeds the budget", async () => {
+    const { confirmMedianMetrics } = await import("../../tools/run-performance-budget.mjs");
+
+    await expect(
+      confirmMedianMetrics(
+        [metricSet(0.7, 300), metricSet(0.7, 300), metricSet(0.95, 100)],
+        budget,
+        async () => [metricSet(0.7, 300), metricSet(0.95, 100)],
+      ),
+    ).rejects.toMatchObject({ code: "PERFORMANCE_BUDGET_EXCEEDED" });
+  }, 15_000);
+
+  it("rejects an invalid confirmation sample collection with a stable code", async () => {
+    const { confirmMedianMetrics } = await import("../../tools/run-performance-budget.mjs");
+
+    await expect(
+      confirmMedianMetrics(undefined as never, budget, async () => []),
+    ).rejects.toMatchObject({ code: "PERFORMANCE_ARGUMENTS_INVALID" });
+  }, 15_000);
+
+  it("persists Lighthouse evidence before either median assertion can fail", async () => {
+    const source = await readFile("tools/run-performance-budget.mjs", "utf8");
+    const collectMode = source.slice(
+      source.indexOf("async function collectMode"),
+      source.indexOf("export async function runPerformanceBudget"),
+    );
+    const initialWrite = collectMode.indexOf(
+      "writeLighthouseReports(results, policy.reports.directory, mode, route)",
+    );
+    const confirmation = collectMode.indexOf("confirmMedianMetrics");
+    const confirmationWrite = collectMode.indexOf("writeLighthouseReports(", initialWrite + 1);
+    const confirmationReturn = collectMode.indexOf("return confirmationResults.map");
+
+    expect(initialWrite).toBeGreaterThanOrEqual(0);
+    expect(initialWrite).toBeLessThan(confirmation);
+    expect(confirmationWrite).toBeGreaterThan(confirmation);
+    expect(confirmationWrite).toBeLessThan(confirmationReturn);
+  });
 
   it("excludes only an internally invalid cold capture from the three recorded runs", async () => {
     const { collectValidReports } = await import("../../tools/run-performance-budget.mjs");
