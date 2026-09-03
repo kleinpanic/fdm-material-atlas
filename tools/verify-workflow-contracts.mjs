@@ -25,6 +25,8 @@ const CONTROLLED_FILES = Object.freeze({
   "dependabot-automerge.yaml": "dependabot-automerge",
   "link-health.yml": "link-health",
   "link-health.yaml": "link-health",
+  "maintenance-health.yml": "maintenance-health",
+  "maintenance-health.yaml": "maintenance-health",
 });
 
 const ACTIONS = Object.freeze({
@@ -85,6 +87,7 @@ export const workflowIssueCodes = Object.freeze([
   "DEPENDENCY_REVIEW_INVALID",
   "DEPENDABOT_AUTOMERGE_INVALID",
   "LINK_HEALTH_INVALID",
+  "MAINTENANCE_HEALTH_INVALID",
   "LYCHEE_URL_INVALID",
   "LYCHEE_CHECKSUM_INVALID",
   "LYCHEE_ORDER_INVALID",
@@ -234,12 +237,14 @@ function validateActions(record, add) {
 function validateGeneric(record, add) {
   const { file, source } = record;
   const guardedAutomerge = file === "dependabot-automerge";
+  const guardedMaintenance = file === "maintenance-health";
   if (!/^permissions:\s*\{\}\s*(?:#.*)?$/mu.test(source))
     add("WORKFLOW_DEFAULT_DENY_REQUIRED", file);
   if (!guardedAutomerge && /^\s*(?:pull_request_target|workflow_run):/mu.test(source))
     add("EVENT_FORBIDDEN", file);
   if (
     !guardedAutomerge &&
+    !guardedMaintenance &&
     /\$\{\{\s*secrets\.|\b(?:GITHUB_TOKEN|GH_TOKEN|AUTHORIZATION)\s*:/iu.test(source)
   )
     add("SECRET_REFERENCE_FORBIDDEN", file);
@@ -247,6 +252,7 @@ function validateGeneric(record, add) {
     if (/\$\{\{/u.test(command)) add("SHELL_EXPRESSION_FORBIDDEN", file);
     if (
       !guardedAutomerge &&
+      !guardedMaintenance &&
       /\b(?:git\s+(?:commit|push)|gh\s+(?:pr|issue|release)\s+(?:create|merge|edit)|auto-?merge)\b/iu.test(
         command,
       )
@@ -260,6 +266,61 @@ function validateGeneric(record, add) {
   validateActions(record, add);
 }
 
+function validateMaintenanceHealth(record, add) {
+  const { source } = record;
+  const jobs = jobBlocks(source);
+  const health = jobs.get("health");
+  const report = jobs.get("report");
+  const healthCommands = health ? runCommands(health) : [];
+  const reportCommands = report ? runCommands(report) : [];
+
+  if (
+    !/^\s*schedule:\s*$/mu.test(source) ||
+    !/^\s*workflow_dispatch:\s*$/mu.test(source) ||
+    /^\s*(?:pull_request|pull_request_target|push|workflow_run):/mu.test(source) ||
+    jobs.size !== 2 ||
+    !health ||
+    !report ||
+    permissionEntries(health).join(",") !== "contents:read" ||
+    permissionEntries(report).join(",") !== "issues:write" ||
+    !/^\s{4}if:\s*always\(\)\s*$/mu.test(report) ||
+    !/^\s{4}needs:\s*health\s*$/mu.test(report) ||
+    /\buses\s*:/iu.test(report) ||
+    reportCommands.length !== 1 ||
+    !reportCommands[0].includes("gh issue list") ||
+    !reportCommands[0].includes("author:app/github-actions") ||
+    !reportCommands[0].includes("gh issue create") ||
+    !reportCommands[0].includes("gh issue edit") ||
+    !reportCommands[0].includes("gh issue close") ||
+    !/^\s{10}GH_REPO:\s*\$\{\{\s*github\.repository\s*\}\}\s*$/mu.test(report) ||
+    !/^\s{10}GH_TOKEN:\s*\$\{\{\s*github\.token\s*\}\}\s*$/mu.test(report) ||
+    !/^\s{10}HEALTH_RESULT:\s*\$\{\{\s*needs\.health\.result\s*\}\}\s*$/mu.test(report) ||
+    /\$\{\{\s*secrets\./iu.test(source)
+  ) {
+    add("MAINTENANCE_HEALTH_INVALID", record.file);
+  }
+
+  const requiredHealthCommands = [
+    "node tools/verify-ci-environment.mjs",
+    "npm ci --ignore-scripts --no-audit --no-fund",
+    "npm audit --audit-level=high",
+    "npm run audit:dependencies",
+    "npm run ci:quality && npm run test:ci-contracts",
+    "npm run build:test-modes && npm run validate:html && npm run validate:routes",
+    "node tools/probe-pages.mjs",
+  ];
+  if (
+    requiredHealthCommands.some((command) => !healthCommands.includes(command)) ||
+    healthCommands.length !== requiredHealthCommands.length ||
+    !/CI_CONTEXT:\s*maintenance\b/u.test(health) ||
+    !/DEPLOYED_PAGE_URL:\s*https:\/\/kleinpanic\.github\.io\/fdm-material-atlas\/\s*$/mu.test(
+      health,
+    )
+  ) {
+    add("MAINTENANCE_HEALTH_INVALID", record.file);
+  }
+}
+
 function validateDependabotAutomerge(record, add) {
   const { source } = record;
   const jobs = jobBlocks(source);
@@ -269,7 +330,9 @@ function validateDependabotAutomerge(record, add) {
       github.actor == 'dependabot[bot]' &&
       github.event.pull_request.user.login == 'dependabot[bot]' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      startsWith(github.event.pull_request.head.ref, 'dependabot/')`;
+      startsWith(github.event.pull_request.head.ref, 'dependabot/') &&
+      (startsWith(github.event.pull_request.head.ref, 'dependabot/npm_and_yarn/npm-minor-patch-') ||
+      startsWith(github.event.pull_request.head.ref, 'dependabot/github_actions/actions-minor-patch-'))`;
   const guarded = job?.includes(exactGuard) && (job.match(/^\s{4}if:/gmu) ?? []).length === 1;
 
   if (
@@ -454,13 +517,18 @@ export function verifyWorkflowContracts(input) {
   for (const record of records) {
     validateGeneric(record, collector.add);
     const jobs = jobBlocks(record.source);
-    if (record.file !== "pages" && record.file !== "dependabot-automerge")
+    if (
+      record.file !== "pages" &&
+      record.file !== "dependabot-automerge" &&
+      record.file !== "maintenance-health"
+    )
       validatePermissions(record, jobs, collector.add);
     if (record.file === "pages") validatePages(record, collector.add);
     else if (record.file === "dependency-review") validateDependencyReview(record, collector.add);
     else if (record.file === "dependabot-automerge")
       validateDependabotAutomerge(record, collector.add);
     else if (record.file === "link-health") validateLinkHealth(record, collector.add);
+    else if (record.file === "maintenance-health") validateMaintenanceHealth(record, collector.add);
   }
   return collector.result();
 }

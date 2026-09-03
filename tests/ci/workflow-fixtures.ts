@@ -146,7 +146,9 @@ jobs:
       github.actor == 'dependabot[bot]' &&
       github.event.pull_request.user.login == 'dependabot[bot]' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      startsWith(github.event.pull_request.head.ref, 'dependabot/')
+      startsWith(github.event.pull_request.head.ref, 'dependabot/') &&
+      (startsWith(github.event.pull_request.head.ref, 'dependabot/npm_and_yarn/npm-minor-patch-') ||
+      startsWith(github.event.pull_request.head.ref, 'dependabot/github_actions/actions-minor-patch-'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -194,6 +196,58 @@ jobs:
 `;
 }
 
+export function safeMaintenanceHealthWorkflow() {
+  return `name: Repository health
+on:
+  schedule:
+    - cron: '43 7 * * 3'
+  workflow_dispatch:
+permissions: {}
+jobs:
+  health:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@${SHAS.checkout} # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@${SHAS.setupNode} # v7.0.0
+        with:
+          node-version: 22.23.1
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: node tools/verify-ci-environment.mjs
+        env:
+          CI_CONTEXT: maintenance
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm audit --audit-level=high
+      - run: npm run audit:dependencies
+      - run: npm run ci:quality && npm run test:ci-contracts
+      - run: npm run build:test-modes && npm run validate:html && npm run validate:routes
+      - run: node tools/probe-pages.mjs
+        env:
+          DEPLOYED_PAGE_URL: https://kleinpanic.github.io/fdm-material-atlas/
+  report:
+    if: always()
+    needs: health
+    permissions:
+      issues: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Maintain one actionable health issue
+        env:
+          GH_REPO: \${{ github.repository }}
+          GH_TOKEN: \${{ github.token }}
+          HEALTH_RESULT: \${{ needs.health.result }}
+        run: |
+          issue_number="$(gh issue list --search 'author:app/github-actions' --json number --jq '.[0].number // empty')"
+          gh issue create --title health --body failure
+          gh issue edit "$issue_number" --body failure
+          gh issue close "$issue_number"
+`;
+}
+
 export function validWorkflowSet() {
   return {
     "ci.yml": safeCiWorkflow(),
@@ -201,5 +255,6 @@ export function validWorkflowSet() {
     "dependency-review.yml": safeDependencyReviewWorkflow(),
     "dependabot-automerge.yml": safeDependabotAutomergeWorkflow(),
     "link-health.yml": safeLinkHealthWorkflow(),
+    "maintenance-health.yml": safeMaintenanceHealthWorkflow(),
   };
 }

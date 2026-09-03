@@ -9,6 +9,7 @@ import {
   safeDependabotAutomergeWorkflow,
   safeDependencyReviewWorkflow,
   safeLinkHealthWorkflow,
+  safeMaintenanceHealthWorkflow,
 } from "./workflow-fixtures.js";
 
 function expectCode(label: string, source: string, code: string) {
@@ -81,8 +82,18 @@ describe("maintenance workflow contracts", () => {
     ],
     [
       "Dependabot branch guard",
-      "startsWith(github.event.pull_request.head.ref, 'dependabot/')",
+      "startsWith(github.event.pull_request.head.ref, 'dependabot/') &&",
       "true",
+    ],
+    [
+      "npm minor/patch allowlist",
+      "startsWith(github.event.pull_request.head.ref, 'dependabot/npm_and_yarn/npm-minor-patch-') ||\n",
+      "",
+    ],
+    [
+      "Actions minor/patch allowlist",
+      "startsWith(github.event.pull_request.head.ref, 'dependabot/github_actions/actions-minor-patch-')",
+      "false",
     ],
     ["protected auto-merge", "--auto --squash", "--squash"],
     ["trusted token context", "github.token", "secrets.GITHUB_TOKEN"],
@@ -113,7 +124,9 @@ describe("maintenance workflow contracts", () => {
       github.actor == 'dependabot[bot]' &&
       github.event.pull_request.user.login == 'dependabot[bot]' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      startsWith(github.event.pull_request.head.ref, 'dependabot/')`,
+      startsWith(github.event.pull_request.head.ref, 'dependabot/') &&
+      (startsWith(github.event.pull_request.head.ref, 'dependabot/npm_and_yarn/npm-minor-patch-') ||
+      startsWith(github.event.pull_request.head.ref, 'dependabot/github_actions/actions-minor-patch-'))`,
     );
     expectCode("dependabot-automerge.yml", unsafe, "DEPENDABOT_AUTOMERGE_INVALID");
   });
@@ -123,6 +136,37 @@ describe("maintenance workflow contracts", () => {
       ok: true,
       issues: [],
     });
+  });
+
+  it("accepts scheduled health checks with a privilege-separated issue reporter", async () => {
+    const production = await readProjectFile(".github/workflows/maintenance-health.yml");
+    expect(verifyWorkflowContracts({ "maintenance-health.yml": production })).toEqual({
+      ok: true,
+      issues: [],
+    });
+    expect(
+      verifyWorkflowContracts({
+        "maintenance-health.yml": safeMaintenanceHealthWorkflow(),
+      }),
+    ).toEqual({ ok: true, issues: [] });
+  });
+
+  it.each([
+    ["pull-request trigger", "  workflow_dispatch:", "  workflow_dispatch:\n  pull_request:"],
+    ["broad health permission", "contents: read", "contents: write"],
+    ["missing always guard", "if: always()", "if: success()"],
+    ["secret token", "github.token", "secrets.GITHUB_TOKEN"],
+    [
+      "report checkout",
+      "      - name: Maintain",
+      `      - uses: actions/checkout@${"0".repeat(40)} # v7.0.1\n      - name: Maintain`,
+    ],
+  ])("rejects maintenance health with %s", (_name, search, replacement) => {
+    expectCode(
+      "maintenance-health.yml",
+      safeMaintenanceHealthWorkflow().replace(search, replacement),
+      "MAINTENANCE_HEALTH_INVALID",
+    );
   });
 
   it("enforces the production public-link policy and bounded diagnostics", async () => {

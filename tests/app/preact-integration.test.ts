@@ -38,8 +38,8 @@ describe("the approved Preact renderer boundary", () => {
   it("keeps both packages inside the closed direct-dependency audit", async () => {
     const auditSource = await readFile("tools/audit-direct-dependencies.mjs", "utf8");
 
-    expect(auditSource).toContain('"@astrojs/preact": {');
-    expect(auditSource).toContain("preact: {");
+    expect(auditSource).toContain('"@astrojs/preact": policy(');
+    expect(auditSource).toContain('preact: policy("dependencies"');
     expect(auditSource).toContain("DIRECT_SET_MISMATCH");
     expect(auditSource).toContain("LOCK_INTEGRITY_MISMATCH");
     expect(auditSource).toContain("REGISTRY_REPOSITORY_MISMATCH");

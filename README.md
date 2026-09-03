@@ -68,6 +68,8 @@ The committed public Atlas is the application’s complete content input. Reposi
 
 Read [Maintaining the Atlas](docs/MAINTAINING.md) before changing the schema, material facts, evidence, selector rules, or release configuration. Data changes use a reviewed pull request and the same deterministic validation path as application changes.
 
+Dependabot groups dependency updates. Minor and patch groups may merge automatically only after all protected checks pass; major upgrades require deliberate review. A weekly least-privilege health workflow audits dependencies, builds both deployment modes, validates routes, probes the live Pages site, and maintains one actionable issue only while attention is required.
+
 ## License status
 
 No license has been selected. Copyright law therefore reserves the rights that are not expressly granted.
