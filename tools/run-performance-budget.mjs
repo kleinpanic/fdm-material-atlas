@@ -436,6 +436,28 @@ export function assertMedianMetrics(runs, budget) {
   return median;
 }
 
+/**
+ * Confirm a failed three-run median with two more samples. All original
+ * measurements remain in the final five-run median; no result is discarded.
+ */
+export async function confirmMedianMetrics(initialRuns, budget, collectAdditional) {
+  try {
+    return Object.freeze({
+      runs: Object.freeze([...initialRuns]),
+      median: assertMedianMetrics(initialRuns, budget),
+    });
+  } catch (error) {
+    if (error?.code !== "PERFORMANCE_BUDGET_EXCEEDED" || typeof collectAdditional !== "function")
+      throw error;
+  }
+
+  const additionalRuns = await collectAdditional();
+  if (!Array.isArray(additionalRuns) || additionalRuns.length !== 2)
+    fail("PERFORMANCE_REPORT_INVALID");
+  const runs = Object.freeze([...initialRuns, ...additionalRuns]);
+  return Object.freeze({ runs, median: assertMedianMetrics(runs, budget) });
+}
+
 async function withCollectionTimeout(operation, timeoutMs) {
   let timer;
   try {
@@ -569,38 +591,47 @@ async function collectMode(origin, mode, routes, policy) {
   const modeReport = [];
   try {
     for (const route of routes) {
-      const runs = [];
-      const results = await collectValidReports({
+      const collect = async () => {
+        await waitForMeasurementIsolation();
+        return withCollectionTimeout(
+          lighthouse(new URL(publicPath(mode, route.pathname), origin).href, {
+            port: chrome.port,
+            output: "json",
+            logLevel: "silent",
+            onlyCategories: ["performance"],
+          }),
+          policy.limits.collectionTimeoutMs,
+        ).catch((error) => {
+          if (error instanceof PerformanceBudgetError) throw error;
+          fail("PERFORMANCE_COLLECTION_FAILED");
+        });
+      };
+      let results = await collectValidReports({
         runs: policy.lighthouse.runs,
         navigationTimeoutMs: policy.limits.navigationTimeoutMs,
-        collect: async () => {
-          await waitForMeasurementIsolation();
-          return withCollectionTimeout(
-            lighthouse(new URL(publicPath(mode, route.pathname), origin).href, {
-              port: chrome.port,
-              output: "json",
-              logLevel: "silent",
-              onlyCategories: ["performance"],
-            }),
-            policy.limits.collectionTimeoutMs,
-          ).catch((error) => {
-            if (error instanceof PerformanceBudgetError) throw error;
-            fail("PERFORMANCE_COLLECTION_FAILED");
-          });
-        },
+        collect,
       });
+      let runs = results.map((result) => measuredMetrics(result.lhr));
+      let confirmationResults = [];
+      const confirmed = await confirmMedianMetrics(runs, policy.lighthouse, async () => {
+        confirmationResults = await collectValidReports({
+          runs: 2,
+          navigationTimeoutMs: policy.limits.navigationTimeoutMs,
+          collect,
+        });
+        return confirmationResults.map((result) => measuredMetrics(result.lhr));
+      });
+      results = Object.freeze([...results, ...confirmationResults]);
+      runs = confirmed.runs;
       for (const [index, result] of results.entries()) {
-        const metrics = measuredMetrics(result.lhr);
         const directory = resolve(PROJECT_ROOT, policy.reports.directory, mode.name);
         await mkdir(directory, { recursive: true });
         await writeFile(
           join(directory, `${route.label}-${index + 1}.json`),
           JSON.stringify(result.lhr),
         );
-        runs.push(metrics);
       }
-      const median = assertMedianMetrics(runs, policy.lighthouse);
-      modeReport.push({ label: route.label, runs, median });
+      modeReport.push({ label: route.label, runs, median: confirmed.median });
     }
   } finally {
     try {

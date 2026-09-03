@@ -104,6 +104,52 @@ describe("bounded performance runner", () => {
     ).toThrowError(expect.objectContaining({ code: "PERFORMANCE_BUDGET_EXCEEDED" }));
   }, 15_000);
 
+  it("confirms a failed median with two additional samples without discarding failures", async () => {
+    const { confirmMedianMetrics } = await import("../../tools/run-performance-budget.mjs");
+    const initial = [metricSet(0.7, 300), metricSet(0.7, 300), metricSet(0.95, 100)];
+    let confirmations = 0;
+
+    const result = await confirmMedianMetrics(initial, budget, async () => {
+      confirmations += 1;
+      return [metricSet(0.95, 100), metricSet(0.95, 100)];
+    });
+
+    expect(confirmations).toBe(1);
+    expect(result.runs).toHaveLength(5);
+    expect(result.runs.slice(0, 3)).toEqual(initial);
+    expect(result.median).toEqual(metricSet(0.95, 100));
+  }, 15_000);
+
+  it("does not collect confirmation samples when the initial median passes", async () => {
+    const { confirmMedianMetrics } = await import("../../tools/run-performance-budget.mjs");
+    let confirmations = 0;
+
+    const result = await confirmMedianMetrics(
+      [metricSet(0.95, 100), metricSet(0.95, 100), metricSet(0.7, 300)],
+      budget,
+      async () => {
+        confirmations += 1;
+        return [];
+      },
+    );
+
+    expect(confirmations).toBe(0);
+    expect(result.runs).toHaveLength(3);
+    expect(result.median).toEqual(metricSet(0.95, 100));
+  }, 15_000);
+
+  it("still fails when the five-sample median exceeds the budget", async () => {
+    const { confirmMedianMetrics } = await import("../../tools/run-performance-budget.mjs");
+
+    await expect(
+      confirmMedianMetrics(
+        [metricSet(0.7, 300), metricSet(0.7, 300), metricSet(0.95, 100)],
+        budget,
+        async () => [metricSet(0.7, 300), metricSet(0.95, 100)],
+      ),
+    ).rejects.toMatchObject({ code: "PERFORMANCE_BUDGET_EXCEEDED" });
+  }, 15_000);
+
   it("excludes only an internally invalid cold capture from the three recorded runs", async () => {
     const { collectValidReports } = await import("../../tools/run-performance-budget.mjs");
     const captures = [
