@@ -49,6 +49,15 @@ describe("performance release policy", () => {
     expect(config.ci.upload.outputDir).toMatch(/^test-results\/performance/u);
     expect(JSON.stringify(config)).not.toContain("temporary-public-storage");
   });
+
+  it("uses deterministic transfer budgets for PR CI and retains full Lighthouse release checks", async () => {
+    const packageJson = JSON.parse(await readFile("package.json", "utf8"));
+    expect(packageJson.scripts["test:performance:ci"]).toContain(
+      "ATLAS_PERFORMANCE_SCOPE=transfer",
+    );
+    expect(packageJson.scripts["test:performance"]).not.toContain("ATLAS_PERFORMANCE_SCOPE");
+    expect(packageJson.scripts["verify:exact-artifact"]).toContain("run-performance-budget.mjs");
+  });
 });
 
 describe("bounded performance runner", () => {

@@ -45,6 +45,7 @@
     "test:browser": "npm run test:e2e",
     "test:accessibility": "ATLAS_TEST_MODE=root playwright test tests/e2e/accessibility.spec.ts tests/e2e/selector-accessibility.spec.ts tests/e2e/materials-accessibility.spec.ts tests/e2e/phase7-accessibility.spec.ts tests/e2e/map-accessibility.spec.ts tests/e2e/release-accessibility.spec.ts && ATLAS_TEST_MODE=repository playwright test tests/e2e/accessibility.spec.ts tests/e2e/selector-accessibility.spec.ts tests/e2e/materials-accessibility.spec.ts tests/e2e/phase7-accessibility.spec.ts tests/e2e/map-accessibility.spec.ts tests/e2e/release-accessibility.spec.ts",
     "test:performance": "node tools/run-performance-budget.mjs",
+    "test:performance:ci": "ATLAS_PERFORMANCE_SCOPE=transfer node tools/run-performance-budget.mjs",
     "verify:exact-artifact": "node tools/verify-build-modes.mjs pages && ATLAS_TEST_MODE=pages node tools/run-performance-budget.mjs",
     "test:probe-pages": "vitest run tests/maintenance/probe-pages.test.ts",
     "test:phase10-smoke": "vitest run tests/release",

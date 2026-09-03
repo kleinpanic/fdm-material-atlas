@@ -235,8 +235,8 @@ jobs:
       - name: Build both deployment modes for performance measurement
         run: npm run build:test-modes
 
-      - name: Run local performance budgets
-        run: npm run test:performance
+      - name: Run deterministic artifact performance budgets
+        run: npm run test:performance:ci
 
       - name: Verify dependency installation did not alter the lockfile
         run: git diff --exit-code -- package-lock.json

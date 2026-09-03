@@ -646,6 +646,8 @@ async function collectMode(origin, mode, routes, policy) {
 
 export async function runPerformanceBudget() {
   const policy = JSON.parse(await readFile(POLICY_PATH, "utf8"));
+  const scope = process.env.ATLAS_PERFORMANCE_SCOPE ?? "full";
+  if (!new Set(["full", "transfer"]).has(scope)) fail("PERFORMANCE_ARGUMENTS_INVALID");
   const configuredModes =
     process.env.ATLAS_TEST_MODE === "pages"
       ? [
@@ -659,6 +661,7 @@ export async function runPerformanceBudget() {
   const modes = [];
   for (const mode of configuredModes) modes.push(await inspectArtifact(mode, policy.limits));
   const transfer = await exactTransfer(policy, modes);
+  if (scope === "transfer") return Object.freeze({ ok: true, transfer, modes: [] });
   const reports = [];
   for (const mode of modes) {
     const server = await createPreviewServer(mode, { productionCompression: true });

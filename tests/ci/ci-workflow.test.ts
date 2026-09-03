@@ -68,7 +68,7 @@ describe("production CI workflow contract", () => {
 
     expect(job("browser")).toContain("npm run test:release-browser");
     expect(job("browser")).toContain("npm run test:accessibility");
-    expect(job("performance")).toContain("npm run test:performance");
+    expect(job("performance")).toContain("npm run test:performance:ci");
 
     for (const command of [
       "npm run ci:quality",
@@ -77,7 +77,7 @@ describe("production CI workflow contract", () => {
       "npm run validate:routes",
       "npm run test:release-browser",
       "npm run test:accessibility",
-      "npm run test:performance",
+      "npm run test:performance:ci",
     ]) {
       expect(workflow.split(command)).toHaveLength(2);
     }
