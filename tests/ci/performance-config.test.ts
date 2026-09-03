@@ -159,6 +159,33 @@ describe("bounded performance runner", () => {
     ).rejects.toMatchObject({ code: "PERFORMANCE_BUDGET_EXCEEDED" });
   }, 15_000);
 
+  it("rejects an invalid confirmation sample collection with a stable code", async () => {
+    const { confirmMedianMetrics } = await import("../../tools/run-performance-budget.mjs");
+
+    await expect(
+      confirmMedianMetrics(undefined as never, budget, async () => []),
+    ).rejects.toMatchObject({ code: "PERFORMANCE_ARGUMENTS_INVALID" });
+  }, 15_000);
+
+  it("persists Lighthouse evidence before either median assertion can fail", async () => {
+    const source = await readFile("tools/run-performance-budget.mjs", "utf8");
+    const collectMode = source.slice(
+      source.indexOf("async function collectMode"),
+      source.indexOf("export async function runPerformanceBudget"),
+    );
+    const initialWrite = collectMode.indexOf(
+      "writeLighthouseReports(results, policy.reports.directory, mode, route)",
+    );
+    const confirmation = collectMode.indexOf("confirmMedianMetrics");
+    const confirmationWrite = collectMode.indexOf("writeLighthouseReports(", initialWrite + 1);
+    const confirmationReturn = collectMode.indexOf("return confirmationResults.map");
+
+    expect(initialWrite).toBeGreaterThanOrEqual(0);
+    expect(initialWrite).toBeLessThan(confirmation);
+    expect(confirmationWrite).toBeGreaterThan(confirmation);
+    expect(confirmationWrite).toBeLessThan(confirmationReturn);
+  });
+
   it("excludes only an internally invalid cold capture from the three recorded runs", async () => {
     const { collectValidReports } = await import("../../tools/run-performance-budget.mjs");
     const captures = [

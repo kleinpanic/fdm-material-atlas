@@ -441,6 +441,12 @@ export function assertMedianMetrics(runs, budget) {
  * measurements remain in the final five-run median; no result is discarded.
  */
 export async function confirmMedianMetrics(initialRuns, budget, collectAdditional) {
+  if (
+    !Array.isArray(initialRuns) ||
+    initialRuns.length !== 3 ||
+    typeof collectAdditional !== "function"
+  )
+    fail("PERFORMANCE_ARGUMENTS_INVALID");
   try {
     return Object.freeze({
       runs: Object.freeze([...initialRuns]),
@@ -456,6 +462,17 @@ export async function confirmMedianMetrics(initialRuns, budget, collectAdditiona
     fail("PERFORMANCE_REPORT_INVALID");
   const runs = Object.freeze([...initialRuns, ...additionalRuns]);
   return Object.freeze({ runs, median: assertMedianMetrics(runs, budget) });
+}
+
+async function writeLighthouseReports(results, reportsDirectory, mode, route, startIndex = 0) {
+  const directory = resolve(PROJECT_ROOT, reportsDirectory, mode.name);
+  await mkdir(directory, { recursive: true });
+  for (const [index, result] of results.entries()) {
+    await writeFile(
+      join(directory, `${route.label}-${startIndex + index + 1}.json`),
+      JSON.stringify(result.lhr),
+    );
+  }
 }
 
 async function withCollectionTimeout(operation, timeoutMs) {
@@ -611,6 +628,7 @@ async function collectMode(origin, mode, routes, policy) {
         navigationTimeoutMs: policy.limits.navigationTimeoutMs,
         collect,
       });
+      await writeLighthouseReports(results, policy.reports.directory, mode, route);
       let runs = results.map((result) => measuredMetrics(result.lhr));
       let confirmationResults = [];
       const confirmed = await confirmMedianMetrics(runs, policy.lighthouse, async () => {
@@ -619,18 +637,16 @@ async function collectMode(origin, mode, routes, policy) {
           navigationTimeoutMs: policy.limits.navigationTimeoutMs,
           collect,
         });
+        await writeLighthouseReports(
+          confirmationResults,
+          policy.reports.directory,
+          mode,
+          route,
+          results.length,
+        );
         return confirmationResults.map((result) => measuredMetrics(result.lhr));
       });
-      results = Object.freeze([...results, ...confirmationResults]);
       runs = confirmed.runs;
-      for (const [index, result] of results.entries()) {
-        const directory = resolve(PROJECT_ROOT, policy.reports.directory, mode.name);
-        await mkdir(directory, { recursive: true });
-        await writeFile(
-          join(directory, `${route.label}-${index + 1}.json`),
-          JSON.stringify(result.lhr),
-        );
-      }
       modeReport.push({ label: route.label, runs, median: confirmed.median });
     }
   } finally {
