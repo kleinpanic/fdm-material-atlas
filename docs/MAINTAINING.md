@@ -96,6 +96,18 @@ npm run test:probe-pages
 
 The pull-request reviewer must inspect the public-data diff, evidence scope, external links, selector effects, generated route effects, and test results. Release configuration changes also require review of workflow permissions and publication checks.
 
+## Automated maintenance
+
+Routine maintenance is designed to need attention only when an automated check finds a real problem.
+
+- Dependabot groups npm and GitHub Actions updates. Only minor and patch groups can enter the automatic merge workflow. Major updates remain open for deliberate review.
+- Automatic merge is limited to Dependabot-authored branches in this repository and still requires every protected-branch check to pass. It cannot bypass branch protection.
+- Dependency installs disable lifecycle scripts. `npm run audit:dependencies` checks a closed allowlist, exact manifest and lockfile versions, registry origin, SHA-512 integrity, package repository, package directory, and lifecycle-script behavior against current registry metadata.
+- The weekly repository-health workflow performs a clean install, vulnerability and dependency-policy audits, quality checks, both deployment-mode builds, route validation, and a live Pages probe.
+- A failed weekly health run opens or updates one GitHub Actions-authored issue. A later successful run closes that issue. The reporting job has issue-only write permission and never checks out repository code.
+
+If a maintenance issue opens, use its linked workflow run as the starting point. Do not weaken a check to make the issue disappear. Fix the failing dependency, source link, test, build, or deployment condition through a normal pull request.
+
 ## Recovery
 
 Use Git revert for a released commit when a clean inverse change restores valid data and behavior. For a schema migration, reference change, or later dependent edit that cannot be reversed safely, make a forward fix with its own validation, diff summary, tests, and pull request.

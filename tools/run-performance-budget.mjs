@@ -603,7 +603,12 @@ async function collectMode(origin, mode, routes, policy) {
       modeReport.push({ label: route.label, runs, median });
     }
   } finally {
-    await chrome.kill().catch(() => undefined);
+    try {
+      await chrome.kill();
+    } catch {
+      // Collection results remain authoritative when teardown has already
+      // closed the browser process.
+    }
   }
   return modeReport;
 }
