@@ -134,6 +134,32 @@ jobs:
 `;
 }
 
+export function safeDependabotAutomergeWorkflow() {
+  return `name: Dependabot auto-merge
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions: {}
+jobs:
+  dependabot-automerge:
+    if: >-
+      github.actor == 'dependabot[bot]' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'dependabot/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Queue protected squash merge
+        env:
+          GH_TOKEN: \${{ github.token }}
+          PR_URL: \${{ github.event.pull_request.html_url }}
+        run: gh pr merge "$PR_URL" --auto --squash
+`;
+}
+
 export function safeLinkHealthWorkflow() {
   return `name: Public link health
 on:
@@ -173,6 +199,7 @@ export function validWorkflowSet() {
     "ci.yml": safeCiWorkflow(),
     "pages.yml": safePagesWorkflow(),
     "dependency-review.yml": safeDependencyReviewWorkflow(),
+    "dependabot-automerge.yml": safeDependabotAutomergeWorkflow(),
     "link-health.yml": safeLinkHealthWorkflow(),
   };
 }

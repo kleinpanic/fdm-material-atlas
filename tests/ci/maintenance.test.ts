@@ -6,6 +6,7 @@ import { verifyWorkflowContracts } from "../../tools/verify-workflow-contracts.m
 import {
   LYCHEE_SHA256,
   LYCHEE_URL,
+  safeDependabotAutomergeWorkflow,
   safeDependencyReviewWorkflow,
   safeLinkHealthWorkflow,
 } from "./workflow-fixtures.js";
@@ -60,6 +61,61 @@ describe("maintenance workflow contracts", () => {
       ),
       "DEPENDENCY_REVIEW_INVALID",
     );
+  });
+
+  it("accepts only guarded Dependabot auto-merge behind protected checks", () => {
+    expect(
+      verifyWorkflowContracts({
+        "dependabot-automerge.yml": safeDependabotAutomergeWorkflow(),
+      }),
+    ).toEqual({ ok: true, issues: [] });
+  });
+
+  it.each([
+    ["actor guard", "github.actor == 'dependabot[bot]' &&\n", ""],
+    ["author guard", "github.event.pull_request.user.login == 'dependabot[bot]' &&\n", ""],
+    [
+      "same-repository guard",
+      "github.event.pull_request.head.repo.full_name == github.repository &&\n",
+      "",
+    ],
+    [
+      "Dependabot branch guard",
+      "startsWith(github.event.pull_request.head.ref, 'dependabot/')",
+      "true",
+    ],
+    ["protected auto-merge", "--auto --squash", "--squash"],
+    ["trusted token context", "github.token", "secrets.GITHUB_TOKEN"],
+  ])("rejects Dependabot auto-merge without %s", (_name, search, replacement) => {
+    expectCode(
+      "dependabot-automerge.yml",
+      safeDependabotAutomergeWorkflow().replace(search, replacement),
+      "DEPENDABOT_AUTOMERGE_INVALID",
+    );
+  });
+
+  it("rejects execution of pull-request code in the privileged Dependabot workflow", () => {
+    expectCode(
+      "dependabot-automerge.yml",
+      safeDependabotAutomergeWorkflow().replace(
+        "      - name: Queue protected squash merge",
+        "      - uses: actions/checkout@0123456789012345678901234567890123456789\n      - name: Queue protected squash merge",
+      ),
+      "DEPENDABOT_AUTOMERGE_INVALID",
+    );
+  });
+
+  it("rejects guard text moved outside the job condition", () => {
+    const unsafe = safeDependabotAutomergeWorkflow().replace(
+      /    if: >-\n(?:      .*\n){3}      startsWith\([^\n]+\)/u,
+      `    if: true
+    name: >-
+      github.actor == 'dependabot[bot]' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'dependabot/')`,
+    );
+    expectCode("dependabot-automerge.yml", unsafe, "DEPENDABOT_AUTOMERGE_INVALID");
   });
 
   it("accepts a checksum-verified, token-free, non-blocking Lychee run", () => {
