@@ -19,12 +19,14 @@ function clone<T>(value: T): T {
 }
 
 function expectAuditCode(action: () => unknown, code: string) {
-  expect(action).toThrowError(AuditFailure);
+  let thrown: unknown;
   try {
     action();
   } catch (error) {
-    expect((error as AuditFailure).code).toBe(code);
+    thrown = error;
   }
+  expect(thrown).toBeInstanceOf(AuditFailure);
+  expect((thrown as AuditFailure).code).toBe(code);
 }
 
 describe("durable direct-dependency policy", () => {

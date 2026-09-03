@@ -155,6 +155,11 @@ describe("maintenance workflow contracts", () => {
     ["pull-request trigger", "  workflow_dispatch:", "  workflow_dispatch:\n  pull_request:"],
     ["broad health permission", "contents: read", "contents: write"],
     ["missing always guard", "if: always()", "if: success()"],
+    [
+      "ungated issue mutation",
+      'if [ "$HEALTH_RESULT" = "success" ]; then',
+      'if [ "failure" = "success" ]; then',
+    ],
     ["secret token", "github.token", "secrets.GITHUB_TOKEN"],
     [
       "report checkout",

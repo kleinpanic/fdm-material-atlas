@@ -242,9 +242,17 @@ jobs:
           HEALTH_RESULT: \${{ needs.health.result }}
         run: |
           issue_number="$(gh issue list --search 'author:app/github-actions' --json number --jq '.[0].number // empty')"
-          gh issue create --title health --body failure
-          gh issue edit "$issue_number" --body failure
-          gh issue close "$issue_number"
+          if [ "$HEALTH_RESULT" = "success" ]; then
+            if [ -n "$issue_number" ]; then
+              gh issue close "$issue_number"
+            fi
+          else
+            if [ -n "$issue_number" ]; then
+              gh issue edit "$issue_number" --body failure
+            else
+              gh issue create --title health --body failure
+            fi
+          fi
 `;
 }
 

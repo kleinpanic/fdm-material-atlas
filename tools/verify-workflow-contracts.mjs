@@ -292,6 +292,9 @@ function validateMaintenanceHealth(record, add) {
     !reportCommands[0].includes("gh issue create") ||
     !reportCommands[0].includes("gh issue edit") ||
     !reportCommands[0].includes("gh issue close") ||
+    !/if \[ "\$HEALTH_RESULT" = "success" \]; then[\s\S]*gh issue close[\s\S]*else[\s\S]*gh issue (?:edit|create)[\s\S]*fi/u.test(
+      reportCommands[0],
+    ) ||
     !/^\s{10}GH_REPO:\s*\$\{\{\s*github\.repository\s*\}\}\s*$/mu.test(report) ||
     !/^\s{10}GH_TOKEN:\s*\$\{\{\s*github\.token\s*\}\}\s*$/mu.test(report) ||
     !/^\s{10}HEALTH_RESULT:\s*\$\{\{\s*needs\.health\.result\s*\}\}\s*$/mu.test(report) ||
