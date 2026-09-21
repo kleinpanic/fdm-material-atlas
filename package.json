@@ -56,29 +56,29 @@
     "ci:all": "npm run audit:dependencies && npm run ci:quality && npm run test:ci-contracts && npm run build:test-modes && npm run validate:html && npm run validate:routes && npm run test:browser && npm run test:accessibility && npm run test:performance && npm run test:probe-pages"
   },
   "dependencies": {
-    "@astrojs/preact": "6.0.4",
+    "@astrojs/preact": "6.0.5",
     "@fontsource-variable/ibm-plex-sans": "5.3.0",
     "@fontsource/ibm-plex-mono": "5.3.0",
     "@tailwindcss/vite": "4.3.3",
-    "astro": "7.2.9",
+    "astro": "7.3.2",
     "preact": "10.29.8",
     "tailwindcss": "4.3.3",
-    "zod": "4.5.4"
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@astrojs/check": "0.9.10",
     "@axe-core/playwright": "4.13.0",
-    "@playwright/test": "1.62.1",
+    "@playwright/test": "1.63.0",
     "@types/node": "22.20.1",
     "chrome-launcher": "1.2.1",
-    "eslint": "10.9.1",
+    "eslint": "10.10.0",
     "eslint-plugin-astro": "3.1.0",
-    "html-validate": "11.10.0",
+    "html-validate": "11.15.0",
     "lighthouse": "13.4.1",
-    "prettier": "3.9.6",
+    "prettier": "3.9.8",
     "prettier-plugin-astro": "0.14.1",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.68.0",
+    "typescript-eslint": "8.70.0",
     "vitest": "4.1.11"
   }
 }
