@@ -1,5 +1,7 @@
 import type { AtlasFilterDefinition, AtlasPageModel, AtlasRow } from "./model.ts";
 
+export const ATLAS_SEARCH_MAX_LENGTH = 500;
+
 export type AtlasFilterState = Readonly<{
   search: string;
   selections: Readonly<Record<string, string | undefined>>;
@@ -46,7 +48,7 @@ type ActiveDefinition = Readonly<{
 export function filterAtlas(model: AtlasPageModel, state: AtlasFilterState): AtlasFilterResult {
   if (
     typeof state.search !== "string" ||
-    state.search.length > 500 ||
+    state.search.length > ATLAS_SEARCH_MAX_LENGTH ||
     typeof state.selections !== "object" ||
     state.selections === null
   )
