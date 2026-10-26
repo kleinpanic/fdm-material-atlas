@@ -112,6 +112,19 @@ describe("data explorer transform", () => {
     ]);
   });
 
+  it("returns the typed query verbatim so incremental input keeps spaces and case", () => {
+    const name = model.materials.find((material) => material.name.includes(" "))!.name;
+    let query = "";
+    for (const character of name) {
+      query = exploreData(model, { ...defaultExplorerState(model), query: query + character }).state
+        .query;
+    }
+    expect(query).toBe(name);
+
+    const result = exploreData(model, { ...defaultExplorerState(model), query: ` ${name} ` });
+    expect(result.resultCount).toBeGreaterThan(0);
+  });
+
   it("filters by exact thermal compatibility group and narrows only thermal member lists", () => {
     const metric = model.thermalMetrics[0]!;
     const result = exploreData(model, withState({ thermalMetric: metric.id }));
