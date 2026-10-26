@@ -99,7 +99,7 @@ function credentialPatterns() {
     /authorization\s*:\s*bearer\s+[0-9A-Za-z._~+/-]{16,}={0,2}/gi,
     /AKIA[A-Z0-9]{16}/g,
     /(?:api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password)["']?\s*[:=]\s*["']?[A-Za-z0-9_./+=-]{16,}/gi,
-    /(?:cookie|session(?:_?token|_?id)?)\s*[:=]\s*["']?[^\s"';]{16,}/gi,
+    /(?:cookie|session(?:_?token|_?id)?)["']?\s*[:=]\s*["']?[^\s"';]{16,}/gi,
     new RegExp(["-----BEGIN ", "(?:[A-Z0-9]+ )*", "PRIVATE KEY", "-----"].join(""), "g"),
   ];
 }

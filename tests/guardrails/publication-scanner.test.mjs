@@ -540,6 +540,8 @@ test("quoted JSON and YAML credential keys are detected", async () => {
     `{"api_key": "${"J".repeat(20)}"}`,
     `{"password":"${"K".repeat(20)}"}`,
     `'client_secret': '${"L".repeat(20)}'`,
+    `{"session_token": "${"M".repeat(20)}"}`,
+    `{"cookie":"${"N".repeat(20)}"}`,
   ]) {
     const findings = scanBytes(Buffer.from(value), {
       policy,
