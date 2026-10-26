@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   inspectArchiveEntries,
+  parseTreeBlobRecord,
   remoteCommandEnvironment,
   verifyRemoteSnapshot,
 } from "../../tools/verify-remote-release.mjs";
@@ -228,5 +229,16 @@ describe("remote command environment", () => {
     });
     expect(environment).not.toHaveProperty("GH_TOKEN");
     expect(environment).not.toHaveProperty("GITHUB_TOKEN");
+  });
+});
+
+describe("remote tree record parsing", () => {
+  it("keeps blob paths that contain a newline so they are still scanned", () => {
+    const objectId = sha("a");
+    expect(parseTreeBlobRecord(`100644 blob ${objectId}\tdocs/a\nb.txt`)).toEqual({
+      objectId,
+      name: "docs/a\nb.txt",
+    });
+    expect(parseTreeBlobRecord(`160000 commit ${objectId}\tvendor/module`)).toBeNull();
   });
 });
