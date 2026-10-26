@@ -532,6 +532,29 @@ test("current GitHub, Google, session, and encrypted-key credential shapes are d
   }
 });
 
+test("quoted JSON and YAML credential keys are detected", async () => {
+  const { loadPublicationPolicy, scanBytes } = await loadInterfaces();
+  const root = createRepository();
+  const policy = await loadPublicationPolicy({ root, env: {} });
+  for (const value of [
+    `{"api_key": "${"J".repeat(20)}"}`,
+    `{"password":"${"K".repeat(20)}"}`,
+    `'client_secret': '${"L".repeat(20)}'`,
+  ]) {
+    const findings = scanBytes(Buffer.from(value), {
+      policy,
+      surface: "working",
+      location: Buffer.from("synthetic-fixture"),
+      objectType: "file",
+    });
+    assert.ok(
+      findings.some(({ ruleId }) => ruleId === "credential-signature"),
+      value.slice(0, 8),
+    );
+    assertRedacted({ findings }, [value]);
+  }
+});
+
 test("OAuth bearer, Google client-secret, and DSA key shapes fail stored publication surfaces", async () => {
   const { loadPublicationPolicy, scanPublication } = await loadInterfaces();
   const root = createRepository();
