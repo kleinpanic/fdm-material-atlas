@@ -53,6 +53,8 @@ export type ExplorerFailure = Readonly<{
   resultCount: 0;
 }>;
 
+export const EXPLORER_QUERY_MAX_LENGTH = 500;
+
 type ExplorerStateErrorCode = "EXPLORER_STATE_INVALID" | "EXPLORER_MODEL_INVALID";
 
 function fail(code: ExplorerStateErrorCode): never {
@@ -114,7 +116,8 @@ function validateState(model: DataExplorerModel, input: unknown): ExplorerState 
   ) {
     fail("EXPLORER_STATE_INVALID");
   }
-  if (typeof state.query !== "string" || state.query.length > 500) fail("EXPLORER_STATE_INVALID");
+  if (typeof state.query !== "string" || state.query.length > EXPLORER_QUERY_MAX_LENGTH)
+    fail("EXPLORER_STATE_INVALID");
   const group =
     model.groups.find(({ key }) => key === state.group) ?? fail("EXPLORER_STATE_INVALID");
   if (

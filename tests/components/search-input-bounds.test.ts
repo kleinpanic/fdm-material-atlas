@@ -16,6 +16,12 @@ describe("search input bounds", () => {
     expect(source).toContain("event.currentTarget.value.slice(0, ATLAS_SEARCH_MAX_LENGTH)");
   });
 
+  it("caps data explorer search input at the state limit so long input cannot reset filters", () => {
+    const source = readFileSync("src/components/data-explorer/DataControls.tsx", "utf8");
+    expect(source).toMatch(/type="search"\s+maxLength=\{EXPLORER_QUERY_MAX_LENGTH\}/u);
+    expect(source).toContain("value.slice(0, EXPLORER_QUERY_MAX_LENGTH)");
+  });
+
   it("caps both map search inputs at the map query limit", () => {
     for (const file of ["ThermalGuidance.tsx", "ImpactFlexMatrix.tsx"]) {
       const source = readFileSync(`src/components/map/${file}`, "utf8");

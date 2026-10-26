@@ -5,7 +5,11 @@ import {
   EVIDENCE_SCOPE_PRESENTATION,
   FACT_STATE_PRESENTATION,
 } from "../../lib/presentation/labels.ts";
-import type { ExplorerState, ExplorerSortableField } from "../../features/data-explorer/explore.ts";
+import {
+  EXPLORER_QUERY_MAX_LENGTH,
+  type ExplorerState,
+  type ExplorerSortableField,
+} from "../../features/data-explorer/explore.ts";
 import type { DataExplorerModel } from "../../features/data-explorer/model.ts";
 
 export const FACT_STATE_OPTIONS = [
@@ -54,7 +58,7 @@ export function DataControls({ model, state, onChange, onInvalid, onClear }: Pro
     }));
   };
   const updateQuery = (value: string) => {
-    onChange((current) => ({ ...current, query: value }));
+    onChange((current) => ({ ...current, query: value.slice(0, EXPLORER_QUERY_MAX_LENGTH) }));
   };
   const updateMetric = (value: string) => {
     if (value !== "all" && !model.thermalMetrics.some(({ id }) => id === value)) return onInvalid();
@@ -88,6 +92,7 @@ export function DataControls({ model, state, onChange, onInvalid, onClear }: Pro
         <span>Search materials and visible values</span>
         <input
           type="search"
+          maxLength={EXPLORER_QUERY_MAX_LENGTH}
           value={state.query}
           onInput={(event: JSX.TargetedEvent<HTMLInputElement>) =>
             updateQuery(event.currentTarget.value)
