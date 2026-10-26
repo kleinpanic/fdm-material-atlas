@@ -125,6 +125,7 @@ export function ImpactFlexMatrix({ view, dispatch, evidenceHref }: Props) {
           <span>Find a material in the impact-flex view</span>
           <input
             type="search"
+            maxLength={120}
             value={model.query ?? ""}
             onInput={(event: JSX.TargetedEvent<HTMLInputElement>) =>
               dispatch({

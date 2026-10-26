@@ -141,6 +141,7 @@ function ThermalControls({
         <input
           type="search"
           aria-label="Find a material in this thermal view"
+          maxLength={120}
           value={thermal.query}
           onInput={(event: JSX.TargetedInputEvent<HTMLInputElement>) =>
             dispatch({
