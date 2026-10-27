@@ -232,6 +232,11 @@ function fixedAnnouncement(message: string): string {
   return message.length <= 120 ? message : "Map view updated.";
 }
 
+/** Clip over-long search text instead of discarding every map selection. */
+function boundedQuery(query: string): string {
+  return query.slice(0, MAX_QUERY_LENGTH).normalize("NFC");
+}
+
 type MapStatePatch = Partial<{ [Key in keyof MapState]: MapState[Key] | undefined }>;
 
 function update(state: MapState, patch: MapStatePatch, announcement: string): MapState {
@@ -454,13 +459,12 @@ export function reduceMapState(
         ? update(state, { hoverPreview: undefined }, state.announcement)
         : state;
     case "set-search":
-      if (typeof action.query !== "string" || action.query.length > MAX_QUERY_LENGTH)
-        return recoverMapState(state);
+      if (typeof action.query !== "string") return recoverMapState(state);
       if (action.target === "thermal") {
         return update(
           state,
           {
-            thermal: { ...state.thermal, query: action.query.normalize("NFC") },
+            thermal: { ...state.thermal, query: boundedQuery(action.query) },
           },
           "Thermal filter updated.",
         );
@@ -469,7 +473,7 @@ export function reduceMapState(
         return update(
           state,
           {
-            impactFlex: { ...state.impactFlex, query: action.query.normalize("NFC") },
+            impactFlex: { ...state.impactFlex, query: boundedQuery(action.query) },
           },
           "Impact and flexibility filter updated.",
         );

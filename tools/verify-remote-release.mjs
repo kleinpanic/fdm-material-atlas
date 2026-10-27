@@ -251,6 +251,12 @@ async function inspectZip(path, policy) {
   return inspectArchiveEntries(entries, policy);
 }
 
+/** Parse one `ls-tree -z` record; names may contain any byte except NUL, including LF. */
+export function parseTreeBlobRecord(raw) {
+  const match = raw.match(/^[0-7]{6} blob ([a-f0-9]{40})\t([\s\S]+)$/u);
+  return match ? { objectId: match[1], name: match[2] } : null;
+}
+
 async function scanMirrorObjects(directory, commits, protectedPolicy) {
   const policy = await loadPublicationPolicy({
     root: directory,
@@ -276,9 +282,9 @@ async function scanMirrorObjects(directory, commits, protectedPolicy) {
       })
     ).stdout;
     for (const raw of records.subarray(0, -1).toString("utf8").split("\0")) {
-      const match = raw.match(/^[0-7]{6} blob ([a-f0-9]{40})\t(.+)$/u);
-      if (!match) continue;
-      const [, objectId, name] = match;
+      const blob = parseTreeBlobRecord(raw);
+      if (blob === null) continue;
+      const { objectId, name } = blob;
       findingCount += scanPath(Buffer.from(name), {
         policy,
         surface: "remote-history",

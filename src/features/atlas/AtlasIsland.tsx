@@ -2,7 +2,7 @@
 import type { JSX } from "preact";
 import { useEffect, useMemo, useState } from "preact/hooks";
 
-import { filterAtlas, type AtlasFilterState } from "./filter.ts";
+import { ATLAS_SEARCH_MAX_LENGTH, filterAtlas, type AtlasFilterState } from "./filter.ts";
 import type { AtlasFact, AtlasPageModel, AtlasRow } from "./model.ts";
 
 type Props = Readonly<{ pageModel: AtlasPageModel }>;
@@ -121,10 +121,14 @@ export function AtlasIsland({ pageModel }: Props) {
         <input
           id="atlas-search"
           type="search"
+          maxLength={ATLAS_SEARCH_MAX_LENGTH}
           value={filterState.search}
           disabled={!hydrated}
           onInput={(event: JSX.TargetedEvent<HTMLInputElement>) =>
-            setFilterState((current) => ({ ...current, search: event.currentTarget.value }))
+            setFilterState((current) => ({
+              ...current,
+              search: event.currentTarget.value.slice(0, ATLAS_SEARCH_MAX_LENGTH),
+            }))
           }
         />
         <fieldset>

@@ -53,6 +53,8 @@ export type ExplorerFailure = Readonly<{
   resultCount: 0;
 }>;
 
+export const EXPLORER_QUERY_MAX_LENGTH = 500;
+
 type ExplorerStateErrorCode = "EXPLORER_STATE_INVALID" | "EXPLORER_MODEL_INVALID";
 
 function fail(code: ExplorerStateErrorCode): never {
@@ -114,7 +116,8 @@ function validateState(model: DataExplorerModel, input: unknown): ExplorerState 
   ) {
     fail("EXPLORER_STATE_INVALID");
   }
-  if (typeof state.query !== "string" || state.query.length > 500) fail("EXPLORER_STATE_INVALID");
+  if (typeof state.query !== "string" || state.query.length > EXPLORER_QUERY_MAX_LENGTH)
+    fail("EXPLORER_STATE_INVALID");
   const group =
     model.groups.find(({ key }) => key === state.group) ?? fail("EXPLORER_STATE_INVALID");
   if (
@@ -151,7 +154,7 @@ function validateState(model: DataExplorerModel, input: unknown): ExplorerState 
   if (field === undefined || !group.fieldKeys.includes(field.key) || field.sort === "none")
     fail("EXPLORER_STATE_INVALID");
   return {
-    query: normalizeSearch(state.query.trim()),
+    query: state.query,
     group: group.key,
     thermalMetric: state.thermalMetric as ExplorerState["thermalMetric"],
     factState: state.factState as ExplorerState["factState"],
@@ -239,6 +242,7 @@ function compareRows(
 /** Apply the closed explorer state without interpreting canonical material facts. */
 export function exploreData(model: DataExplorerModel, input: unknown): ExplorerSuccess {
   const state = validateState(model, input);
+  const needle = normalizeSearch(state.query.trim());
   const group =
     model.groups.find(({ key }) => key === state.group) ?? fail("EXPLORER_MODEL_INVALID");
   const fields = group.fieldKeys.map(
@@ -261,7 +265,7 @@ export function exploreData(model: DataExplorerModel, input: unknown): ExplorerS
           cell.kind === "thermal" ? narrowThermal(cell, state.thermalMetric) : cell,
         );
       }
-      if (state.query !== "") {
+      if (needle !== "") {
         const searchable = [
           material.name,
           material.family,
@@ -269,7 +273,7 @@ export function exploreData(model: DataExplorerModel, input: unknown): ExplorerS
         ]
           .map(normalizeSearch)
           .join("\u0000");
-        if (!searchable.includes(state.query)) return [];
+        if (!searchable.includes(needle)) return [];
       }
       if (
         state.factState !== "all" &&

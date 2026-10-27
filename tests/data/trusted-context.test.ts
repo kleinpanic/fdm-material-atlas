@@ -112,6 +112,19 @@ describe("trusted external context preflight", () => {
     expect(`${linked.stdout}${linked.stderr}`).not.toContain(link);
   });
 
+  it("rejects repository entries whose names merely begin with two dots", async () => {
+    const inside = join(repositoryRoot, "..synthetic-preflight-directory");
+    await mkdir(inside, { recursive: true });
+    temporaryPaths.push(inside);
+
+    const result = run("--audit", inside);
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stderr)).toEqual({
+      ok: false,
+      code: "TRUSTED_INPUT_INSIDE_REPOSITORY",
+    });
+  });
+
   it("reports unreadable inputs with one redacted stable code", async () => {
     const directory = await temporaryDirectory();
     const missing = join(directory, "missing");

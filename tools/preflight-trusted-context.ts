@@ -1,6 +1,6 @@
 import { constants } from "node:fs";
 import { access, lstat, realpath } from "node:fs/promises";
-import { isAbsolute, relative, resolve } from "node:path";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 
 type Mode = "audit" | "publication";
 type IssueCode =
@@ -31,7 +31,10 @@ function fail(code: IssueCode): number {
 
 function isWithin(root: string, candidate: string): boolean {
   const pathFromRoot = relative(root, candidate);
-  return pathFromRoot === "" || (!pathFromRoot.startsWith("..") && !isAbsolute(pathFromRoot));
+  return (
+    pathFromRoot === "" ||
+    (pathFromRoot !== ".." && !pathFromRoot.startsWith(`..${sep}`) && !isAbsolute(pathFromRoot))
+  );
 }
 
 async function validate(modeArgument: string | undefined): Promise<number> {

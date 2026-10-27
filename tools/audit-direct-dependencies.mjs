@@ -98,7 +98,7 @@ const DIRECT_DEPENDENCIES = Object.freeze({
   ),
   vitest: policy("devDependencies", "https://github.com/vitest-dev/vitest", "packages/vitest"),
   zod: policy("dependencies", "https://github.com/colinhacks/zod", null, {
-    prepublishOnly: "tsx ../../scripts/check-versions.ts",
+    prepublishOnly: "nub ../../scripts/check-versions.ts",
   }),
 });
 

@@ -206,6 +206,18 @@ describe("closed map state", () => {
     });
   });
 
+  it("clips an over-long search query without discarding existing selections", () => {
+    const state = run([
+      { type: "select-lane", mode: "process-gates", laneId: lane.id },
+      { type: "set-search", target: "thermal", query: "x".repeat(121) },
+      { type: "set-search", target: "impact-flex", query: "y".repeat(240) },
+    ]);
+    expect(state.processGates).toEqual({ laneId: lane.id });
+    expect(state.thermal.query).toBe("x".repeat(120));
+    expect(state.impactFlex.query).toBe("y".repeat(120));
+    expect(state.recovery).toBeUndefined();
+  });
+
   it("clears stale state and filters with fixed recovery when an event ID is invalid", () => {
     const selected = run([
       { type: "select-lane", mode: "decision-paths", laneId: lane.id },
